@@ -1,0 +1,135 @@
+/* Base styles for the calendar */
+.react-calendar {
+    background-color: #e0f7fa; /* Light mode background */
+    color: var(--foreground);
+    width: 100%; /* Ensure full width */
+    max-width: 800px; /* Set max width */
+    height: auto; /* Allow height to adjust dynamically */
+    margin: 0 auto; /* Center the calendar */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add shadow */
+    border-radius: 8px; /* Add rounded corners */
+    padding: 10px; /* Add padding */
+  }
+  
+  /* Adjust font size for days of the week and numbers */
+  .react-calendar__month-view__weekdays,
+  .react-calendar__tile {
+    font-size: 1rem; /* Default font size */
+    min-height: 40px; /* Default tile size */
+  }
+  .react-calendar__navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Change title section color and increase font size */
+  .react-calendar__navigation button {
+    color: var(--primary);
+    background-color: var(--secondary);
+    font-size: 1.25rem; /* Default font size */
+  }
+  
+  /* Increase size and spacing of chevrons */
+  .react-calendar__navigation button svg {
+    width: 1.5rem; /* Default size */
+    height: 1.5rem; /* Default size */
+  }
+  
+  .react-calendar__navigation button:first-child {
+    margin-right: 3rem; /* Move the left chevron farther from the month */
+  }
+  
+  .react-calendar__navigation button:last-child {
+    margin-left: 3rem; /* Move the right chevron farther from the month */
+  }
+  
+  /* Adjust background color for light mode */
+  .react-calendar__tile {
+    background-color: #ffffff; /* Light mode tile background */
+    color: var(--foreground);
+    width: auto; /* Allow width to adjust dynamically */
+    height: auto; /* Allow height to adjust dynamically */
+    padding: 10px; /* Add padding to tiles */
+  }
+  
+  .react-calendar__tile--now {
+    background: #ffeb3b; /* Current day background color */
+    color: #000000;
+  }
+  
+  .react-calendar__tile--active {
+    background: #4caf50; /* Selected day background color */
+    color: #ffffff;
+  }
+  
+  .react-calendar__tile--hasActive {
+    background: #81c784; /* Background for days with active events */
+  }
+  
+  .react-calendar__tile--highlight {
+    background: #ff9800; /* Highlighted day background color */
+  }
+  
+  .react-calendar__tile--highlight:hover {
+    background: #ffb74d; /* Hover color for highlighted day */
+  }
+  
+  /* Hover effect for calendar tiles */
+  .react-calendar__tile:hover {
+    background-color: #d1e7dd; /* Light mode hover color */
+    color: #000000;
+  }
+  
+  /* Dark mode styles */
+  .dark .react-calendar {
+    background-color: #2a2a2a; /* Lighter dark mode background */
+    color: var(--dark-text-white);
+  }
+  
+  .dark .react-calendar__tile {
+    background-color: #3a3a3a; /* Lighter dark mode tile background */
+    color: var(--dark-text-white);
+  }
+  
+  .dark .react-calendar__tile:hover {
+    background-color: #4a4a4a; /* Dark mode hover color */
+    color: #ffffff;
+  }
+  
+  /* Indicator for days with posts */
+  .indicator {
+    width: 6px;
+    height: 6px;
+    background-color: red;
+    border-radius: 50%;
+    margin: 0 auto;
+    margin-top: 2px;
+  }
+  
+  /* Responsive adjustments for mobile */
+  @media (max-width: 640px) {
+    .react-calendar {
+      height: auto; /* Allow height to adjust dynamically */
+      padding: 5px; /* Reduce padding */
+    }
+  
+    .react-calendar__month-view__weekdays,
+    .react-calendar__tile {
+      font-size: 0.875rem; /* Smaller font size for mobile */
+      min-height: 30px; /* Smaller tile size for mobile */
+    }
+  
+    .react-calendar__navigation button {
+      font-size: 1rem; /* Smaller font size for mobile */
+    }
+  
+    .react-calendar__navigation button svg {
+      width: 1.25rem; /* Smaller chevron size for mobile */
+      height: 1.25rem; /* Smaller chevron size for mobile */
+    }
+  
+    .react-calendar__tile {
+      padding: 5px; /* Reduce padding for tiles */
+    }
+  }
