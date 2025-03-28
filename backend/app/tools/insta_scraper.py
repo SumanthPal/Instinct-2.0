@@ -78,7 +78,7 @@ class InstagramScraper:
                 self._driver.delete_all_cookies()
                 logger.info("Cookies found. Loading...")
                 self._driver.get("https://www.instagram.com/")
-                # self._load_cookies(cookies_path)
+
                 decoded_cookies = base64.b64decode(cookies_str)
                 cookies = decoded_cookies.decode('utf-8')
                 
@@ -485,32 +485,29 @@ class InstagramScraper:
         ]
         return random.choice(user_agents)
 
-    def _load_cookies(self, path):
-        """Load cookies from the cookies.json file."""
-        with open(path, "r") as file:
-            cookies = json.load(file)
-            for cookie in cookies:
-                self._driver.add_cookie(cookie)
-
+  
     def _get_cookies(self):
         """DEPRECATED; requires fix"""
         try:
             save_button = self._wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Save info')]")))
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'Save info')]"))
+            )
             save_button.click()
-            logger.info(self._driver.get_cookies())
 
-            # Define the directory and file path
-            cookies_dir = "/tmp/auth"
-            cookies_file = os.path.join(cookies_dir, "cookies.json")
+            cookies = self._driver.get_cookies()
+            logger.info(cookies)
 
-            # Create the directory if it doesn't exist
-            os.makedirs(cookies_dir, exist_ok=True)
+            cookies_json = json.dumps(cookies)
 
-            # Save cookies to the file
-            with open(cookies_file, "w") as file:
-                json.dump(self._driver.get_cookies(), file)
-                logger.info("Cookies saved.")
+            # Encode to base64
+            encoded_cookies = base64.b64encode(cookies_json.encode()).decode()
+
+            # Save to .env file
+            env_path = ".env"
+            dotenv.set_key(env_path, "COOKIE", encoded_cookies)
+
+            logger.info("Cookies saved to .env file.")
+
         except Exception as e:
             logger.error(f"Error saving cookies: {e}")
 
@@ -622,14 +619,11 @@ def multi_threaded_scrape(clubs: list[str], max_threads: int) -> None:
             except Exception as e:
                 logger.error(f"An error occurred in a thread: {e}")
 if __name__ == "__main__":
-    # Set your Instagram credentials here
 
         dotenv.load_dotenv()
         starttime = time.time()
         multi_threaded_scrape(['icssc.uci'], 1)
         
-            
-        
-        
+    
 
 
