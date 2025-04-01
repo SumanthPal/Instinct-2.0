@@ -70,9 +70,9 @@ class InstagramScraper:
         :return: None
         """
         try:
-            cookies_path = os.path.join(os.path.dirname(__file__), "..", "auth", 'cookies.json')
             
             cookies_str = os.getenv('COOKIE')
+            print(cookies_str)
             
             if cookies_str:
                 self._driver.delete_all_cookies()
@@ -129,14 +129,6 @@ class InstagramScraper:
             logger.error(f"Enter a valid username {club_username}")
             return False
         
-
-    # def club_is_in_uci(self, text: str, username: str, insta_handle: str) -> bool:
-    #     """Check if the text refers to a club at UC Irvine."""
-    #     combined_text = f"{text} {username} {insta_handle}".lower()
-
-    #     # Use a regular expression pattern for more flexible matching
-    #     pattern = r"(\bmerage\b|\buci\b|\buc\s*irvine\b|\banteater\b|\bzot\b|\beater\b|\bcollege\b|\buniversity\b|\binstagram\b|\borganization\b)"
-    #     return bool(re.search(pattern, combined_text)) and self._is_club(combined_text)
 
     def get_club_info(self, club_username: str) -> json:
         """Main scraper method to get club info
@@ -389,27 +381,12 @@ class InstagramScraper:
         logger.info("obtained post links...")
         return post_links
 
-    def _is_club(self, text):
-        """Check if the text refers to a club or organization."""
-        keywords = [
-            "club", "organization", "group", "association", "society", "committee", "team",
-            "union", "alliance", "board", "council", "network", "federation", "chapter",
-            "guild", "order", "fraternity", "sorority", "coalition", "initiative", "league",
-            "academy", "community", "department", "program", "division", "student club",
-            "interest group", "volunteers", "task force", "associated students", "student government",
-            "programs", "office", "center", "institute", "society", "student council", "student union", "university"
-        ]
-
-        # Use regex to find whole words only
-        text_lower = text.lower()
-        pattern = r'\b(' + '|'.join(keywords) + r')\b'
-        return bool(re.search(pattern, text_lower))
 
     def _get_club_post_links(self, club_username: str) -> list:
         """
         Parses the club_info.json file to get the post links.
-        :param club_username:
-        :return:
+        param club_username:
+        return: list of post links
         """
         club_info_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", club_username, "club_info.json")
         with open(club_info_path, "r") as file:
@@ -503,7 +480,7 @@ class InstagramScraper:
             encoded_cookies = base64.b64encode(cookies_json.encode()).decode()
 
             # Save to .env file
-            env_path = ".env"
+            env_path = "backend/.env"
             dotenv.set_key(env_path, "COOKIE", encoded_cookies)
 
             logger.info("Cookies saved to .env file.")
@@ -537,7 +514,7 @@ class InstagramScraper:
 
 
 
-def chunk_list(lst, n):
+def _chunk_list(lst, n):
     """Divide a list into n chunks, prioritizing evenly-sized distributions."""
     avg = len(lst) // n
     remainder = len(lst) % n
@@ -604,7 +581,7 @@ def multi_threaded_scrape(clubs: list[str], max_threads: int) -> None:
         clubs (list[str]): Instagram usernames of clubs.
         max_threads (int): Number of threads to use.
     """
-    club_chunks = chunk_list(clubs, max_threads)  # Divide the clubs list into chunks
+    club_chunks = _chunk_list(clubs, max_threads)  # Divide the clubs list into chunks
     logger.info(f"Divided {len(clubs)} clubs into {len(club_chunks)} chunks for {max_threads} threads.")
 
     with ThreadPoolExecutor(max_threads) as executor:
