@@ -57,6 +57,7 @@ export const fetchClubPosts = async (username) => {
   } catch (error) {
     console.error('Error fetching club posts:', error);
     throw error;
+    //hello
   }
 };
 
