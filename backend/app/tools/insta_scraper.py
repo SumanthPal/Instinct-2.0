@@ -15,6 +15,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from pathlib import Path
 
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
@@ -480,7 +481,8 @@ class InstagramScraper:
             encoded_cookies = base64.b64encode(cookies_json.encode()).decode()
 
             # Save to .env file
-            env_path = "backend/.env"
+            current_file = Path(__file__).resolve()
+            env_path = current_file.parents[1] / "backend" / ".env"
             dotenv.set_key(env_path, "COOKIE", encoded_cookies)
 
             logger.info("Cookies saved to .env file.")
