@@ -160,7 +160,7 @@ if __name__ == "__main__":
     # Example usage
     parser = EventParser()
     
-    parser.parse_all_posts("180dcuci")
+    parser.parse_all_posts("icssc.uci")
   
 
     
