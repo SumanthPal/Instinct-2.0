@@ -24,7 +24,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tools.logger import logger
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
-
+#implement session intervals, proxies
+#session intervals
+# -selenium.webdriver.common.timeouts
+#proxies
+# -https://www.webshare.io/academy-article/selenium-proxy?adgroupid=170549140290&utm_medium=ppc&utm_source=adwords&utm_campaign=170549140290&utm_content=selenium%20proxies&gad_source=1&gclid=Cj0KCQjw782_BhDjARIsABTv_JCPWNJSOr7Z5LnFBqpycruRWJHpe5jF9fOLiNbmlB4JtPGWXtqnQT0aAjK7EALw_wcB#method-1-using-python
 
 class InstagramScraper:
     def __init__(self, username, password):
