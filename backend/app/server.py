@@ -7,10 +7,14 @@ from tools.data_retriever import DataRetriever
 from tools.s3_client import S3Client
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+#IMPORTANT: TO FIX SQLALCHEMY issues, use: $pip install sqlmodel
 from threading import Lock
-from flask_cors import CORS
+from fastapi.middleware.cors import CORSMiddleware
 
 import dotenv
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 import os
 import sys
 import atexit
@@ -23,8 +27,18 @@ from tools.logger import logger
 calendar = CalendarConnection()
 retriever = DataRetriever()
 s3_client = S3Client()
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins temporarily (adjust for production)
+app = FastAPI()
+
+origins = [
+    "*" # Allow all origins temporarily (adjust for production)
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials = True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 # Scheduler Configuration
 jobstores = {
@@ -111,18 +125,17 @@ atexit.register(lambda: scheduler.shutdown())
 
 
 # Routes
-@app.route('/')
+@app.get('/')
 def home():
     logger.info("Home endpoint called.")
-    return jsonify({"message": "Welcome to the Club API"})
+    return {"message": "Welcome to the Club API"}
 
 
-@app.route("/club", methods=['POST'])
+@app.get("/club")
 def club():
-    return jsonify({"message": "Club page"})
+    return {"message": "Club page"}
 
-
-@app.route("/club/<username>", methods=['GET'])
+@app.get("/club/<username>")
 def club_data(username):
     try:
         if not retriever.club_data_exists(username):
@@ -131,13 +144,12 @@ def club_data(username):
         logger.info(f"Fetching data for club: {username}")
         return retriever.fetch_club_info(username)
     except FileNotFoundError as e:
-        return jsonify({"message": f"Club not found, {e}"}), 404
+        return JSONResponse(content = f"Club not found, {e}", status_code = 404)
     except Exception as e:
         logger.error(f"Error fetching club data: {e}")
-        return jsonify({"message": f"Error: {e}"}), 500
+        return JSONResponse(content = f"Error: {e}", status_code = 500)
 
-
-@app.route("/club/<username>/posts", methods=['GET'])
+@app.get("/club/<username>/posts")
 def club_post_data(username):
     try:
         if not retriever.club_data_exists(username):
@@ -146,23 +158,24 @@ def club_post_data(username):
         logger.info(f"Fetching posts for club: {username}")
         return retriever.fetch_club_posts(username)
     except FileNotFoundError:
-        return jsonify({"message": "Club posts not found"}), 404
+        return JSONResponse(content = f"Club posts not found", status_code = 404)
     except Exception as e:
         logger.error(f"Error fetching club posts: {e}")
-        return jsonify({"message": f"Error: {e}"}), 500
+        return JSONResponse(content = f"Error: {e}", status_code = 500)
 
-
-@app.route("/club-manifest", methods=['GET'])
+@app.get("/club-manifest")
 def club_manifest():
     try:
         logger.info("Fetching club manifest.")
-        return jsonify(retriever.fetch_manifest())
+        return retriever.fetch_manifest()
     except Exception as e:
         logger.error(f"Error fetching club manifest: {e}")
-        return jsonify({"message": f"Error: {e}"}), 500
+        return JSONResponse(content = f"Error: {e}", status_code = 500)
+
+    #@TODO: FIX "Error: [Errno 2] No such file or directory: 'C:\\\\Users\\\\wudan\\\\Instinct\\\\Instinct-2.0\\\\backend\\\\app\\\\tools\\\\..\\\\..\\\\manifest.json'" when accessing page
 
 
-@app.route("/club/<username>/calendar.ics", methods=['GET'])
+@app.get("/club/<username>/calendar.ics")
 def club_calendar(username):
     try:
         if not retriever.club_data_exists(username):
@@ -180,13 +193,13 @@ def club_calendar(username):
         
     except FileNotFoundError as e:
         logger.error(f"Calendar file not found for {username}: {e}")
-        abort(404, description="Calendar file not found")
+        raise HTTPException(status_code = 404, detail = "Calendar file not found")
     except Exception as e:
         logger.error(f"Error fetching calendar for {username}: {e}")
-        abort(500, description="Internal Server Error")
+        raise HTTPException(status_code = 500, detail = "Internal Server Error")
 
 
-@app.route("/job-status", methods=['GET'])
+@app.get("/job-status")
 def job_status():
     response = {}
     for job_id in ['reload_data_job', 'file_cleanup_job']:
@@ -195,8 +208,8 @@ def job_status():
             "job_id": job.id if job else "N/A",
             "next_run_time": str(job.next_run_time) if job else "N/A"
         }
-    return jsonify(response)
+    return response
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='127.0.0.1', port=5022)
+    uvicorn.run(app, debug = True, host='127.0.0.1', port=5022)
