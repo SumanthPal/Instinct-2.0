@@ -24,11 +24,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tools.logger import logger
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
-#implement session intervals, proxies
+#implement session intervals
 #session intervals
 # -selenium.webdriver.common.timeouts
-#proxies
-# -https://www.webshare.io/academy-article/selenium-proxy?adgroupid=170549140290&utm_medium=ppc&utm_source=adwords&utm_campaign=170549140290&utm_content=selenium%20proxies&gad_source=1&gclid=Cj0KCQjw782_BhDjARIsABTv_JCPWNJSOr7Z5LnFBqpycruRWJHpe5jF9fOLiNbmlB4JtPGWXtqnQT0aAjK7EALw_wcB#method-1-using-python
 
 class InstagramScraper:
     def __init__(self, username, password):
@@ -125,6 +123,9 @@ class InstagramScraper:
         :param club_username: the instagram tag of the club
         """
         try:
+            #will most likely need to edit this function and the one below
+            #add a check to determine how long a certain scraping session has taken place, as well as what clubs.
+            #if the time passed is at least one hour, then stop. 
             club_info = self.get_club_info(club_username)
             
             self.save_club_info(club_info)
