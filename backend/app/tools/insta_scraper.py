@@ -9,6 +9,7 @@ import dotenv
 import base64
 from bs4 import BeautifulSoup
 from selenium import webdriver
+import json
 from selenium.common.exceptions import WebDriverException, NoSuchElementException, TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -142,7 +143,6 @@ class InstagramScraper:
         :return club_info: a dictionary containing the club's information
         """
         try:
-
             profile_url = f"https://www.instagram.com/{club_username}/"
             self._driver.get(profile_url)
             # if not self.check_instagram_handle(club_username):
@@ -562,15 +562,19 @@ def scrape_sequence(username_list: list[str]) -> None:
     """
     scraper = None
     try:
-        
         scraper = InstagramScraper(os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD"))
         logger.info("Init scraper")
         scraper.login()
         logger.info("Logged in")
         for username in username_list:
+            scrape_timer_start = time.time()
+            scrape_timer_end = 0
             logger.info(f"Scraping {username}...")
             scraper = scrape_with_retries(scraper, username)
             logger.info(f"Scraping of {username} complete.")
+            scrape_timer_end = time.time()
+            if (scrape_timer_end-scrape_timer_start >= 3600):
+                time.sleep(1800)
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
