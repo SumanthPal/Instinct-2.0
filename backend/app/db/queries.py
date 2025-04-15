@@ -21,7 +21,216 @@ class SupabaseQueries:
         """Initialize the Supabase client"""
         self.supabase = supabase
         
+    def execute_sql(self, sql_statement: str) -> Dict[str, Any]:
+        """Execute raw SQL statement"""
+        response = self.supabase.rpc('exec_sql', {'sql_query': sql_statement})
+        return response
+    
+    def create_table_schema(self, sql_schema: str) -> Dict[str, Any]:
+        """Create table schema using raw SQL"""
+        return self.execute_sql(sql_schema)
+    
+    def create_clubs_table(self) -> Dict[str, Any]:
+        """Create the clubs table"""
+        sql = """
+        CREATE TABLE IF NOT EXISTS clubs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          instagram_handle TEXT UNIQUE NOT NULL,
+          profile_pic TEXT,
+          description TEXT,
+          created_at TIMESTAMP DEFAULT now(),
+          updated_at TIMESTAMP DEFAULT now()
+        );
+        """
+        return self.execute_sql(sql)
+    
+    def create_categories_table(self) -> Dict[str, Any]:
+        """Create the categories table"""
+        sql = """
+        CREATE TABLE IF NOT EXISTS categories (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT UNIQUE NOT NULL
+        );
+        """
+        return self.execute_sql(sql)
+    
+    def create_clubs_categories_table(self) -> Dict[str, Any]:
+        """Create the clubs_categories junction table"""
+        sql = """
+        CREATE TABLE IF NOT EXISTS clubs_categories (
+          club_id UUID REFERENCES clubs(id) ON DELETE CASCADE,
+          category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+          PRIMARY KEY (club_id, category_id)
+        );
+        """
+        return self.execute_sql(sql)
+    
+    def create_posts_table(self) -> Dict[str, Any]:
+        """Create the posts table"""
+        sql = """
+        CREATE TABLE IF NOT EXISTS posts (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          club_id UUID REFERENCES clubs(id) ON DELETE CASCADE,
+          caption TEXT,
+          image_url TEXT,
+          created_at TIMESTAMP DEFAULT now(),
+          posted TIMESTAMP NOT NULL
+        );
+        """
+        return self.execute_sql(sql)
+    
+    def create_events_table(self) -> Dict[str, Any]:
+        """Create the events table"""
+        sql = """
+        CREATE TABLE IF NOT EXISTS events (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          club_id UUID REFERENCES clubs(id) ON DELETE CASCADE,
+          post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          date TIMESTAMP NOT NULL,
+          details TEXT,
+          duration INTERVAL,
+          parsed JSONB,
+          created_at TIMESTAMP DEFAULT now()
+        );
+        """
+        return self.execute_sql(sql)
+    
+    def create_all_tables(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Create all tables in the correct order for dependencies"""
+        results = {
+            "successful": [],
+            "failed": []
+        }
         
+        # Define tables in order of dependencies
+        tables = [
+            {"name": "clubs", "method": self.create_clubs_table},
+            {"name": "categories", "method": self.create_categories_table},
+            {"name": "clubs_categories", "method": self.create_clubs_categories_table},
+            {"name": "posts", "method": self.create_posts_table},
+            {"name": "events", "method": self.create_events_table}
+        ]
+        
+        # Create each table
+        for table in tables:
+            try:
+                table["method"]()
+                results["successful"].append({"table": table["name"]})
+            except Exception as e:
+                results["failed"].append({"table": table["name"], "error": str(e)})
+        
+        return results
+    
+    def create_index(self, table: str, column: str, index_name: Optional[str] = None) -> Dict[str, Any]:
+        """Create an index on a table column"""
+        if not index_name:
+            index_name = f"idx_{table}_{column}"
+            
+        sql = f"""
+        CREATE INDEX IF NOT EXISTS {index_name} ON {table} ({column});
+        """
+        return self.execute_sql(sql)
+    
+    def create_common_indexes(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Create common indexes for performance"""
+        results = {
+            "successful": [],
+            "failed": []
+        }
+        
+        # Define common indexes
+        indexes = [
+            {"table": "clubs", "column": "instagram_handle"},
+            {"table": "posts", "column": "club_id"},
+            {"table": "posts", "column": "posted"},
+            {"table": "events", "column": "date"},
+            {"table": "events", "column": "club_id"}
+        ]
+        
+        # Create each index
+        for idx in indexes:
+            try:
+                self.create_index(idx["table"], idx["column"])
+                results["successful"].append({"index": f"{idx['table']}.{idx['column']}"})
+            except Exception as e:
+                results["failed"].append({"index": f"{idx['table']}.{idx['column']}", "error": str(e)})
+        
+        return results
+    
+    def drop_table(self, table_name: str, cascade: bool = False) -> Dict[str, Any]:
+        """Drop a table if it exists"""
+        cascade_text = "CASCADE" if cascade else ""
+        sql = f"""
+        DROP TABLE IF EXISTS {table_name} {cascade_text};
+        """
+        return self.execute_sql(sql)
+    
+    def add_column(self, table: str, column: str, data_type: str, 
+                   constraints: Optional[str] = None) -> Dict[str, Any]:
+        """Add a column to an existing table"""
+        constraints_text = constraints if constraints else ""
+        sql = f"""
+        ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} {data_type} {constraints_text};
+        """
+        return self.execute_sql(sql)
+    
+    def create_view(self, view_name: str, sql_query: str) -> Dict[str, Any]:
+        """Create a view for common queries"""
+        sql = f"""
+        CREATE OR REPLACE VIEW {view_name} AS 
+        {sql_query};
+        """
+        return self.execute_sql(sql)
+    
+    def create_upcoming_events_view(self) -> Dict[str, Any]:
+        """Create a view for upcoming events with club info"""
+        sql = """
+        CREATE OR REPLACE VIEW upcoming_events_view AS
+        SELECT 
+            e.id, 
+            e.name, 
+            e.date,
+            e.details,
+            e.duration,
+            c.id as club_id,
+            c.name as club_name,
+            c.instagram_handle,
+            c.profile_pic
+        FROM events e
+        JOIN clubs c ON e.club_id = c.id
+        WHERE e.date > now()
+        ORDER BY e.date ASC;
+        """
+        return self.execute_sql(sql)
+    
+    def create_club_posts_view(self) -> Dict[str, Any]:
+        """Create a view for club posts with category info"""
+        sql = """
+        CREATE OR REPLACE VIEW club_posts_view AS
+        SELECT 
+            p.id,
+            p.instagram_post_id,
+            p.caption,
+            p.image_url,
+            p.posted,
+            c.id as club_id,
+            c.name as club_name,
+            c.instagram_handle,
+            c.profile_pic,
+            array_agg(cat.name) as categories
+        FROM posts p
+        JOIN clubs c ON p.club_id = c.id
+        LEFT JOIN clubs_categories cc ON c.id = cc.club_id
+        LEFT JOIN categories cat ON cc.category_id = cat.id
+        GROUP BY p.id, c.id
+        ORDER BY p.posted DESC;
+        """
+        return self.execute_sql(sql)
+        
+    # ----- Category Methods -----
+    
     def get_category_id(self, category_name: str) -> Optional[str]:
         """Get the UUID for a category by name, or None if it doesn't exist"""
         response = self.supabase.table("categories").select("id").eq("name", category_name).execute()
@@ -73,11 +282,7 @@ class SupabaseQueries:
             "instagram_handle": instagram_handle,
             "profile_pic": club_info.get("Profile Picture", ""),
             "description": " ".join(club_info.get("Description", [])),
-            "updated_at": datetime.now().isoformat(),
-            "followers": club_info.get("Followers", 0),
-            "following": club_info.get("Following", 0),
-            "club_links": club_info.get("Club Links", [])
-            
+            "updated_at": datetime.now().isoformat()
         }
         
         # Check if club exists
@@ -174,7 +379,10 @@ class SupabaseQueries:
         
         return post_id
     
-
+    def get_posts_by_club(self, club_id: str, limit: int = 12) -> List[Dict]:
+        """Get posts for a specific club"""
+        response = self.supabase.table("posts").select("*").eq("club_id", club_id).order("posted", desc=True).limit(limit).execute()
+        return response.data if response.data else []
     
     # ----- Event Methods -----
     
@@ -219,6 +427,113 @@ class SupabaseQueries:
         
         return event_id
     
+    def get_upcoming_events(self, limit: int = 10) -> List[Dict]:
+        """Get upcoming events"""
+        now = datetime.now().isoformat()
+        response = self.supabase.table("events").select("*, clubs(name, instagram_handle, profile_pic)").gt("date", now).order("date").limit(limit).execute()
+        return response.data if response.data else []
+    
+    # ----- Import Methods -----
+    
+    def import_club_data(self, club_instagram: str, club_categories: List[str], club_info_path: str, posts_dir: str) -> Tuple[str, int]:
+        """Import a club with its posts from files"""
+        try:
+            # Load club info
+            with open(club_info_path, 'r') as f:
+                club_info = json.load(f)
+            
+            # Upsert club and get club ID
+            club_id = self.upsert_club(club_info)
+            
+            # Assign categories
+            self.assign_categories_to_club(club_id, club_categories)
+            
+            # Import posts
+            posts_count = 0
+            for post_file in os.listdir(posts_dir):
+                if post_file.endswith('.json'):
+                    post_path = os.path.join(posts_dir, post_file)
+                    with open(post_path, 'r') as f:
+                        post_data = json.load(f)
+                    
+                    # Upsert post
+                    post_id = self.upsert_post(club_id, post_data)
+                    
+                    # Check if post has event data and create/update event
+                    if "EventData" in post_data and post_data["EventData"]:
+                        event_data = post_data["EventData"]
+                        self.upsert_event(club_id, post_id, event_data)
+                    
+                    posts_count += 1
+            
+            return club_id, posts_count
+        
+        except Exception as e:
+            logger.error(f"Error importing club data for {club_instagram}: {str(e)}")
+            raise
+    
+    def import_all_clubs_from_manifest(self, manifest_path: str, data_dir: str) -> Dict[str, Any]:
+        """Import all clubs from a manifest file"""
+        results = {
+            "successful": [],
+            "failed": []
+        }
+        
+        # Load manifest
+        with open(manifest_path, 'r') as f:
+            manifest = json.load(f)
+        
+        for club_entry in manifest:
+            club_instagram = club_entry.get("instagram")
+            if not club_instagram:
+                results["failed"].append({"club": club_entry.get("name", "Unknown"), "reason": "Missing Instagram handle"})
+                continue
+            
+            try:
+                club_categories = club_entry.get("categories", [])
+                club_info_path = os.path.join(data_dir, club_instagram, "club_info.json")
+                posts_dir = os.path.join(data_dir, club_instagram, "posts")
+                
+                if not os.path.exists(club_info_path):
+                    results["failed"].append({"club": club_instagram, "reason": "Club info file not found"})
+                    continue
+                
+                if not os.path.exists(posts_dir):
+                    results["failed"].append({"club": club_instagram, "reason": "Posts directory not found"})
+                    continue
+                
+                club_id, posts_count = self.import_club_data(club_instagram, club_categories, club_info_path, posts_dir)
+                results["successful"].append({
+                    "club": club_instagram,
+                    "id": club_id,
+                    "posts_imported": posts_count
+                })
+                
+            except Exception as e:
+                results["failed"].append({"club": club_instagram, "reason": str(e)})
+        
+        return results
+    
+    # ----- Delete Methods -----
+    
+    def delete_club(self, club_id: str) -> bool:
+        """Delete a club and all associated data (cascade will handle related tables)"""
+        try:
+            self.supabase.table("clubs").delete().eq("id", club_id).execute()
+            logger.info(f"Deleted club with ID: {club_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting club {club_id}: {str(e)}")
+            return False
+    
+    def delete_club_by_instagram(self, instagram_handle: str) -> bool:
+        """Delete a club by Instagram handle"""
+        club = self.get_club_by_instagram(instagram_handle)
+        if not club:
+            logger.warning(f"Club with Instagram handle {instagram_handle} not found")
+            return False
+        
+        return self.delete_club(club["id"])
     
     def cleanup_unused_categories(self) -> int:
         """Delete categories that are not associated with any clubs"""
@@ -299,188 +614,32 @@ class SupabaseQueries:
         )
 
         return response.data
-    
-    def check_if_post_is_parsed(self, post_id: uuid) -> bool:
-        response = (self.supabase.table("posts")
-                    .select("id")
-                    .eq("parsed", False)
-                    .eq("id", post_id)
-                    .limit(1)
-                    .execute())
-    
-        if response.data:
-            return False  # post_id already exists
-        return True  # post_id not found, so it's not parsed yet
-    
-    def posts_to_parse(self, username):
-        club_id = self.get_club_by_instagram_handle(username)
-        response = (self.supabase
-         .table("posts")
-         .select("id")
-         .eq("parsed", False)
-         .eq("club_id", club_id)
-         .execute()
-         )
-        return response.data
-    
-    def get_post_date_and_caption(self, post_id) -> tuple:
-            """
-            Get the posting date and caption for a post.
-            
-            Args:
-                post_id (uuid): ID of the post
-                
-            Returns:
-                Tuple of (posted_date, caption)
-            """
-            response = (
-                self.supabase
-                .table("posts")
-                .select("posted", "caption")
-                .eq("id", post_id)  # Fixed this line - use "id" instead of "post_id"
-                .limit(1)
-                .execute()
-            )
-            
-            if response.data:
-                post = response.data[0]
-                return post["posted"], post["caption"]
-            
-            raise ValueError(f"Post with ID {post_id} not found.")
-    def insert_event(self, event_data: dict):
-        """
-        Insert a new event into the events table.
-        
-        Args:
-            event_data (dict): Event data containing club_id, post_id, name, date, details, duration, and parsed
-            
-        Returns:
-            The inserted event data
-        """
-        response = (
-            self.supabase
-            .from_("events")
-            .insert(event_data)
-            .execute()
-        )
-        
-        return response.data
-    
-    def update_post_by_id(self, post_id: "uuid", update_data: dict):
-        """
-        Update a post by its ID with the given update data.
-        
-        Args:
-            post_id (uuid): ID of the post to update
-            update_data (dict): Dictionary containing the fields to update
-            
-        Returns:
-            The updated post data
-        """
-        response = (  # Fixed typo here - 'response' instead of 'reponse'
-            self.supabase
-            .from_("posts")
-            .update(update_data)
-            .eq("id", post_id)
-            .execute()
-        )
-        
-        return response.data
 
-    def get_calendar_file(self, club_id: str) -> Optional[str]:
-        """
-        Get the ICS content for a club from the database
-        
-        Args:
-            club_id (str): The UUID of the club
-            
-        Returns:
-            Optional[str]: The ICS content if found, None otherwise
-        """
-        response = (
-            self.supabase
-            .from_("calendar_files")
-            .select("ics_content")
-            .eq("club_id", club_id)
-            .limit(1)
-            .execute()
-        )
-        
-        if response.data and len(response.data) > 0:
-            return response.data[0]["ics_content"]
-        return None
 
-    def save_calendar_file(self, club_id: str, ics_content: str) -> str:
-        """
-        Save the ICS content to the database
-        
-        Args:
-            club_id (str): The UUID of the club
-            ics_content (str): The ICS content to save
-            
-        Returns:
-            str: The UUID of the saved calendar file
-        """
-        # Check if a calendar file already exists for this club
-        existing_response = (
-            self.supabase
-            .from_("calendar_files")
-            .select("id")
-            .eq("club_id", club_id)
-            .limit(1)
-            .execute()
-        )
-        
-        if existing_response.data and len(existing_response.data) > 0:
-            # Update existing record
-            calendar_id = existing_response.data[0]["id"]
-            response = (
-                self.supabase
-                .from_("calendar_files")
-                .update({"ics_content": ics_content})
-                .eq("id", calendar_id)
-                .execute()
-            )
-            logger.info(f"Updated calendar file for club {club_id}")
-            return calendar_id
-        else:
-            # Insert new record
-            response = (
-                self.supabase
-                .from_("calendar_files")
-                .insert({
-                    "club_id": club_id,
-                    "ics_content": ics_content
-                })
-                .execute()
-            )
-            
-            if response.data and len(response.data) > 0:
-                logger.info(f"Created new calendar file for club {club_id}")
-                return response.data[0]["id"]
-            else:
-                logger.error(f"Failed to create calendar file for club {club_id}")
-                raise Exception(f"Failed to create calendar file for club {club_id}")
-            
-    def get_events_for_club(self, club_id: str) -> List[Dict]:
-        """
-        Get all events for a club from the events table
-        
-        Args:
-            club_id (str): The UUID of the club
-            
-        Returns:
-            List[Dict]: List of event records
-        """
-        response = (
-            self.supabase
-            .from_("events")
-            .select("*")
-            .eq("club_id", club_id)
-            .execute()
-        )
-        
-        return response.data if response.data else []
+
+
+
+
+# Example usage
+if __name__ == "__main__":
     
     
+    # Load environment variables from .env file
+    load_dotenv()
     
+    # Initialize the client
+    queries = SupabaseQueries()
+    
+    # Example: Import all clubs from manifest
+    logger.info('creating tables')
+    results = queries.create_clubs_table()
+    # working_path = Path(__file__).parent.parent.parent  # Adjust to match your project structure
+    # manifest_path = os.path.join(working_path, 'club_manifest.json')
+    # data_dir = os.path.join(working_path, 'data')
+    
+    # if os.path.exists(manifest_path) and os.path.exists(data_dir):
+    #     results = queries.import_all_clubs_from_manifest(manifest_path, data_dir)
+    #     print(f"Successfully imported {len(results['successful'])} clubs")
+    #     print(f"Failed to import {len(results['failed'])} clubs")
+    # else:
+    #     print(f"Manifest file or data directory not found")
