@@ -17,12 +17,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from pathlib import Path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', )))
+from tools.logger import logger
 
+from db.queries import SupabaseQueries
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
-import sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from tools.logger import logger
+import datetime
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
 #implement session intervals
@@ -34,17 +35,12 @@ class InstagramScraper:
         self._username = username
         self._password = password
         self._current_page = "none"
-        # self.dbx = dropbox.Dropbox(os.getenv("DROPBOX_API_KEY"))
-        # self.s3 = boto3.client(
-        #     's3',
-        #     aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
-        #     aws_secret_access_key=os.getenv('AWS_PRIVATE_KEY'),
-        #     region_name=os.getenv('AWS_REGION', 'us-west-1')
-        # )
-        # self.bucket_name = os.getenv('S3_BUCKET_NAME')
+        self._db = SupabaseQueries()
 
         options = Options()
+        self.db = SupabaseQueries()
         self._add_options(options)
+        self.working_path = os.path.join(os.path.dirname(__file__), '..')
 
         # Initialize WebDriver with options
         logger.info("initing driver")
@@ -137,7 +133,7 @@ class InstagramScraper:
             return False
         
 
-    def get_club_info(self, club_username: str) -> json:
+    def get_club_info(self, club_username: str) -> dict:
         """Main scraper method to get club info
         :param club_username: the instagram tag of the club
         :return club_info: a dictionary containing the club's information
@@ -213,47 +209,136 @@ class InstagramScraper:
         return description, date, img_src
 
     def save_post_info(self, club_username: str):
-        """Save the description and date of each post into a file"""
+        """Process and save post information to the database"""
+        try:
+            # Get club ID from database
+            club_id = self.db.get_club_by_instagram_handle(club_username)
+            if not club_id:
+                logger.error(f"Club {club_username} not found in database")
+                return
 
-        post_links = self._get_club_post_links(club_username)
-        
-        
             
+            # Get unprocessed post links from database
+            post_links_response = self.db.get_unscrapped_posts_by_club_id(club_id)
+            print('post_links info', post_links_response)
             
-        
-        club_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", club_username, "posts")
-        if not os.path.exists(club_path):
-            os.makedirs(club_path)
-
-        for post in post_links:
-            try:
-                description, date, post_pic = self.get_post_info(post)
-                post_data = {"Description": description, "Date": date, "Picture": post_pic}
-                post_path = os.path.join(club_path, f"{date}.json")
+            if not post_links_response:
+                logger.info(f"No unprocessed posts found for {club_username}")
+                return
                 
-                if os.path.exists(post_path):
-                    logger.info(f"This post path is already created: {post_path}")
+            for post_data in post_links_response:
+                post_url = post_data["post_url"]
+                post_id = post_data["id"]
+                
+                try:
+                    # Scrape post information
+                    description, date, post_pic = self.get_post_info(post_url)
+                    
+                    # Update post in database
+                    update_data = {
+                        "caption": description,
+                        "posted": date,
+                        "image_url": post_pic,
+                        "scrapped": True,
+                        
+                        
+                    }
+                    
+                    self.db.update_post_by_id(post_id, update_data)
+                    logger.info(f"Updated post {post_id} in database")
+                    
+                except Exception as e:
+                    logger.error(f"Error processing post {post_id}: {str(e)}")
                     continue
-                else:
-                    logger.info(f"creating post at: {post_path}")
-                    with open(post_path, "w") as file:
-                        json.dump(post_data, file)
-            except:
-                logger.info("scrapper could not properly scrape. execution sequence will skip post.")
-                continue
+                
+        except Exception as e:
+            logger.error(f"Error in save_post_info: {str(e)}")
+            
+    def get_club_categories(self, instagram_handle: str) -> list:
+        """Get the club's categories from the manifest file"""
+        try:
+            manifest_path = os.path.join(self.working_path, 'club_manifest.json')
+            
+            if not os.path.exists(manifest_path):
+                logger.warning(f"Manifest file not found: {manifest_path}")
+                return []
+                
+            with open(manifest_path, 'r') as f:
+                manifest = json.load(f)
+                
+            for club in manifest:
+                if club.get("instagram") == instagram_handle:
+                    return club.get("categories", [])
+                    
+            logger.warning(f"Club {instagram_handle} not found in manifest")
+            return []
+        except Exception as e:
+            logger.error(f"Error getting club categories: {str(e)}")
+            return []
 
-    def save_club_info(self, club_info: json):
-        """Save the club information into a file"""
+    def save_club_info(self, club_info: dict):
+        """Save the club information and post links to the database"""
+        try:
+            # Get club categories from manifest
+            
+            instagram_handle = club_info[0]["Instagram Handle"]
+            categories = self.get_club_categories(instagram_handle)
+            
 
-        club_info_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", f"{club_info[0]['Instagram Handle']}")
+            club_id = self.db.upsert_club(club_info[0])
+            logger.info('inserted data')
+            
+            # Assign categories
+            if categories:
+                self.db.assign_categories_to_club(club_id, categories)
+                
+            # Store post links in the database
+            logger.info(club_info)
+            if club_info[0]['Recent Posts'] and club_id:
+                self._store_post_links(club_id, instagram_handle, club_info[0]["Recent Posts"])
+                
+            logger.info(f"Club info for {instagram_handle} saved to database.")
+            return club_id
+        except Exception as e:
+            logger.error(f"Error saving club info to database: {str(e)}\n type of error {type(e)}" )
+            return None
 
-        if not os.path.exists(club_info_path):
-            os.makedirs(club_info_path)
-            logger.info(f"Directory, {club_info_path} created.")
-
-        with open(f"{club_info_path}/club_info.json", "w") as file:
-            json.dump(club_info[0], file)
-            logger.info("Club info saved.")
+    def _store_post_links(self, club_id: str, club_username: str, post_links: list):
+        """Store post links in the database with minimal information"""
+        try:
+            for post_url in post_links:
+                try:
+                    # Extract Instagram post ID from URL
+                    instagram_post_id = post_url.split('/')[-2]
+                    
+                    # Check if post already exists
+                    existing_post = self.db.get_post_by_instagram_id(instagram_post_id)
+                    
+                    if existing_post:
+                        logger.info(f"Post {instagram_post_id} already exists in database")
+                        continue
+                    
+                    # Create a minimal post entry with just the URL and ID
+                    post_data = {
+                        "club_id": club_id,
+                        "determinant": instagram_post_id,
+                        "post_id": instagram_post_id,
+                        "post_url": post_url,
+                        "created_at": datetime.datetime.now().isoformat(),
+                        "scrapped": False  # Flag to indicate content hasn't been processed yet
+                    }
+                    
+                    # Insert the post
+                    self.db.insert_post_link(post_data)
+                    logger.info(f"Post link {instagram_post_id} stored in database")
+                    
+                except Exception as e:
+                    logger.error(f"Error storing post link {post_url}: {str(e)}")
+                    continue
+                    
+            logger.info(f"Stored {len(post_links)} post links for {club_username}")
+        except Exception as e:
+            logger.error(f"Error in _store_post_links: {str(e)}")
 
     def check_instagram_handle(self, club_username) -> bool:
         try:
@@ -417,7 +502,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            #"--headless",  # Run in headless mode for better speed
+            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
