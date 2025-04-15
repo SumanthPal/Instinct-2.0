@@ -1,0 +1,1035 @@
+[
+    {
+        "name": "ICS Student Council",
+        "genre": "Career and Professional",
+        "instagram": "icssc.uci",
+        "categories": [
+            "Career and Professional",
+            "Academics and Honors"
+        ]
+    },
+    {
+        "name": "Hack at UCI",
+        "genre": "Career and Professional",
+        "instagram": "hackatuci",
+        "categories": [
+            "Career and Professional",
+            "Technology"
+        ]
+    },
+    {
+        "name": "MAISS",
+        "genre": "Cultural and Social",
+        "instagram": "maissuci",
+        "categories": [
+            "Cultural and Social",
+            "Academics and Honors"
+        ]
+    },
+    {
+        "name": "WICS",
+        "genre": "Career and Professional",
+        "instagram": "wicsuci",
+        "categories": [
+            "Career and Professional",
+            "Diversity and Inclusion"
+        ]
+    },
+    {
+        "name": "Artificial Intelligence at UCI",
+        "genre": "Career and Professional",
+        "instagram": "aiatuci",
+        "categories": [
+            "Career and Professional",
+            "Academics and Honors"
+        ]
+    },
+    {
+        "name": "Cyber @ UCI",
+        "genre": "Career and Professional",
+        "instagram": "cyberuci",
+        "categories": [
+            "Career and Professional",
+            "Technology"
+        ]
+    },
+    {
+        "name": "ACM @ UCI",
+        "genre": "Career and Professional",
+        "instagram": "acm.uci",
+        "categories": [
+            "Career and Professional",
+            "Technology"
+        ]
+    },
+    {
+        "name": "Commit the Change",
+        "genre": "Career and Professional",
+        "instagram": "ctc.uci",
+        "categories": [
+            "Community Service",
+            "Career and Professional"
+        ]
+    },
+    {
+        "name": "Ascend at UCI",
+        "genre": "Career and Professional",
+        "instagram": "ascenduci",
+        "categories": [
+            "Career and Professional"
+        ]
+    },
+    {
+        "name": "Asian American Christian Fellowship at UCI - AACF",
+        "genre": "Religious and Spiritual",
+        "instagram": "aacf.uci",
+        "categories": [
+            "Religious and Spiritual"
+        ]
+    },
+    {
+        "name": "Asian Pacific American Law Student Association (APALSA)",
+        "genre": "Multicultural",
+        "instagram": "apalsa_ucilaw",
+        "categories": [
+            "Multicultural"
+        ]
+    },
+    {
+        "name": "Badminton Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "ucibadminton",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Anteater Financial Analytics Club",
+        "genre": "Career and Professional",
+        "instagram": "ufa_uci",
+        "categories": [
+            "Career and Professional",
+            "Hobbies and Interests"
+        ]
+    },
+    {
+        "name": "Anime Club at UCI",
+        "genre": "Hobbies and Interests",
+        "instagram": "anime.uci",
+        "categories": [
+            "Hobbies and Interests"
+        ]
+    },
+    {
+        "name": "Alpha Kappa Psi",
+        "genre": "Career and Professional",
+        "instagram": "akpsiuci",
+        "categories": [
+            "Career and Professional"
+        ]
+    },
+    {
+        "name": "Blockchain at UCI",
+        "genre": "Hobbies and Interests",
+        "instagram": "uciblockchain",
+        "categories": [
+            "Hobbies and Interests"
+        ]
+    },
+    {
+        "name": "Climbing Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "climbinguci",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Club Baseball at UCI",
+        "genre": "Club Sports",
+        "instagram": "ucibsb",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Brazilian Jiu Jitsu Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "ucibjj",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Boxing Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "boxingclubuci",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Accounting Association",
+        "genre": "Career and Professional",
+        "instagram": "accounting.uci",
+        "categories": [
+            "Career and Professional",
+            "Academics and Honors"
+        ]
+    },
+    {
+        "name": "Black Student Union",
+        "genre": "Multicultural",
+        "instagram": "uci_bsu",
+        "categories": [
+            "Multicultural"
+        ]
+    },
+    {
+        "name": "Cine-Collective",
+        "genre": "Creative Arts",
+        "instagram": "ucifms",
+        "categories": [
+            "Creative Arts",
+            "Media",
+            "Hobbies and Interests",
+            "Performance and Entertainment"
+        ]
+    },
+    {
+        "name": "Dragon Boat at UC Irvine",
+        "genre": "Club Sports",
+        "instagram": "ucidragonboat",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Engineers Without Borders at UCI",
+        "genre": "Community Service",
+        "instagram": "ewb.uci",
+        "categories": [
+            "Community Service",
+            "Environmental",
+            "Career and Professional",
+            "International"
+        ]
+    },
+    {
+        "name": "Fencing Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "fencingclubatuci",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Ice Hockey Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "ucihockey",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "Japanese Student Association",
+        "genre": "Multicultural",
+        "instagram": "uci.jsa",
+        "categories": [
+            "Multicultural",
+            "Cultural"
+        ]
+    },
+    {
+        "name": "Kendo Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "kendoclubatuci",
+        "categories": [
+            "Club Sports",
+            "Cultural"
+        ]
+    },
+    {
+        "name": "Latinx Law Student Association",
+        "genre": "Career and Professional",
+        "instagram": "ucilaw",
+        "categories": [
+            "Career and Professional",
+            "Multicultural"
+        ]
+    },
+    {
+        "name": "Mock Trial",
+        "genre": "Career and Professional",
+        "instagram": "anteatermocktrial",
+        "categories": [
+            "Career and Professional",
+            "Academics and Honors"
+        ]
+    },
+    {
+        "name": "Nigerian Student Association",
+        "genre": "Multicultural",
+        "instagram": "nsa.uci",
+        "categories": [
+            "Multicultural",
+            "Cultural"
+        ]
+    },
+    {
+        "name": "OutLaw at UCI Law",
+        "genre": "LGBTQ+",
+        "instagram": "outlaw_uci",
+        "categories": [
+            "LGBTQ+",
+            "Career and Professional"
+        ]
+    },
+    {
+        "name": "Pickleball at UCI",
+        "genre": "Club Sports",
+        "instagram": "pickleballatuci",
+        "categories": [
+            "Club Sports",
+            "Fitness"
+        ]
+    },
+    {
+        "name": "Running Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "runningclubatuci",
+        "categories": [
+            "Club Sports",
+            "Fitness"
+        ]
+    },
+    {
+        "name": "Sailing Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "ucisailing",
+        "categories": [
+            "Club Sports"
+        ]
+    },
+    {
+        "name": "180 Degrees Consulting at UC Irvine",
+        "genre": "Career and Professional",
+        "instagram": "180dcuci",
+        "categories": ["Career and Professional"]
+    },
+    {
+        "name": "Acts2fellowship at UCI",
+        "genre": "Religious and Spiritual",
+        "instagram": "a2firvine",
+        "categories": ["Religious and Spiritual"]
+      },
+      {
+        "name": "Advancing Black Students in Medicine",
+        "genre": "Career and Professional",
+        "instagram": "absm.uci",
+        "categories": ["Multicultural", "Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "Aerodynamix Acappella - AD",
+        "genre": "Performance and Entertainment",
+        "instagram": "aerodynamixacappella",
+        "categories": ["Creative Arts", "Performance and Entertainment"]
+      },
+      {
+        "name": "Afghan United Association at UCI - AUA",
+        "genre": "Multicultural",
+        "instagram": "uci.aua",
+        "categories": ["Multicultural"]
+      },
+      {
+        "name": "African Graduate Students Association",
+        "genre": "Graduate",
+        "instagram": "uci_bsu",
+        "categories": ["Peer Support", "Graduate", "International"]
+      },
+      {
+        "name": "Ahlul-Bayt Student Association",
+        "genre": "Religious and Spiritual",
+        "instagram": "absanetwork",
+        "categories": ["Multicultural", "Religious and Spiritual"]
+      },
+      {
+        "name": "180 Degrees Consulting at UC Irvine",
+        "genre": "Career and Professional",
+        "instagram": "180dcuci",
+        "categories": ["Career and Professional"]
+      },
+      {
+        "name": "Alpha Epsilon Delta Pre-Health Honor Society - AED",
+        "genre": "Academics and Honors",
+        "instagram": "uciaed",
+        "categories": ["Academics and Honors"]
+      },
+      {
+        "name": "Alpha Eta Mu Beta (AEMB)",
+        "genre": "Academics and Honors",
+        "instagram": "aembuci",
+        "categories": ["Academics and Honors"]
+      },
+      {
+        "name": "Alpha Phi Omega",
+        "genre": "Community Service",
+        "instagram": "irvinealphaphi",
+        "categories": ["Community Service"]
+      },
+      {
+        "name": "Alpha Tau Delta",
+        "genre": "Career and Professional",
+        "instagram": "atdatuci",
+        "categories": ["Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "American Indian Student Association (AISA)",
+        "genre": "Peer Support",
+        "instagram": "aisaatuci",
+        "categories": ["Peer Support"]
+      },
+      {
+        "name": "American Institute of Chemical Engineers (AIChE)",
+        "genre": "Career and Professional",
+        "instagram": "aicheatuci",
+        "categories": ["Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "American Medical Student Association at UCI - Undergraduate Chapter - AMSA",
+        "genre": "Academics and Honors",
+        "instagram": "amsauci",
+        "categories": ["Academics and Honors"]
+      },
+      {
+        "name": "American Red Cross Club at UCI",
+        "genre": "Community Service",
+        "instagram": "rccatuci",
+        "categories": ["Community Service"]
+      },
+      {
+        "name": "American Society of Civil Engineers (ASCE)",
+        "genre": "Career and Professional",
+        "instagram": "asce_uci",
+        "categories": ["Career and Professional"]
+      },
+      {
+        "name": "American Society of Mechanical Engineers at UCI",
+        "genre": "Career and Professional",
+        "instagram": "asme.at.uci",
+        "categories": ["Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "Amnesty International at UCI",
+        "genre": "Community Service",
+        "instagram": "ucifms",
+        "categories": ["Community Service", "Environmental", "Media", "Multicultural", "Political", "International"]
+      },
+      {
+        "name": "Anakbayan at UCI",
+        "genre": "Community Service",
+        "instagram": "anakbayanuci",
+        "categories": ["Community Service", "Multicultural", "Political", "International"]
+      },
+      {
+        "name": "Anteater Adventure Club",
+        "genre": "Environmental",
+        "instagram": "anteateradventureclub",
+        "categories": ["Environmental", "Fitness", "Peer Support", "Hobbies and Interests", "Health and Wellness"]
+      },
+      {
+        "name": "Anteater Catholic",
+        "genre": "Religious and Spiritual",
+        "instagram": "anteatercatholic",
+        "categories": ["Religious and Spiritual"]
+      },
+      {
+        "name": "Anteater Combat Engineering",
+        "genre": "Hobbies and Interests",
+        "instagram": "ace.uci",
+        "categories": ["Hobbies and Interests"]
+      },
+      {
+        "name": "Anteater Emergency Medical Services",
+        "genre": "Community Service",
+        "instagram": "anteaterems",
+        "categories": ["Community Service", "Career and Professional"]
+      },
+      {
+        "name": "Anteater Photography Organization (APO)",
+        "genre": "Creative Arts",
+        "instagram": "anteaterphoto",
+        "categories": ["Creative Arts", "Hobbies and Interests"]
+      },
+      {
+        "name": "Anteater Sim Racing club",
+        "genre": "Hobbies and Interests",
+        "instagram": "anteaterracing",
+        "categories": [
+          "Fitness",
+          "Multicultural",
+          "Peer Support",
+          "Hobbies and Interests",
+          "Health and Wellness",
+          "International"
+        ]
+      },
+      {
+        "name": "Anteater Smile Project at UCI - ASP",
+        "genre": "Community Service",
+        "instagram": "anteatersmileproject",
+        "categories": ["Community Service", "Health and Wellness"]
+      },
+      {
+        "name": "Anteater Student Audio Production",
+        "genre": "Creative Arts",
+        "instagram": "uciengineering",
+        "categories": ["Creative Arts"]
+      },
+      {
+        "name": "Anteaters Beach Club",
+        "genre": "Community Service",
+        "instagram": "ucimvb",
+        "categories": ["Community Service", "Hobbies and Interests"]
+      },
+      {
+        "name": "Anteaters Sprinkling Happiness at UCI",
+        "genre": "Community Service",
+        "instagram": "sprinkling_happiness_uci",
+        "categories": ["Community Service", "Hobbies and Interests"]
+      },
+      {
+        "name": "Anteaters' Habitat for Humanity",
+        "genre": "Community Service",
+        "instagram": "habitat.uci",
+        "categories": ["Community Service", "Environmental"]
+      },
+      {
+        "name": "Archery Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "archeryclubatuci",
+        "categories": ["Club Sports", "Fitness"]
+      },
+      {
+        "name": "Armenian Pre-Health Society at UC Irvine",
+        "genre": "Community Service",
+        "instagram": "armenian.prehealth.society",
+        "categories": ["Community Service", "Peer Support", "Academics and Honors", "Health and Wellness"]
+      },
+      {
+        "name": "Art History Undergraduate Association (AHUA)",
+        "genre": "Academics and Honors",
+        "instagram": "uciahua",
+        "categories": ["Academics and Honors"]
+      },
+      {
+        "name": "ZotBins",
+        "genre": "Environmental",
+        "instagram": "zotbins",
+        "categories": ["Environmental", "Community Service"]
+      },
+      {
+        "name": "Women's Water Polo Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "uciwwp",
+        "categories": ["Club Sports"]
+      },
+      {
+        "name": "Women's Rugby Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "uciwrugby",
+        "categories": ["Club Sports"]
+      },
+      {
+        "name": "Women's Soccer Club",
+        "genre": "Club Sports",
+        "instagram": "uciwsoc",
+        "categories": ["Club Sports"]
+      },
+    
+      {
+        "name": "Women's Volleyball Club",
+        "genre": "Club Sports",
+        "instagram": "uciwvb",
+        "categories": ["Club Sports"]
+      },
+      {
+        "name": "Women's Rowing Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "ucirvinerowing",
+        "categories": ["Club Sports"]
+      },
+      {
+        "name": "Women in Leadership at UCI",
+        "genre": "Career and Professional",
+        "instagram": "womenuci",
+        "categories": ["Career and Professional", "Peer Support"]
+      },
+      {
+        "name": "Women in Science Society",
+        "genre": "Career and Professional",
+        "instagram": "womeninsciencesociety",
+        "categories": ["Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "Women's Basketball Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "westcliffu_wbb",
+        "categories": ["Club Sports"]
+      },
+      {
+        "name": "Women's Lacrosse Club at UCI",
+        "genre": "Club Sports",
+        "instagram": "lacrosseuci",
+        "categories": ["Club Sports"]
+      },
+      {
+        "name": "Women's Law Society at UCI Law School",
+        "genre": "Career and Professional",
+        "instagram": "ucilaw",
+        "categories": ["Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "Women in Film",
+        "genre": "Career and Professional",
+        "instagram": "womeninfilm_uci",
+        "categories": ["Career and Professional", "Creative Arts"]
+      },
+      {
+        "name": "VocaLotus A Cappella",
+        "genre": "Performance and Entertainment",
+        "instagram": "vocalotusuci",
+        "categories": ["Performance and Entertainment", "Creative Arts"]
+      },
+      {
+        "name": "Venture Capital Society at UCI",
+        "genre": "Career and Professional",
+        "instagram": "vcs.uci",
+        "categories": ["Career and Professional", "Academics and Honors"]
+      },
+      {
+        "name": "Theta Tau",
+        "genre": "Career and Professional",
+        "instagram": "thetatauuci",
+        "categories": ["Career and Professional", "Greek Life"]
+      },
+      {
+        "name": "The Women's Network",
+        "genre": "Career and Professional",
+        "instagram": "thewomensnetwork_irvine",
+        "categories": ["Career and Professional", "Peer Support"]
+      },
+      {
+        "name": "The Philosophy Club",
+        "genre": "Academics and Honors",
+        "instagram": "philclubuci",
+        "categories": ["Academics and Honors"]
+      },
+      {
+        "name": "The Patient Project",
+        "genre": "Health and Wellness",
+        "instagram": "patientprojectuci",
+        "categories": ["Health and Wellness", "Community Service"]
+      },
+      {
+
+    "name": "The Fear-Eaters at UCI",
+    "genre": "Performance and Entertainment",
+    "instagram": "tfeuci",
+    "categories": ["Performance and Entertainment", "Creative Arts"]
+  },
+  {
+    "name": "The Antweavers",
+    "genre": "Performance and Entertainment",
+    "instagram": "the.antweavers",
+    "categories": ["Performance and Entertainment", "Creative Arts"]
+  },
+  {
+    "name": "Thai Culture Association at UCI",
+    "genre": "Multicultural",
+    "instagram": "thaiclub_uci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Tennis Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "ucitennisclub",
+    "categories": ["Club Sports"]
+  },
+  {
+    "name": "TEDxUCIrvine",
+    "genre": "Academics and Honors",
+    "instagram": "tedxucirvine",
+    "categories": ["Academics and Honors", "Performance and Entertainment"]
+  },
+  {
+    "name": "Taiwanese American Organization",
+    "genre": "Multicultural",
+    "instagram": "taoxuci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Taekwondo at UCI",
+    "genre": "Club Sports",
+    "instagram": "taekwondouci",
+    "categories": ["Club Sports", "Fitness"]
+  },
+  {
+    "name": "Table Tennis Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "ucitabletennis",
+    "categories": ["Club Sports"]
+  },
+  {
+    "name": "Syrian American Medical Society",
+    "genre": "Career and Professional",
+    "instagram": "samsatuci",
+    "categories": ["Career and Professional", "Health and Wellness", "Multicultural"]
+  },
+  {
+    "name": "Swing Dance at UCI",
+    "genre": "Performance and Entertainment",
+    "instagram": "swingatuci",
+    "categories": ["Performance and Entertainment", "Hobbies and Interests"]
+  },
+  {
+    "name": "Swim Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "uciswimclub",
+    "categories": ["Club Sports"]
+  },
+  {
+    "name": "SWANA Health Alliance",
+    "genre": "Health and Wellness",
+    "instagram": "swanahealthuci",
+    "categories": ["Health and Wellness", "Multicultural"]
+  },
+  {
+    "name": "Students Advocating For Immigrant Rights and Equity",
+    "genre": "Political",
+    "instagram": "safireatuci",
+    "categories": ["Political", "Community Service"]
+  },
+  {
+    "name": "Student National Medical Association @ UCI",
+    "genre": "Career and Professional",
+    "instagram": "snmauci",
+    "categories": ["Career and Professional", "Health and Wellness", "Multicultural"]
+  },
+  {
+    "name": "Student Healthcare in Practice",
+    "genre": "Career and Professional",
+    "instagram": "shipatuci",
+    "categories": ["Career and Professional", "Health and Wellness"]
+  },
+  {
+    "name": "Student Alumni Association",
+    "genre": "Career and Professional",
+    "instagram": "ucialumni",
+    "categories": ["Career and Professional", "Networking"]
+  },
+  {
+    "name": "Steel Bridge at UCI",
+    "genre": "Career and Professional",
+    "instagram": "ucisteelbridge",
+    "categories": ["Career and Professional", "Academics and Honors"]
+  },
+  {
+    "name": "Sports Business Association",
+    "genre": "Career and Professional",
+    "instagram": "sbaucirvine",
+    "categories": ["Career and Professional", "Hobbies and Interests"]
+  },
+  {
+    "name": "Sports Medicine Club",
+    "genre": "Career and Professional",
+    "instagram": "ucisportsmedclub",
+    "categories": ["Career and Professional", "Health and Wellness"]
+  },
+  {
+    "name": "Southeast Asian Student Association",
+    "genre": "Multicultural",
+    "instagram": "sasauci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Society of Physics Students",
+    "genre": "Academics and Honors",
+    "instagram": "sps.uci",
+    "categories": ["Academics and Honors"]
+  },
+  {
+    "name": "Society of Hispanic Professional Engineers at UCI",
+    "genre": "Career and Professional",
+    "instagram": "shpe_uci",
+    "categories": ["Career and Professional", "Multicultural"]
+  },
+  {
+    "name": "Society of Arab Students",
+    "genre": "Multicultural",
+    "instagram": "sas_uci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Society for Advancement of Chicanos/Hispanics and Native Americans in Science",
+    "genre": "Career and Professional",
+    "instagram": "sacnasatuci",
+    "categories": ["Career and Professional", "Multicultural"]
+  },
+  {
+    "name": "Ski and Snowboard Club",
+    "genre": "Club Sports",
+    "instagram": "irvinesnowclub",
+    "categories": ["Club Sports", "Hobbies and Interests"]
+  },
+  {
+    "name": "Sikh Student Association at UCI",
+    "genre": "Religious and Spiritual",
+    "instagram": "ssa.ucirvine",
+    "categories": ["Religious and Spiritual", "Multicultural"]
+  },
+  {
+    "name": "Sigma Eta Pi",
+    "genre": "Greek Life",
+    "instagram": "sepatuci",
+    "categories": ["Greek Life", "Career and Professional"]
+  },
+  {
+    "name": "Scholars of Finance",
+    "genre": "Career and Professional",
+    "instagram": "sof.uci",
+    "categories": ["Career and Professional", "Academics and Honors"]
+  },
+  {
+    "name": "Saudi Student Association at UCI",
+    "genre": "Multicultural",
+    "instagram": "ssa.uci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "REV Auto Car Club",
+    "genre": "Hobbies and Interests",
+    "instagram": "revatuci",
+    "categories": ["Hobbies and Interests"]
+  },
+  {
+    "name": "Real Estate Association at UCI",
+    "genre": "Career and Professional",
+    "instagram": "ucirealestate",
+    "categories": ["Career and Professional"]
+  },
+  {
+    "name": "Reformed University Fellowship",
+    "genre": "Religious and Spiritual",
+    "instagram": "rufucirvine",
+    "categories": ["Religious and Spiritual"]
+  },
+  {
+    "name": "Rang De Irvine",
+    "genre": "Performance and Entertainment",
+    "instagram": "rangdeirvine",
+    "categories": ["Performance and Entertainment", "Cultural"]
+  },
+  {
+    "name": "Punjabis at UCI",
+    "genre": "Multicultural",
+    "instagram": "punjabisatuci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Product Association at UCI",
+    "genre": "Career and Professional",
+    "instagram": "productuci",
+    "categories": ["Career and Professional"]
+  },
+  {
+    "name": "Product Club at UCI",
+    "genre": "Career and Professional",
+    "instagram": "uci_productclub",
+    "categories": ["Career and Professional"]
+  },
+  {
+    "name": "PRISM Outreach",
+    "genre": "LGBTQ+",
+    "instagram": "prismuci",
+    "categories": ["LGBTQ+", "Community Service"]
+  },
+  {
+    "name": "Prison Education Project at UCI",
+    "genre": "Community Service",
+    "instagram": "pepatuci",
+    "categories": ["Community Service", "Education"]
+  },
+  {
+    "name": "Pre-Pharmacy Society at UC Irvine",
+    "genre": "Career and Professional",
+    "instagram": "pps_at_uci",
+    "categories": ["Career and Professional", "Health and Wellness"]
+  },
+  {
+    "name": "Pre-Veterinary and Animal Wellness Association",
+    "genre": "Career and Professional",
+    "instagram": "pawa.uci",
+    "categories": ["Career and Professional", "Health and Wellness"]
+  },
+  {
+    "name": "Powerlifting Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "powerliftingatuci",
+    "categories": ["Club Sports", "Fitness"]
+  },
+  {
+    "name": "Platypus at UCI",
+    "genre": "Political",
+    "instagram": "platypusucirvine",
+    "categories": ["Political", "Academics and Honors"]
+  },
+  {
+    "name": "Planned Parenthood Generation Action",
+    "genre": "Political",
+    "instagram": "ppga_uci",
+    "categories": ["Political", "Health and Wellness"]
+  },
+  {
+    "name": "Phi Chi Theta",
+    "genre": "Career and Professional",
+    "instagram": "pctuci",
+    "categories": ["Career and Professional", "Greek Life"]
+  },
+  {
+    "name": "Physician Assistants Coming Together at UCI",
+    "genre": "Career and Professional",
+    "instagram": "pact_uci",
+    "categories": ["Career and Professional", "Health and Wellness"]
+  },
+  {
+    "name": "Pakistani Student Association",
+    "genre": "Multicultural",
+    "instagram": "psauci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Pacific Islander Student Association",
+    "genre": "Multicultural",
+    "instagram": "empoweredpi",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "Open Jam",
+    "genre": "Performance and Entertainment",
+    "instagram": "openjam",
+    "categories": ["Performance and Entertainment", "Creative Arts"]
+  },
+  {
+    "name": "Nursing Science Student Association at UCI",
+    "genre": "Career and Professional",
+    "instagram": "ucinursing",
+    "categories": ["Career and Professional", "Health and Wellness"]
+  },
+  {
+    "name": "Nihon Karate Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "nihonkarateuci",
+    "categories": ["Club Sports", "Fitness"]
+  },
+  {
+    "name": "Muslim Student Union",
+    "genre": "Religious and Spiritual",
+    "instagram": "msuuci",
+    "categories": ["Religious and Spiritual", "Multicultural"]
+  },
+  {
+    "name": "Na Opio O Ka Aina",
+    "genre": "Multicultural",
+    "instagram": "hawaiiclubatuci",
+    "categories": ["Multicultural", "Cultural"]
+  },
+  {
+    "name": "National Society of Black Engineers",
+    "genre": "Career and Professional",
+    "instagram": "nsbe_at_uci",
+    "categories": ["Career and Professional", "Multicultural"]
+  },
+  {
+    "name": "Men's Soccer Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "ucimsoc",
+    "categories": ["Club Sports"]
+  },
+  {
+    "name": "Men's Ultimate Frisbee Club at UCI",
+    "genre": "Club Sports",
+    "instagram": "nightlife_ultimate",
+    "categories": ["Club Sports"]
+  },
+  {
+    "name": "Men's Club Water Polo at UCI",
+    "genre": "Club Sports",
+    "instagram": "ucimwpolo",
+    "categories": ["Club Sports"]
+  },
+  {
+    "name": "Math Students Federation at UCI",
+    "genre": "Academics and Honors",
+    "instagram": "ucimathdept",
+    "categories": ["Academics and Honors"]
+  },
+  {
+    "name": "Math Finance Club at UCI",
+    "genre": "Career and Professional",
+    "instagram": "mfc_uci",
+    "categories": ["Career and Professional", "Academics and Honors"]
+  },
+  {
+    "name": "Manifest",
+    "genre": "Performance and Entertainment",
+    "instagram": "manifestatuci",
+    "categories": ["Performance and Entertainment"]
+  },
+  {
+    "name": "LIFTED Scholars",
+    "genre": "Academics and Honors",
+    "instagram": "ucilifted",
+    "categories": ["Academics and Honors", "Peer Support"]
+  },
+  {
+    "name": "Level V Origins",
+    "genre": "Performance and Entertainment",
+    "instagram": "lvodanceteam",
+    "categories": ["Performance and Entertainment"]
+  },
+  {
+    "name": "Legacy Robotics",
+    "genre": "Career and Professional",
+    "instagram": "legacyuci",
+    "categories": ["Career and Professional", "Academics and Honors"]
+  },
+  {
+    "name": "Lambda Phi Nu",
+    "genre": "Greek Life",
+    "instagram": "lpnuci",
+    "categories": ["Greek Life"]
+  },
+  {
+    "name": "KKAP K-pop Dance Team",
+    "genre": "Performance and Entertainment",
+    "instagram": "kkap.uci",
+    "categories": ["Performance and Entertainment", "Cultural"]
+  },
+  {
+    "name": "Kababayan",
+    "genre": "Multicultural",
+    "instagram": "kabaatuci",
+    "categories": ["Multicultural", "Cultural"]
+  }
+
+
+
+
+
+
+
+      
+
+    
+]
