@@ -614,6 +614,93 @@ class SupabaseQueries:
         )
 
         return response.data
+    
+    def check_if_post_is_parsed(self, post_id: uuid) -> bool:
+        response = (self.supabase.table("posts")
+                    .select("id")
+                    .eq("parsed", False)
+                    .eq("id", post_id)
+                    .limit(1)
+                    .execute())
+    
+        if response.data:
+            return False  # post_id already exists
+        return True  # post_id not found, so it's not parsed yet
+    
+    def posts_to_parse(self, username):
+        club_id = self.get_club_by_instagram_handle(username)
+        response = (self.supabase
+         .table("posts")
+         .select("id")
+         .eq("parsed", False)
+         .eq("club_id", club_id)
+         .execute()
+         )
+        return response.data
+    
+    def get_post_date_and_caption(self, post_id) -> tuple:
+            """
+            Get the posting date and caption for a post.
+            
+            Args:
+                post_id (uuid): ID of the post
+                
+            Returns:
+                Tuple of (posted_date, caption)
+            """
+            response = (
+                self.supabase
+                .table("posts")
+                .select("posted", "caption")
+                .eq("id", post_id)  # Fixed this line - use "id" instead of "post_id"
+                .limit(1)
+                .execute()
+            )
+            
+            if response.data:
+                post = response.data[0]
+                return post["posted"], post["caption"]
+            
+            raise ValueError(f"Post with ID {post_id} not found.")
+    def insert_event(self, event_data: dict):
+        """
+        Insert a new event into the events table.
+        
+        Args:
+            event_data (dict): Event data containing club_id, post_id, name, date, details, duration, and parsed
+            
+        Returns:
+            The inserted event data
+        """
+        response = (
+            self.supabase
+            .from_("events")
+            .insert(event_data)
+            .execute()
+        )
+        
+        return response.data
+    
+    def update_post_by_id(self, post_id: "uuid", update_data: dict):
+        """
+        Update a post by its ID with the given update data.
+        
+        Args:
+            post_id (uuid): ID of the post to update
+            update_data (dict): Dictionary containing the fields to update
+            
+        Returns:
+            The updated post data
+        """
+        response = (  # Fixed typo here - 'response' instead of 'reponse'
+            self.supabase
+            .from_("posts")
+            .update(update_data)
+            .eq("id", post_id)
+            .execute()
+        )
+        
+        return response.data
 
 
 
