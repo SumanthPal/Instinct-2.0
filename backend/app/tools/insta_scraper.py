@@ -19,7 +19,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from pathlib import Path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', )))
 from tools.logger import logger
-
+#testing
 from db.queries import SupabaseQueries
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
