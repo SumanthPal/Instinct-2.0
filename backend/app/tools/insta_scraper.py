@@ -248,27 +248,27 @@ class InstagramScraper:
         except Exception as e:
             logger.error(f"Error in save_post_info: {str(e)}")
             
-    def get_club_categories(self, instagram_handle: str) -> list:
-        """Get the club's categories from the manifest file"""
-        try:
-            manifest_path = os.path.join(self.working_path, 'club_manifest.json')
+    # def get_club_categories(self, instagram_handle: str) -> list:
+    #     """Get the club's categories from the manifest file"""
+    #     try:
+    #         manifest_path = os.path.join(self.working_path, 'club_manifest.json')
             
-            if not os.path.exists(manifest_path):
-                logger.warning(f"Manifest file not found: {manifest_path}")
-                return []
+    #         if not os.path.exists(manifest_path):
+    #             logger.warning(f"Manifest file not found: {manifest_path}")
+    #             return []
                 
-            with open(manifest_path, 'r') as f:
-                manifest = json.load(f)
+    #         with open(manifest_path, 'r') as f:
+    #             manifest = json.load(f)
                 
-            for club in manifest:
-                if club.get("instagram") == instagram_handle:
-                    return club.get("categories", [])
+    #         for club in manifest:
+    #             if club.get("instagram") == instagram_handle:
+    #                 return club.get("categories", [])
                     
-            logger.warning(f"Club {instagram_handle} not found in manifest")
-            return []
-        except Exception as e:
-            logger.error(f"Error getting club categories: {str(e)}")
-            return []
+    #         logger.warning(f"Club {instagram_handle} not found in manifest")
+    #         return []
+    #     except Exception as e:
+    #         logger.error(f"Error getting club categories: {str(e)}")
+    #         return []
 
     def save_club_info(self, club_info: dict):
         """Save the club information and post links to the database"""
@@ -276,16 +276,12 @@ class InstagramScraper:
             # Get club categories from manifest
             
             instagram_handle = club_info[0]["Instagram Handle"]
-            categories = self.get_club_categories(instagram_handle)
             
 
             club_id = self.db.upsert_club(club_info[0])
             logger.info('inserted data')
             
-            # Assign categories
-            if categories:
-                self.db.assign_categories_to_club(club_id, categories)
-                
+             
             # Store post links in the database
             logger.info(club_info)
             if club_info[0]['Recent Posts'] and club_id:
