@@ -326,15 +326,17 @@ if __name__ == "__main__":
     rotation = ScraperRotation()
     
     # Check if running in Heroku
-    if os.environ.get("DYNO"):
-        # In Heroku, determine thread count based on dyno type
-        dyno_type = os.environ.get("DYNO_TYPE", "").lower()
-        if "performance" in dyno_type:
-            rotation.max_threads = 4  # More threads for Performance dynos
-        elif "standard-2x" in dyno_type:
-            rotation.max_threads = 2  # 2 threads for Standard-2X
-        else:
-            rotation.max_threads = 1  # Default to 1 thread for basic dynos
+    # if os.environ.get("DYNO"):
+    #     # In Heroku, determine thread count based on dyno type
+    #     dyno_type = os.environ.get("DYNO_TYPE", "").lower()
+    #     if "performance" in dyno_type:
+    #         rotation.max_threads = 4  # More threads for Performance dynos
+    #     elif "standard-2x" in dyno_type:
+    #         rotation.max_threads = 2  # 2 threads for Standard-2X
+    #     else:
+    #         rotation.max_threads = 1  # Default to 1 thread for basic dynos
+    # rotation = ScraperRotation()
+    rotation.run()
     
     # Start the rotation
-    rotation.schedule_scraping()
+    #rotation.schedule_scraping()

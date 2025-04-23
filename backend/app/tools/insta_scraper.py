@@ -210,11 +210,9 @@ class InstagramScraper:
             if not club_id:
                 logger.error(f"Club {club_username} not found in database")
                 return
-
             
-            # Get unprocessed post links from database
+            # Get unprocessed post links from database - ALREADY GOOD
             post_links_response = self.db.get_unscrapped_posts_by_club_id(club_id)
-            print('post_links info', post_links_response)
             
             if not post_links_response:
                 logger.info(f"No unprocessed posts found for {club_username}")
@@ -224,6 +222,11 @@ class InstagramScraper:
                 post_url = post_data["post_url"]
                 post_id = post_data["id"]
                 
+                # NEW: Double-check if post was marked as scrapped by another process
+                if self.db.check_if_post_is_scrapped(post_id):
+                    logger.info(f"Post {post_id} already scrapped, skipping...")
+                    continue
+                    
                 try:
                     # Scrape post information
                     description, date, post_pic = self.get_post_info(post_url)
@@ -234,8 +237,6 @@ class InstagramScraper:
                         "posted": date,
                         "image_url": post_pic,
                         "scrapped": True,
-                        
-                        
                     }
                     
                     self.db.update_post_by_id(post_id, update_data)
@@ -247,7 +248,7 @@ class InstagramScraper:
                 
         except Exception as e:
             logger.error(f"Error in save_post_info: {str(e)}")
-            
+                
     # def get_club_categories(self, instagram_handle: str) -> list:
     #     """Get the club's categories from the manifest file"""
     #     try:
@@ -492,7 +493,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-           # "--headless",  # Run in headless mode for better speed
+            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
