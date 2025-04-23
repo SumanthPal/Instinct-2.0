@@ -117,5 +117,3 @@ if __name__ == "__main__":
     # Example: create calendar for a specific club by username
     calendar_conn.create_calendar_file("icssc.uci")
     
-    # Example: regenerate all calendars
-    # calendar_conn.regenerate_all_calendars()

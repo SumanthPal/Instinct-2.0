@@ -21,7 +21,6 @@ from tools.logger import logger
 
 from db.queries import SupabaseQueries
 import boto3
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError, ClientError
 import datetime
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
@@ -497,7 +496,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--headless",  # Run in headless mode for better speed
+           # "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",

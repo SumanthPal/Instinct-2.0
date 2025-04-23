@@ -18,7 +18,7 @@ class EventParser:
     def __init__(self):
         # Load environment variables (for OpenAI API key)
         dotenv.load_dotenv()
-        self.client = OpenAI(api_key="")
+        self.client = OpenAI(api_key="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")
         self.db = SupabaseQueries()
         
         # Configure similarity thresholds
