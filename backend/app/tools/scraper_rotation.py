@@ -7,6 +7,8 @@ import dotenv
 from typing import List, Dict
 import schedule
 from concurrent.futures import ThreadPoolExecutor
+import threading
+from queue import Queue
 
 # Import your existing tools
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -34,12 +36,57 @@ class ScraperRotation:
         for i, username in enumerate(clubs_to_scrape):
             # Use index as priority - earlier in list = higher priority
             self.queue.enqueue_club(username, priority=i)
-            
+    
+    def start_event_processing_thread(self):
+        """Start a separate thread for processing events"""
+        self.event_thread = threading.Thread(
+            target=self.event_processing_worker,
+            daemon=True
+        )
+        self.event_thread.start()
+        logger.info("Started event processing thread")
+
+    def event_processing_worker(self):
+        """Worker function that runs in a separate thread to process events"""
+        while True:
+            try:
+                # Get the next club from the event processing queue
+                job = self.queue.get_next_event_job()
+                if not job:
+                    # No job available, sleep and try again
+                    time.sleep(10)
+                    continue
+                    
+                instagram_handle = job['instagram_handle']
+                
+                try:
+                    logger.info(f"Processing events for {instagram_handle}")
+                    
+                    # Create the event parser and calendar
+                    parser = EventParser()
+                    calendar = CalendarConnection()
+                    
+                    # Parse posts and create calendar
+                    parser.parse_all_posts(instagram_handle)
+                    calendar.create_calendar_file(instagram_handle)
+                    
+                    # Mark job as complete
+                    self.queue.mark_event_complete(instagram_handle)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing events for {instagram_handle}: {e}")
+                    self.queue.mark_event_failed(instagram_handle, error=str(e))
+                    
+            except Exception as e:
+                logger.error(f"Error in event processing worker: {e}")
+                time.sleep(30)  # Sleep before retrying
+                
     def process_queue(self):
         """Process clubs from the queue"""
         while True:
             # Requeue any stalled jobs
             self.queue.requeue_stalled()
+            self.queue.requeue_stalled_event_jobs()
             
             # Get next job
             job = self.queue.get_next_club()
@@ -64,8 +111,8 @@ class ScraperRotation:
                 # Update last_scraped timestamp in database
                 self.update_club_last_scraped(instagram_handle)
                 
-                # Process events
-                self.process_events([instagram_handle])
+                # Enqueue for event processing instead of processing directly
+                self.queue.enqueue_event_job(instagram_handle)
                 
                 # Mark job as complete
                 self.queue.mark_complete(instagram_handle)
@@ -77,9 +124,8 @@ class ScraperRotation:
             except Exception as e:
                 logger.error(f"Error scraping {instagram_handle}: {e}")
                 self.queue.mark_failed(instagram_handle, error=str(e))
-
-        
-        
+            
+            
     def get_clubs_to_scrape(self) -> List[str]:
         """
         Get a list of Instagram handles to scrape, prioritizing:
@@ -309,6 +355,9 @@ class ScraperRotation:
     
     def run(self):
         """Main method to run the scraper rotation"""
+        # Start the event processing thread
+        self.start_event_processing_thread()
+        
         while True:
             try:
                 # Populate the queue with fresh clubs
