@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tools.logger import logger
 from db.queries import SupabaseQueries
-from tools.insta_scraper import InstagramScraper, scrape_with_retries
+from tools.insta_scraper import InstagramScraper, scrape_with_retries, scrape_sequence
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
 from tools.redis_queue import RedisScraperQueue
@@ -158,7 +158,7 @@ class ScraperRotation:
             for username in usernames:
                 try:
                     logger.info(f"Scraping {username}...")
-                    scraper = scrape_with_retries(scraper, username)
+                    scraper = scrape_sequence([scrape_sequence])
                     
                     # Update last_scraped timestamp in database
                     self.update_club_last_scraped(username)

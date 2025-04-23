@@ -482,5 +482,20 @@ class SupabaseQueries:
         
         return response.data if response.data else []
     
+    def check_if_post_is_scrapped(self, post_id: str) -> bool:
+        """Check if a post has already been scrapped"""
+        response = (
+            self.supabase
+            .table("posts")
+            .select("scrapped")
+            .eq("id", post_id)
+            .limit(1)
+            .execute()
+        )
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]["scrapped"]
+        return False
+        
     
     

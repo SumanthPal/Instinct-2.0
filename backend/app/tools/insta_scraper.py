@@ -173,19 +173,24 @@ class InstagramScraper:
             self._driver.get(post_url)
             self._wait.until(EC.presence_of_element_located((By.XPATH,
                                                              "//h1[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu')]")))
-
+            
+            time.sleep(1)
             post_source = self._driver.page_source
             post_soup = BeautifulSoup(post_source, 'html.parser')
 
             # Looks for post description
             h1_element = post_soup.find('h1', class_="_ap3a _aaco _aacu _aacx _aad7 _aade")
             description = h1_element.text if h1_element else ""
+            logger.info(f"description found!: {description}") if description else logger.info(f"no description found!")
+
 
 
             # looks for post time
             post_time = post_soup.find('time', class_="_a9ze _a9zf")
             date = post_time['datetime']
             img_src = 0
+            logger.info(f"date found!: {date}") if date else logger.info(f"no date found!")
+
             
             # look for post pic
             img_tag = post_soup.find('img', class_="x5yr21d xu96u03 x10l6tqk x13vifvy x87ps6o xh8yej3")
