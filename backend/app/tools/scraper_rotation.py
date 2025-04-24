@@ -25,7 +25,7 @@ class ScraperRotation:
         dotenv.load_dotenv()
         self.db = SupabaseQueries()
         self.clubs_per_session = 40
-        self.cooldown_hours = 72  # Don't scrape same club more than once every 3 days
+        self.cooldown_hours = 1
         self.session_cooldown_hours = 2  # Wait between sessions
         self.max_threads = 1  # Start with 1 thread (can be increased based on Heroku dyno)
         self.queue = RedisScraperQueue()

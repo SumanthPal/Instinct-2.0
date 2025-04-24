@@ -10,11 +10,12 @@ import uuid
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from io import StringIO
-
+import requests
 import dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, Query, Request
+from fastapi import FastAPI, HTTPException, Depends, Query, Request, APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, EmailStr
 import multiprocessing
@@ -31,6 +32,7 @@ app = FastAPI(
     description="API for discovering UCI clubs and their events",
     version="2.0.0"
 )
+router = APIRouter()
 
 origins = [
     "*"
@@ -73,6 +75,69 @@ class Event(BaseModel):
     details: Optional[str] = None
     duration: Optional[str] = None
 
+class ClubSubmission(BaseModel):
+    name: str
+    instagram_handle: str
+    description: Optional[str]
+    club_links: Optional[List[str]]
+    captcha_token: str
+    honeypot: Optional[str] = ""  # should be empty if real user
+
+HCAPTCHA_SECRET = os.getenv("HCAPTCHA_SECRET") 
+
+@router.post("/submit-club")
+async def submit_club(data: ClubSubmission, request: Request):
+    # 1. Basic honeypot check
+    if data.honeypot:
+        raise HTTPException(status_code=400, detail="Bot detected")
+
+    # 2. CAPTCHA validation
+    captcha_resp = requests.post(
+        "https://hcaptcha.com/siteverify",  # or Turnstile URL
+        data={
+            "secret": HCAPTCHA_SECRET,
+            "response": data.captcha_token,
+            "remoteip": request.client.host
+        }
+    )
+    if not captcha_resp.json().get("success"):
+        raise HTTPException(status_code=400, detail="CAPTCHA verification failed")
+
+    # 3. Get user from headers (assumes you're passing in Supabase token)
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+
+    # 4. Validate Supabase user (backend service key, not client key)
+    supabase_user = db.get_user_from_token(auth_header)
+    if not supabase_user:
+        raise HTTPException(status_code=401, detail="Invalid Supabase token")
+
+    if not supabase_user["email"].endswith("@uci.edu"):
+        raise HTTPException(status_code=403, detail="Only UCI students may submit")
+
+    # 5. Optional: Rate limiting or trust score
+    recent_submission = db.get_last_submission_by_user(supabase_user["id"])
+    if recent_submission and recent_submission.within_last_hour():
+        raise HTTPException(status_code=429, detail="Please wait before submitting again")
+
+    # 6. Check if club exists already
+    existing = db.get_club_by_instagram(data.instagram_handle)
+    if existing:
+        raise HTTPException(status_code=409, detail="Club already exists")
+
+    # 7. Insert into pending table
+    db.insert_pending_club({
+        "name": data.name,
+        "instagram_handle": data.instagram_handle,
+        "description": data.description,
+        "club_links": data.club_links,
+        "submitted_by": supabase_user["id"],
+        "approved": False,
+    })
+
+    return {"message": "Club submitted successfully. Awaiting approval."}
+
 
 @app.get("/")
 async def home():
@@ -111,7 +176,7 @@ async def list_clubs(
             clubs = filtered_clubs
         
         # Apply pagination
-        paginated_clubs = clubs[offset:offset + limit]
+        paginated_clubs = clubs # deleted [offset:offset + limit]
         
         return {
             "count": len(clubs),
@@ -270,7 +335,7 @@ async def get_club_manifest():
                 "name": club["name"],
                 "instagram_handle": club["instagram_handle"],
                 "profile_pic": club.get("profile_pic", ""),
-                "categories": [cat["name"] for cat in club.get("categories", [])]
+                "categories": [cat["name"] for cat in club.get("categories", [])],
             })
         
         return manifest
@@ -298,6 +363,22 @@ async def get_categories():
             content={"message": f"Error fetching categories: {str(e)}"}
         )
 
+@app.get("/club/{instagram_handle}/next_scrape")
+async def next_scrape(
+    instagram_handle: str,
+):
+    try:
+        date = ScraperRotation().calculate_next_scrape(instagram_handle)
+        return {
+            "next_scrape": date
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error obtianing next scrape: {str(e)}"}
+        )
+        
 
 @app.get("/search")
 async def search_clubs(
@@ -357,7 +438,7 @@ def run_scraper_process():
     scraper = ScraperRotation()
     scraper.run()
 
-
+app.include_router(router)
 if __name__ == "__main__":
 
     

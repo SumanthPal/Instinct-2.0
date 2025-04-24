@@ -199,57 +199,15 @@ class InstagramScraper:
             except Exception as e:
                 logger.info("could not find img_src")
                 img_src = "http://www.w3.org/2000/svg"
+ 
             
-        
         except WebDriverException as e:
             logger.error(f"Error fetching post info: {str(e)}")
             
 
         return description, date, img_src
     
-    def start_event_processing_thread(self):
-        """Start a separate thread for processing events"""
-        self.event_thread = threading.Thread(
-            target=self.event_processing_worker,
-            daemon=True
-        )
-        self.event_thread.start()
-        logger.info("Started event processing thread")
-
-    def event_processing_worker(self):
-        """Worker function that runs in a separate thread to process events"""
-        while True:
-            try:
-                # Get the next club from the event processing queue
-                job = self.queue.get_next_event_job()
-                if not job:
-                    # No job available, sleep and try again
-                    time.sleep(10)
-                    continue
-                    
-                instagram_handle = job['instagram_handle']
-                
-                try:
-                    logger.info(f"Processing events for {instagram_handle}")
-                    
-                    # Create the event parser and calendar
-                    parser = EventParser()
-                    calendar = CalendarConnection()
-                    
-                    # Parse posts and create calendar
-                    parser.parse_all_posts(instagram_handle)
-                    calendar.create_calendar_file(instagram_handle)
-                    
-                    # Mark job as complete
-                    self.queue.mark_event_complete(instagram_handle)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing events for {instagram_handle}: {e}")
-                    self.queue.mark_event_failed(instagram_handle, error=str(e))
-                    
-            except Exception as e:
-                logger.error(f"Error in event processing worker: {e}")
-                time.sleep(30)  # Sleep before retrying
+    
 
     def save_post_info(self, club_username: str):
         """Process and save post information to the database"""

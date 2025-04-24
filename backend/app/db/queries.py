@@ -496,6 +496,22 @@ class SupabaseQueries:
         if response.data and len(response.data) > 0:
             return response.data[0]["scrapped"]
         return False
+
+    def get_user_from_token(self, token: str):
+        try:
+            user = supabase.auth.get_user(token)
+            return user.user if user.user else None
+        except Exception as e:
+            return None
+    
+    def insert_pending_club(self, data: dict):
+        supabase.table("clubs_pending").insert(data).execute()
+        
+    def get_last_submission_by_user(self, user_id: str):
+        response = supabase.table("clubs_pending").select("*").eq("submitted_by", user_id).order("created_at", desc=True).limit(1).execute()
+        if response.data:
+            return response.data[0]
+        return None
         
     
     

@@ -11,15 +11,8 @@ export default async function HomeServer() {
   }
 
   // Fetch job details
-  const jobDetails = await fetchJobDetails();
-
-  const reloadDataJob = jobDetails?.reload_data_job || {
-    job_id: "reload_data_job",
-    next_run_time: null,
-    pending: false,
-    running: false,
-  };
+  
 
   // Pass the manifest directly to HomeClient
-  return <HomeClient detailedClubs={manifest} reloadDataJob={reloadDataJob} />;
+  return <HomeClient detailedClubs={manifest} />;
 }

@@ -1,15 +1,15 @@
-const API_BASE_URL = 'https://rocky-eyrie-73493-0fd3b2ef381b.herokuapp.com/';
+const API_BASE_URL = 'http://0.0.0.0:8000';
 
 export const fetchClubManifest = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/club-manifest`);
+      const response = await fetch(`${API_BASE_URL}/club`);
       if (!response.ok) throw new Error('Failed to fetch clubs');
       const data = await response.json();
   
       // Log the fetched data to inspect its structure
       console.log('Fetched club manifest:', data);
   
-      return data;
+      return data["results"];
     } catch (error) {
       console.error('Error fetching club manifest:', error);
       throw error;
@@ -17,17 +17,6 @@ export const fetchClubManifest = async () => {
     }
   };
 
-  export const fetchJobDetails = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/job-status`);
-      if (!response.ok) throw new Error("Failed to fetch job status");
-      return response.json();
-    } catch (error) { 
-      console.error("Error fetching job details:", error);
-      return null;
-    }
-  };
-  
 
   export const fetchClubData = async (username) => {
     try {

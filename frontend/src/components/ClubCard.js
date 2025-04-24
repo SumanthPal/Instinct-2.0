@@ -102,16 +102,16 @@ export default function ClubCard({ club }) {
 
             <CardFooter className="flex flex-wrap gap-2 mt-auto pt-2 overflow-hidden">
               <div className="flex flex-wrap gap-2 max-h-[80px] overflow-hidden">
-                {club.categories?.map((category, index) => (
-                  <span
-                    key={index}
-                    className="bg-lavender dark:bg-dark-profile-card 
-                      text-gray-700 dark:text-dark-text-white 
-                      px-3 py-1 rounded-full text-l whitespace-nowrap"
-                  >
-                    {category}
-                  </span>
-                ))}
+              {club.categories?.map((category, index) => (
+                <span
+                  key={index}
+                  className="bg-lavender dark:bg-dark-profile-card 
+                    text-gray-700 dark:text-dark-text-white 
+                    px-3 py-1 rounded-full text-l whitespace-nowrap"
+                >
+                  {category.name}
+                </span>
+              ))}
               </div>
             </CardFooter>
           </div>

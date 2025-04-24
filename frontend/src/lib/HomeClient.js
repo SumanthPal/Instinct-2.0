@@ -10,7 +10,7 @@ import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
 import TypingAnimation from "@/components/ui/TypingAnimation";
 
-export default function HomeClient({ detailedClubs, reloadDataJob }) {
+export default function HomeClient({ detailedClubs }) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
   const clubsRef = useRef(null);
@@ -79,7 +79,6 @@ export default function HomeClient({ detailedClubs, reloadDataJob }) {
 
           {/* Responsive "Next Data Update" Text */}
           <div className="mt-4 text-sm sm:text-lg text-gray-700 dark:text-gray-300">
-            Next data update: {formatNextRunTime(reloadDataJob.next_run_time)}
           </div>
 
           {/* Search Bar and Category Filter */}
@@ -133,12 +132,12 @@ export default function HomeClient({ detailedClubs, reloadDataJob }) {
           {filteredClubs.length > 0 ? (
             filteredClubs.slice(0, visibleClubs).map((club) => (
               <ClubCard
-                key={club.instagram}
+                key={club.id}
                 club={{
-                  profilePicture: club["pfp"],
+                  profilePicture: club["profile_pic"],
                   name: club["name"],
-                  description: club.description[0],
-                  instagram: club["instagram"],
+                  description: club.description,
+                  instagram: club["instagram_handle"],
                   categories: club["categories"],
                 }}
               />
