@@ -1,81 +1,113 @@
-const API_BASE_URL = 'http://0.0.0.0:8000';
+const API_BASE_URL = 'http://localhost:8000'; // or your production API URL
 
-export const fetchClubManifest = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/club`);
-      if (!response.ok) throw new Error('Failed to fetch clubs');
-      const data = await response.json();
-  
-      // Log the fetched data to inspect its structure
-      console.log('Fetched club manifest:', data);
-  
-      return data["results"];
-    } catch (error) {
-      console.error('Error fetching club manifest:', error);
-      throw error;
-      //need to push
+export const fetchClubManifest = async (page = 1, limit = 20, category = null) => {
+  try {
+    // Build the query string with pagination and optional category filter
+    let queryParams = `page=${page}&limit=${limit}`;
+    if (category) {
+      queryParams += `&category=${encodeURIComponent(category)}`;
     }
-  };
-
-
-  export const fetchClubData = async (username) => {
-    try {
-      const url = `${API_BASE_URL}/club/${username}`;
-      console.log(`Fetching data for club ${username} from:`, url); // Log the API URL
-  
-      const response = await fetch(url);
-      if (!response.ok) {
-        const errorText = await response.text(); // Log the response body for more details
-        throw new Error(`Failed to fetch club data: ${response.status} ${response.statusText} - ${errorText}`);
-      }
-  
-      const data = await response.json();
-      console.log(`Fetched data for club ${username}:`, data);
-      return data;
-    } catch (error) {
-      console.error(`Error fetching club data for ${username}:`, error);
-      throw error;
+    
+    const response = await fetch(`${API_BASE_URL}/club?${queryParams}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch clubs: ${response.status} - ${errorText}`);
     }
-  };
+    
+    const data = await response.json();
+    
+    console.log('Fetched club manifest:', data);
+    
+    return {
+      results: data.results || [],
+      totalCount: data.total || 0,
+      hasMore: data.hasMore || false,
+      page: data.page || page,
+      totalPages: data.pages || 1
+    };
+  } catch (error) {
+    console.error('Error fetching club manifest:', error);
+    // Return a safe fallback value
+    return { results: [], totalCount: 0, hasMore: false, page: 1, totalPages: 1 };
+  }
+};
 
-  export const fetchClubPosts = async (username) => {
-    try {
-      const url = `${API_BASE_URL}/club/${username}/posts`;
-      const response = await fetch(url);
+// Function to fetch more clubs with pagination
+export const fetchMoreClubs = async (page, limit = 20, category = null) => {
+  return fetchClubManifest(page, limit, category);
+};
+
+// Function to fetch clubs with specific category
+export const fetchClubsByCategory = async (category, page = 1, limit = 20) => {
+  return fetchClubManifest(page, limit, category);
+};
+
+export const fetchClubData = async (username) => {
+  try {
+    const url = `${API_BASE_URL}/club/${username}`;
+    console.log(`Fetching data for club ${username} from:`, url);
   
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Failed to fetch posts: ${response.status} - ${text}`);
-      }
-  
-      const json = await response.json();
-      return json.results ?? []; // Fallback to empty array
-    } catch (error) {
-      console.error(`Error fetching posts for ${username}:`, error);
-      return []; // Return safe fallback so getServerSideProps can serialize it
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch club data: ${response.status} ${response.statusText} - ${errorText}`);
     }
-  };
   
+    const data = await response.json();
+    console.log(`Fetched data for club ${username}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching club data for ${username}:`, error);
+    throw error;
+  }
+};
 
-  export const fetchClubEvents = async (username) => {
-    try {
-      const url = `${API_BASE_URL}/club/${username}/events`;
-      const response = await fetch(url);
+export const fetchClubPosts = async (username, page = 1, limit = 10) => {
+  try {
+    const url = `${API_BASE_URL}/club/${username}/posts?page=${page}&limit=${limit}`;
+    const response = await fetch(url);
   
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Failed to fetch events: ${response.status} - ${text}`);
-      }
-  
-      const json = await response.json();
-      return json.results ?? [];
-    } catch (error) {
-      console.error(`Error fetching events for ${username}:`, error);
-      return [];
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to fetch posts: ${response.status} - ${text}`);
     }
-  };
   
+    const json = await response.json();
+    return {
+      results: json.results || [],
+      hasMore: json.hasMore || false,
+      page: json.page || page,
+      totalPages: json.pages || 1
+    };
+  } catch (error) {
+    console.error(`Error fetching posts for ${username}:`, error);
+    return { results: [], hasMore: false, page: 1, totalPages: 1 };
+  }
+};
 
+export const fetchClubEvents = async (username, page = 1, limit = 10) => {
+  try {
+    const url = `${API_BASE_URL}/club/${username}/events?page=${page}&limit=${limit}`;
+    const response = await fetch(url);
+  
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to fetch events: ${response.status} - ${text}`);
+    }
+  
+    const json = await response.json();
+    return {
+      results: json.results || [],
+      hasMore: json.hasMore || false,
+      page: json.page || page,
+      totalPages: json.pages || 1
+    };
+  } catch (error) {
+    console.error(`Error fetching events for ${username}:`, error);
+    return { results: [], hasMore: false, page: 1, totalPages: 1 };
+  }
+};
 
 export const getCalendarUrl = (username) => {
   return `${API_BASE_URL}/club/${username}/calendar.ics`;

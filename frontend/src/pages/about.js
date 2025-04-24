@@ -1,136 +1,113 @@
 import React from 'react';
 import '../../styles/globals.css';
-import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
-import { FaReact, FaPython, FaDatabase } from 'react-icons/fa';
-import { SiNextdotjs, SiTailwindcss, SiFlask, SiPostgresql, SiRedis, SiFastapi, SiSupabase, SiSelenium } from 'react-icons/si';
+import { SiNextdotjs, SiTailwindcss, SiRedis, SiSupabase, SiFastapi, SiSelenium } from 'react-icons/si';
+import { FaLinkedin, FaGithub, FaTwitter } from 'react-icons/fa';
+import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai } from 'react-icons/si'; // Added new icons
 
 const About = () => {
   return (
     <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
-      <main className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center">
+      <main className="container mx-auto px-4 py-24 text-center">
         {/* Hero Section */}
-        <div className="max-w-4xl mx-auto mb-16">
-          <h1 className="text-6xl font-bold mb-6 text-gray-900 dark:text-dark-text">
-            About Instinct
-          </h1>
-          <p className="text-xl text-gray-700 dark:text-dark-subtext mb-8">
-            Instinct was created as a passion project by Sumanth Pallamreddy, a freshman at UC Irvine. Frustrated with the constant need to check Instagram for club events and information, Sumanth envisioned a centralized platform to simplify student life. Instinct was born to make it easier for students to discover clubs, stay updated on events, and connect with their campus community.
+        <div className="max-w-4xl mx-auto mb-12">
+          <h1 className="text-5xl font-bold mb-6 text-gray-900 dark:text-dark-text">About Instinct</h1>
+          <p className="text-2xl text-gray-700 dark:text-dark-subtext mb-8">
+            With so many clubs at UC Irvine, discovering and engaging with them can be tough. That’s why we created Instinct: to make club exploration simple and accessible for all students.
           </p>
         </div>
 
-        {/* Grid Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Tech Stack Card */}
-          <div className="bg-white dark:bg-dark-card p-8 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-            <h2 className="text-3xl font-bold mb-6 text-gray-900 dark:text-dark-text">
-              Tech Stack
-            </h2>
-            <ul className="space-y-4 text-left">
-              {/* Next.js */}
-              <li className="flex items-center space-x-4">
-                <SiNextdotjs className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">Next.js</span>
-              </li>
-              {/* TailwindCSS */}
-              <li className="flex items-center space-x-4">
-                <SiRedis className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">Redis</span>
-              </li>
-              <li className="flex items-center space-x-4">
-                <SiTailwindcss className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">TailwindCSS</span>
-              </li>
-              {/* Python */}
-              <li className="flex items-center space-x-4">
-                <FaPython className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">Python</span>
-              </li>
-              {/* Flask */}
-              <li className="flex items-center space-x-4">
-                <SiFastapi className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">FastAPI</span>
-              </li>
-              {/* SQL */}
-              <li className="flex items-center space-x-4">
-                <SiPostgresql className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">PostgresSQL</span>
-              </li>
-              <li className="flex items-center space-x-4">
-                <SiSupabase className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">Supabase</span>
-              </li>
-              <li className="flex items-center space-x-4">
-                <SiSelenium className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">Selenium</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Vision Card */}
-          <div className="bg-white dark:bg-dark-card p-8 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-            <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-dark-text">
-              Our Vision
-            </h2>
-            <p className="text-gray-700 dark:text-dark-text">
-              We envision a campus experience where students can effortlessly discover and engage with clubs and events. Instinct aims to bridge the gap between students and organizations, fostering a more connected and vibrant campus community.
-            </p>
-          </div>
-
-          {/* Values Card */}
-          <div className="bg-white dark:bg-dark-card p-8 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-            <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-dark-text">
-              Our Values
-            </h2>
-            <p className="text-gray-700 dark:text-dark-text">
-              At Instinct, we value <strong>simplicity</strong>, <strong>innovation</strong>, and <strong>inclusivity</strong>. We are committed to creating a platform that is easy to use, forward-thinking, and accessible to all students, regardless of their background or technical expertise.
-            </p>
+        {/* Our Team Section */}
+        <div className="mb-16">
+          <h2 className="text-4xl font-bold mb-6 text-gray-900 dark:text-dark-text">Our Team</h2>
+          <div className="flex justify-center gap-16">
+            <div className="flex flex-col items-center">
+              <img src="/sumanth.jpg" alt="Sumanth Pallamreddy" className="w-24 h-24 rounded-full object-cover object-center transform transition-all duration-300 hover:scale-110" />
+              <p className="mt-4 text-xl font-semibold text-gray-900 dark:text-dark-text">Sumanth Pallamreddy</p>
+              <p className="text-lg text-gray-700 dark:text-dark-subtext">Founder & Developer</p>
+              {/* Social Links */}
+              <div className="mt-4 flex space-x-6">
+                <a href="https://www.linkedin.com/in/yourprofile" target="_blank" rel="noopener noreferrer">
+                  <FaLinkedin className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-blue-700 dark:hover:text-blue-500" />
+                </a>
+                <a href="https://github.com/yourprofile" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-black dark:hover:text-gray-200" />
+                </a>
+                <a href="https://twitter.com/yourprofile" target="_blank" rel="noopener noreferrer">
+                  <FaTwitter className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-blue-400 dark:hover:text-blue-300" />
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* How to Use Section */}
-        <div className="max-w-4xl mx-auto mt-16">
-          <h2 className="text-4xl font-bold mb-6 text-gray-900 dark:text-dark-text">
-            How to Use Instinct
-          </h2>
+        {/* Technical Details Section */}
+        <div className="mb-24">
+          <h2 className="text-4xl font-bold mb-6 text-gray-900 dark:text-dark-text">Technical Details</h2>
           <p className="text-xl text-gray-700 dark:text-dark-subtext mb-8">
-            Instinct is designed to be intuitive and user-friendly. Here’s how you can make the most of it:
+            Instinct is powered by the following technologies:
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-              <h3 className="text-2xl font-bold mb-2 text-gray-900 dark:text-dark-text">
-                Discover Clubs
-              </h3>
-              <p className="text-gray-700 dark:text-dark-text">
-                Browse through a comprehensive list of clubs at your school. Filter by categories, interests, or event dates to find what matters to you.
-              </p>
+          {/* Responsive Grid Layout for Logos */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-12 max-w-4xl mx-auto">
+            {/* Existing technologies */}
+            <div className="flex items-center space-x-4 justify-center">
+              <SiNextdotjs className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Next.js</span>
             </div>
-
-            {/* Step 2 */}
-            <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-              <h3 className="text-2xl font-bold mb-2 text-gray-900 dark:text-dark-text">
-                Stay Updated
-              </h3>
-              <p className="text-gray-700 dark:text-dark-text">
-                Never miss an event again. Instinct provides up-to-date information on club meetings, socials, and other activities.
-              </p>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiTailwindcss className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">TailwindCSS</span>
             </div>
-
-            {/* Step 3 */}
-            <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
-              <h3 className="text-2xl font-bold mb-2 text-gray-900 dark:text-dark-text">
-                Connect Easily
-              </h3>
-              <p className="text-gray-700 dark:text-dark-text">
-                Instinct links you directly to club social media pages and websites, making it easy to get involved and stay connected.
-              </p>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiRedis className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Redis</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiFastapi className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">FastAPI</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiSupabase className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Supabase</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiSelenium className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Selenium</span>
+            </div>
+            {/* New technologies */}
+            <div className="flex items-center space-x-4 justify-center">
+              <SiHeroku className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Heroku</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiVercel className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Vercel</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiPython className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Python</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiGoogle className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">Google</span>
+            </div>
+            <div className="flex items-center space-x-4 justify-center">
+              <SiOpenai className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">OpenAI</span>
             </div>
           </div>
+        </div>
+
+        {/* Disclaimer Section */}
+        <div className="mb-12 text-lg text-gray-700 dark:text-dark-subtext">
+          <p>
+            Instinct is not affiliated with or endorsed by the University of California, Irvine.
+          </p>
         </div>
       </main>
+
       <Footer />
     </div>
   );

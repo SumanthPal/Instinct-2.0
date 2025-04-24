@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 const phrases = [
   "Explore UC Irvine clubs",
   "Discover events",
-  "Connect with your community",
   "Find your passion",
   "Join exciting activities",
   "Meet new friends",
@@ -43,7 +42,7 @@ export default function TypingAnimation() {
   }, [currentPhrase, isDeleting, phraseIndex, typingSpeed]);
 
   return (
-    <div className="text-2xl sm:text-4xl md:text-5xl text-gray-700 dark:text-dark-subtext mb-8">
+    <div className="text-2xl sm:text-4xl md:text-5xl text-gray-700 mb-8 font-bold">
       <span>{currentPhrase}</span>
       <span className="blinking-cursor">|</span>
     </div>

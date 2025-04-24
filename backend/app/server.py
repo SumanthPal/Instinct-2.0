@@ -155,32 +155,41 @@ async def health_check():
     
 @app.get("/club")
 async def list_clubs(
-    limit: int = Query(100, description="Maximum number of clubs to return"),
-    offset: int = Query(0, description="Number of clubs to skip"),
+    page: int = Query(1, description="Page number, starting from 1"),
+    limit: int = Query(20, description="Number of clubs per page"),
     category: Optional[str] = Query(None, description="Filter by category")
 ):
-    """Get a list of all clubs."""
+    """Get a paginated list of clubs."""
     try:
-        # This would be implemented to fetch clubs from Supabase
-        # For now, let's imagine we're fetching all clubs
-        clubs = db.get_all_clubs()
+        # Calculate offset based on page and limit
+        offset = (page - 1) * limit
+        
+        # Fetch all clubs (in a real app, you'd use pagination at the database level)
+        all_clubs = db.get_all_clubs()
         
         # Apply category filter if specified
         if category:
-            # This filtering would happen at the database level
-            # For illustration purposes only
             filtered_clubs = []
-            for club in clubs:
-                if club.get("categories") and any(cat.get("name") == category for cat in club.get("categories", [])):
+            for club in all_clubs:
+                if club.get("categories") and any(cat == category for cat in club.get("categories", [])):
                     filtered_clubs.append(club)
-            clubs = filtered_clubs
+            all_clubs = filtered_clubs
+        
+        # Get total count before pagination
+        total_count = len(all_clubs)
         
         # Apply pagination
-        paginated_clubs = clubs # deleted [offset:offset + limit]
+        paginated_clubs = all_clubs[offset:offset + limit]
+        
+        # Calculate if there are more pages
+        has_more = total_count > (offset + limit)
         
         return {
-            "count": len(clubs),
-            "results": paginated_clubs
+            "total": total_count,
+            "results": paginated_clubs,
+            "hasMore": has_more,
+            "page": page,
+            "pages": (total_count + limit - 1) // limit  # Calculate total pages
         }
     except Exception as e:
         return JSONResponse(

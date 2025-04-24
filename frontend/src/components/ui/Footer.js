@@ -48,6 +48,10 @@ const Footer = () => {
                         <MessageSquare className="w-8 h-8" />
                         <p className='text-3xl'>Send Feedback</p>
                       </button>
+                      <div>
+                      Instinct is not affiliated with or endorsed by the University of California, Irvine.
+
+                      </div>
                 
                       {/* Copyright Text - Right */}
                       <div className="text-3xl text-gray-600 dark:text-gray-400">

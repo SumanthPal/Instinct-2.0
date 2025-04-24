@@ -37,14 +37,14 @@ module.exports = {
           'lavender': '#E6D0FF',
           'sky-blue': '#A7D8FF',
           'white': '#FFFFFF',
-          'dark-base': '#131212',
-          'dark-text': '#2F2C36',
-          'dark-gradient-start': '#4D4855',
-          'dark-gradient-end': '#A399B2',
-          'dark-card': '#F2E6FF',
-          'dark-profile-card': '#3D2F4E',
-          'dark-text-white': '#F8F9FA',
-          'dark-subtext': '#EDE8F2'
+          'dark-base': '#0F0E11',
+          'dark-text': '#DAD4E3',
+          'dark-gradient-start': '#463B55',
+          'dark-gradient-end': '#8574A3',
+          'dark-card': '#2A2333',
+          'dark-profile-card': '#3C3344',
+          'dark-text-white': '#F0EDF6',
+          'dark-subtext': '#BBAFD1'
         },
         keyframes: {
           gradientShift: {
