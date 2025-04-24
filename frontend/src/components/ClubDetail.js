@@ -17,10 +17,11 @@ import "../../styles/CalendarStyles.css";
 import "./ui/Footer";
 import Loading from "@/app/loading"; // Import the Loading component
 
-export default function ClubDetail({ clubData, initialClubPosts }) {
-  const calendarUrl = getCalendarUrl(clubData["Instagram Handle"]);
+export default function ClubDetail({ clubData, initialClubPosts, initialClubEvents }) {
+  const calendarUrl = getCalendarUrl(clubData["instagram_handle"]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [clubPosts, setClubPosts] = useState(initialClubPosts || []); // Initialize with initialClubPosts
+  const [clubEvents, setClubEvents] = useState(Array.isArray(initialClubEvents) ? initialClubEvents : []);
   const [isLoading, setIsLoading] = useState(!initialClubPosts); // Set loading state based on initialClubPosts
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -32,52 +33,45 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
   };
 
   const closeModal = () => {
+    console.log("Modal close triggered");
     setIsModalOpen(false);
     setSelectedImage(null);
   };
 
   // Fetch posts if not provided initially
-  useEffect(() => {
-    if (!initialClubPosts) {
-      const fetchPosts = async () => {
-        setIsLoading(true);
-        try {
-          const response = await fetch(
-            `/api/club-posts?username=${clubData["Instagram Handle"]}`
-          );
-          const data = await response.json();
-          setClubPosts(data);
-        } catch (error) {
-          console.error("Failed to fetch posts:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchPosts();
-    }
-  }, [clubData, initialClubPosts]);
+  const formatDate = (date) => date.toISOString().split("T")[0];
 
+  useEffect(() => {
+    console.log("Selected Date:", formatDate(selectedDate));
+    console.log("Club Events:", clubEvents.map(e => formatDate(new Date(e.parsed?.Date))));
+  }, [selectedDate, clubEvents]);
+  
   const handleDateChange = (date) => {
     setSelectedDate(date);
   };
 
-  const postsOnSelectedDate = clubPosts.filter(
-    (post) =>
-      post.Parsed?.[0]?.Date &&
-      new Date(post.Parsed[0].Date).toDateString() ===
-        selectedDate.toDateString()
-  );
-
+  const postsOnSelectedDate = clubEvents.filter((event) => {
+    const postDate = event.parsed?.Date;
+    if (!postDate) return false;
+  
+    return formatDate(new Date(postDate)) === formatDate(selectedDate);
+  });
+  
   const tileContent = ({ date, view }) => {
     if (view === "month") {
       const hasPost = clubPosts.some(
         (post) =>
-          post.Parsed?.[0]?.Date &&
-          new Date(post.Parsed[0].Date).toDateString() === date.toDateString()
+          post.parsed?.Date &&
+          formatDate(new Date(post.parsed.Date)) === formatDate(date)
       );
-      return hasPost ? <div className="indicator"></div> : null;
+  
+      return hasPost ? (
+        <div className="w-2 h-2 rounded-full bg-blue-500 mx-auto mt-1" />
+      ) : null;
     }
+    return null;
   };
+  
 
   const extractQuotedContent = (str) => {
     if (!str) return "";
@@ -98,26 +92,26 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
           <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden">
               <Image
-                src={clubData["Profile Picture"]}
-                alt={clubData["Club Name"]}
+                src={clubData["profile_pic"]}
+                alt={clubData["name"]}
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 96px, 128px"
-                priority
+                loading="lazy"
               />
             </div>
             <div className="text-center sm:text-left">
               <h1 className="text-3xl sm:text-5xl font-bold mb-2 text-gray-900 dark:text-dark-subtext">
-                {clubData["Club Name"]}
+                {clubData["name"]}
               </h1>
               <div className="text-lg sm:text-2xl flex flex-col sm:flex-row sm:space-x-10 text-gray-950 dark:text-dark-text-white mb-2">
-                <span>{clubData.Followers} followers</span>
-                <span>{clubData.Following} following</span>
-                <span>{clubData["Post Count"]} posts</span>
+                <span>{clubData.followers} followers</span>
+                <span>{clubData.following} following</span>
+                {/* <span>{clubData["Post Count"]} posts</span> */}
               </div>
               <div className="flex justify-center sm:justify-start gap-2">
                 <a
-                  href={`https://instagram.com/${clubData["Instagram Handle"]}`}
+                  href={`https://instagram.com/${clubData["instagram_handle"]}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center px-4 py-2 rounded-full border border-transparent hover:border-white/20 transform transition-all duration-300 ease-in-out hover:scale-105 text-gray-800 dark:text-dark-subtext bg-white dark:bg-dark-profile-card"
@@ -141,7 +135,7 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
         {/* Description */}
         <div className="mb-8 px-4 py-4 rounded-lg">
           <p className="text-gray-700 dark:text-gray-300 text-lg sm:text-3xl">
-            {extractQuotedContent(clubData.Description[0]) || ""}
+            {extractQuotedContent(clubData.description) || ""}
           </p>
         </div>
         {/* Links and Calendar Card */}
@@ -151,7 +145,7 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
               Club Links
             </h2>
             <ul className="space-y-3 mb-6">
-              {clubData["Club Links"].map((linkData, index) => (
+              {clubData["club_links"].map((linkData, index) => (
                 <li key={index}>
                   <a
                     href={linkData.url}
@@ -204,18 +198,18 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {clubPosts.map((post, index) => (
                 <div key={index} className="flex flex-col">
-                  {post.Picture ? (
+                  {post.image_url ? (
                     <div
                       className="relative w-full h-48 sm:h-64 lg:h-80 cursor-pointer"
-                      onClick={() => handleImageClick(post.Picture)}
+                      onClick={() => handleImageClick(post.image_url)}
                     >
                       <Image
-                        src={post.Picture}
+                        src={post.image_url}
                         alt="Post Image"
                         fill
                         className="rounded-lg object-cover"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        priority
+                        loading="lazy"
                       />
                     </div>
                   ) : (
@@ -236,15 +230,15 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
                       </svg>
                     </div>
                   )}
-                  {post.Caption && (
+                  {post.caption && (
                     <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-dark-text line-clamp-2">
                       {post.Caption}
                     </p>
                   )}
-                  {post.Parsed?.[0]?.Date && (
+                  {post.caption && (
                     <div className="mt-2">
                       <p className="text-sm sm:text-base text-gray-500 dark:text-dark-gradient-start">
-                        {new Date(post.Parsed[0].Date).toLocaleDateString()}
+                        {new Date(post.posted).toLocaleDateString()}
                       </p>
                     </div>
                   )}
@@ -257,12 +251,13 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
           {isModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
               <div className="relative max-w-4xl w-full p-4">
-                <button
-                  onClick={closeModal}
-                  className="absolute top-4 right-4 text-white text-2xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75"
-                >
-                  &times;
-                </button>
+              <button
+                onClick={closeModal}
+                style={{ zIndex: 9999 }}
+                className="absolute top-4 right-4 text-white text-2xl bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-75"
+              >
+                &times;
+              </button>
                 <div className="relative w-full h-[80vh]">
                   <Image
                     src={selectedImage}
@@ -270,6 +265,7 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
                     fill
                     className="rounded-lg object-contain" /* Use object-contain to fit the image */
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 60vw"
+                    loading="lazy"
                   />
                 </div>
               </div>
@@ -277,94 +273,82 @@ export default function ClubDetail({ clubData, initialClubPosts }) {
           )}
         </Card>
         {/* Calendar Widget */}
-        <div className="mb-8">
-          <Card className="mb-8 bg-white dark:bg-dark-card dark:text-dark-text h-auto sm:h-[975px]">
-            <CardContent>
-              <h2 className="text-2xl sm:text-4xl font-semibold mb-4 text-gray-900 ">
-                Calendar w/ Events
-              </h2>
-              <div className="flex justify-center items-center h-full mt-4">
-                <Calendar
-                  onChange={handleDateChange}
-                  value={selectedDate}
-                  tileContent={tileContent}
-                  className="transform transition-all duration-300 ease-in-out hover:scale-105  hover:bg-gray-400 font-bold text-lg sm:text-2xl text-gray-900 dark:text-white rounded-lg shadow-md w-full h-full"
-                  tileClassName={({ date, view }) => {
-                    if (
-                      view === "month" &&
-                      clubPosts.some(
-                        (post) =>
-                          post.Parsed?.[0]?.Date &&
-                          new Date(post.Parsed[0].Date).toDateString() ===
-                            date.toDateString()
-                      )
-                    ) {
-                      return "highlight";
-                    }
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
+        
+    {/* Calendar */}
+  <div className="w-full">
+    <Card className="bg-white dark:bg-dark-card dark:text-dark-text h-auto">
+      <CardContent>
+        <h2 className="text-2xl sm:text-4xl font-semibold mb-4 text-gray-900 dark:text-dark-text">Calendar</h2>
+        <div className="flex justify-center items-center mt-4">
+          <Calendar
+            onChange={handleDateChange}
+            value={selectedDate}
+            tileContent={tileContent}
+            className="transition-transform duration-300 ease-in-out hover:scale-105 font-bold text-lg sm:text-2xl text-gray-900 dark:text-white w-full rounded-lg shadow-md"
+            tileClassName={({ date, view }) => {
+              const isMatch = clubEvents.some(
+                (event) =>
+                  event.parsed?.Date &&
+                  formatDate(new Date(event.parsed.Date)) === formatDate(date)
+              );
+              return isMatch ? "highlight indicator text-black" : "";
+            }}
+            
+          />
         </div>
-        {/* Posts on Selected Date */}
-        <div className="w-full">
-          {postsOnSelectedDate.length > 0 ? (
-            postsOnSelectedDate.map((post, index) => (
-              <Card
-                key={index}
-                className="mb-4 bg-white dark:bg-dark-card dark:text-dark-text w-full"
-              >
-                <CardContent>
-                  <h2 className="text-xl sm:text-2xl font-bold mb-2 text-gray-900 dark:text-dark-text">
-                    {post.Parsed?.[0]?.Name || "Untitled Event"}
-                  </h2>
-                  <p className="text-sm sm:text-base text-gray-700 dark:text-dark-base mb-4">
-                    {post.Parsed?.[0]?.Details || "No details available"}
-                  </p>
-                  <p className="text-sm sm:text-base text-gray-700 dark:text-dark-base mb-4">
-                    {post.Parsed?.[0]?.Date
-                      ? format(new Date(post.Parsed[0].Date), "PPpp")
-                      : "No date available"}
-                  </p>
-                  {post.Picture && (
-                    <div className="relative w-full h-48 sm:h-64 rounded-lg overflow-hidden">
-                      <Image
-                        src={post.Picture}
-                        alt={post.Parsed?.[0]?.Name || "Event Image"}
-                        layout="fill"
-                        objectFit="cover"
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <Card className="mb-4 bg-white dark:bg-dark-card dark:text-dark-text w-full">
-              <CardContent className="flex flex-col items-center justify-center h-48 sm:h-64 w-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-16 w-16 text-gray-500 dark:text-dark-text"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M3 7h18M3 12h18M3 17h18"
-                  />
-                </svg>
-                <p className="text-sm sm:text-base text-gray-700 dark:text-dark-text mt-4">
-                  No posts available
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+      </CardContent>
+    </Card>
+  </div>
+
+  {/* Posts on Selected Date */}
+  <div className="w-full flex flex-col gap-4">
+    {postsOnSelectedDate.length > 0 ? (
+      postsOnSelectedDate.map((event, index) => (
+        <Card
+          key={index}
+          className="bg-white dark:bg-dark-card dark:text-dark-text w-full"
+        >
+          <CardContent>
+            <h2 className="text-xl sm:text-2xl font-bold mb-2 text-gray-900 dark:text-dark-text">
+              {event.parsed.Name || "Untitled Event"}
+            </h2>
+            <p className="text-sm sm:text-base text-gray-700 dark:text-dark-base mb-2">
+              {event.parsed.Details || "No details available"}
+            </p>
+            <p className="text-sm sm:text-base text-gray-700 dark:text-dark-base">
+              {event.parsed.Date
+                ? format(new Date(event.parsed.Date), "PPpp")
+                : "No date available"}
+            </p>
+          </CardContent>
+        </Card>
+      ))
+    ) : (
+      <Card className="bg-white dark:bg-dark-card dark:text-dark-text w-full">
+        <CardContent className="flex flex-col items-center justify-center h-48 sm:h-64">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 text-gray-500 dark:text-dark-text"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M3 7h18M3 12h18M3 17h18"
+            />
+          </svg>
+          <p className="text-sm sm:text-base text-gray-700 dark:text-dark-text mt-4">
+            No posts available
+          </p>
+        </CardContent>
+      </Card>
+    )}
+  </div>
+</div>
+
       </div>
-    </div>
   );
 }

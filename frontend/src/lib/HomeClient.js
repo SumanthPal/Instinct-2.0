@@ -73,16 +73,13 @@ export default function HomeClient({ detailedClubs }) {
           </div>
 
           {/* Typing Animation with Fixed Height */}
-          <div className="h-12 sm:h-16 flex items-center justify-center">
-            <TypingAnimation />
-          </div>
+          
 
           {/* Responsive "Next Data Update" Text */}
-          <div className="mt-4 text-sm sm:text-lg text-gray-700 dark:text-gray-300">
-          </div>
+          
 
           {/* Search Bar and Category Filter */}
-          <div className="flex flex-col items-start w-full max-w-full mx-auto px-4 sm:px-0">
+          <div className="flex flex-col items-start w-full max-w-full px-4 sm:px-0">
             <SearchBar
               value={searchInput}
               onChange={handleSearchChange}
@@ -127,8 +124,8 @@ export default function HomeClient({ detailedClubs }) {
         {/* Club Cards Grid */}
         <div
           ref={clubsRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 mt-8 w-full px-4 sm:px-0"
-        >
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 lg:gap-8 mt-8 w-full px-4 sm:px-6 md:px-8"
+          >
           {filteredClubs.length > 0 ? (
             filteredClubs.slice(0, visibleClubs).map((club) => (
               <ClubCard

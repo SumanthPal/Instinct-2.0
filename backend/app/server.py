@@ -451,11 +451,10 @@ if __name__ == "__main__":
         import uvicorn
         uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
     else:
-        # For local development, start both the scraper and server
-        # Start the scraper in a separate process
-        # scraper_process = multiprocessing.Process(target=run_scraper_process)
-        # scraper_process.daemon = True
-        # scraper_process.start()
+        
+        scraper_process = multiprocessing.Process(target=run_scraper_process)
+        scraper_process.daemon = True
+        scraper_process.start()
         
         # Run the FastAPI server
         import uvicorn

@@ -512,6 +512,21 @@ class SupabaseQueries:
         if response.data:
             return response.data[0]
         return None
+    
+    def get_posts_by_club_id(self, club_id: str, limit: int = 10, offset: int = 0) -> List[Dict]:
+        try:
+            response = supabase.table("posts") \
+                .select("*") \
+                .eq("club_id", club_id) \
+                .order("posted", desc=True) \
+                .range(offset, offset + limit - 1) \
+                .execute()
+
+            return response.data or []  # Return empty list if None
+        except Exception as e:
+            print(f"Error in get_posts_by_club_id: {e}")
+            return []
+
         
     
     

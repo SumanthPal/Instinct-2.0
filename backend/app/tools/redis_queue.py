@@ -92,7 +92,7 @@ class RedisScraperQueue:
             
         return len(stalled)
             
-        def enqueue_club(self, instagram_handle, priority=0):
+    def enqueue_club(self, instagram_handle, priority=0):
             """Add a club to the scraping queue with priority (lower = higher priority)"""
             job = {
                 'instagram_handle': instagram_handle,

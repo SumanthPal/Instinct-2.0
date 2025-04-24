@@ -22,15 +22,13 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link href="/" className="text-3xl text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link href="/" className="text-3xl text-gray-700 dark:text-white hover:text-gray-900 dark:hover:text-white transition-colors">
               Home
             </Link>
-            <Link href="/about" className="text-3xl text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link href="/about" className="text-3xl text-gray-700 dark:text-white hover:text-gray-900 dark:hover:text-white transition-colors">
               About
             </Link>
-            <button className="text-3xl text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors">
-              Clubs
-            </button>
+            
             <DarkModeToggle />
           </div>
 

@@ -38,17 +38,44 @@ export const fetchClubManifest = async () => {
     }
   };
 
-export const fetchClubPosts = async (username) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/club/${username}/posts`);
-    if (!response.ok) throw new Error('Failed to fetch club posts');
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching club posts:', error);
-    throw error;
-    //hello
-  }
-};
+  export const fetchClubPosts = async (username) => {
+    try {
+      const url = `${API_BASE_URL}/club/${username}/posts`;
+      const response = await fetch(url);
+  
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch posts: ${response.status} - ${text}`);
+      }
+  
+      const json = await response.json();
+      return json.results ?? []; // Fallback to empty array
+    } catch (error) {
+      console.error(`Error fetching posts for ${username}:`, error);
+      return []; // Return safe fallback so getServerSideProps can serialize it
+    }
+  };
+  
+
+  export const fetchClubEvents = async (username) => {
+    try {
+      const url = `${API_BASE_URL}/club/${username}/events`;
+      const response = await fetch(url);
+  
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Failed to fetch events: ${response.status} - ${text}`);
+      }
+  
+      const json = await response.json();
+      return json.results ?? [];
+    } catch (error) {
+      console.error(`Error fetching events for ${username}:`, error);
+      return [];
+    }
+  };
+  
+
 
 export const getCalendarUrl = (username) => {
   return `${API_BASE_URL}/club/${username}/calendar.ics`;

@@ -4,7 +4,7 @@ import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 import { FaReact, FaPython, FaDatabase } from 'react-icons/fa';
-import { SiNextdotjs, SiTailwindcss, SiFlask, SiPostgresql } from 'react-icons/si';
+import { SiNextdotjs, SiTailwindcss, SiFlask, SiPostgresql, SiRedis, SiFastapi, SiSupabase, SiSelenium } from 'react-icons/si';
 
 const About = () => {
   return (
@@ -36,6 +36,10 @@ const About = () => {
               </li>
               {/* TailwindCSS */}
               <li className="flex items-center space-x-4">
+                <SiRedis className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+                <span className="text-xl text-gray-700 dark:text-dark-text">Redis</span>
+              </li>
+              <li className="flex items-center space-x-4">
                 <SiTailwindcss className="w-8 h-8 text-gray-900 dark:text-dark-text" />
                 <span className="text-xl text-gray-700 dark:text-dark-text">TailwindCSS</span>
               </li>
@@ -46,13 +50,21 @@ const About = () => {
               </li>
               {/* Flask */}
               <li className="flex items-center space-x-4">
-                <SiFlask className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">Flask</span>
+                <SiFastapi className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+                <span className="text-xl text-gray-700 dark:text-dark-text">FastAPI</span>
               </li>
               {/* SQL */}
               <li className="flex items-center space-x-4">
-                <FaDatabase className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-                <span className="text-xl text-gray-700 dark:text-dark-text">SQL</span>
+                <SiPostgresql className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+                <span className="text-xl text-gray-700 dark:text-dark-text">PostgresSQL</span>
+              </li>
+              <li className="flex items-center space-x-4">
+                <SiSupabase className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+                <span className="text-xl text-gray-700 dark:text-dark-text">Supabase</span>
+              </li>
+              <li className="flex items-center space-x-4">
+                <SiSelenium className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+                <span className="text-xl text-gray-700 dark:text-dark-text">Selenium</span>
               </li>
             </ul>
           </div>
