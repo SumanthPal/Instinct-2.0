@@ -1,23 +1,24 @@
 from io import BytesIO, StringIO
-from flask import Flask, request, jsonify, send_file, abort
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
-from tools.insta_scraper import InstagramScraper, multi_threaded_scrape
-from tools.data_retriever import DataRetriever
-from tools.s3_client import S3Client
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-#IMPORTANT: TO FIX SQLALCHEMY issues, use: $pip install sqlmodel
-from threading import Lock
-from fastapi.middleware.cors import CORSMiddleware
+from tools.scraper_rotation import ScraperRotation
+from db.supabase_client import supabase
+from db.queries import SupabaseQueries
+import os
+import time
+import uuid
+from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from io import StringIO
 
 import dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Depends, Query, Request
+from fastapi.responses import JSONResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, EmailStr
+import multiprocessing
 import os
-import sys
-import atexit
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -25,109 +26,356 @@ from tools.logger import logger
 
 # Initialize dependencies
 calendar = CalendarConnection()
-retriever = DataRetriever()
-s3_client = S3Client()
-app = FastAPI()
+app = FastAPI(
+    title="UCI Club Discovery API",
+    description="API for discovering UCI clubs and their events",
+    version="2.0.0"
+)
 
 origins = [
-    "*" # Allow all origins temporarily (adjust for production)
+    "*"
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials = True,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
+db = SupabaseQueries()
+
+class Club(BaseModel):
+    id: str
+    name: str
+    instagram_handle: str
+    profile_pic: Optional[str] = None
+    description: Optional[str] = None
+    followers: Optional[int] = None
+    following: Optional[int] = None
+    club_links: Optional[List[str]] = None
+    
+class Post(BaseModel):
+    id: str
+    club_id: str
+    post_url: str
+    caption: Optional[str] = None
+    image_url: Optional[str] = None
+    posted: Optional[datetime] = None
+    
+class Event(BaseModel):
+    id: str
+    club_id: str
+    post_id: str
+    name: str
+    date: datetime
+    details: Optional[str] = None
+    duration: Optional[str] = None
 
 
-# Routes
-@app.get('/')
-def home():
-    logger.info("Home endpoint called.")
-    return {"message": "Welcome to the Club API"}
+@app.get("/")
+async def home():
+    """Home endpoint to verify API is working."""
+    return {"message": "Welcome to the UCI Club Discovery API"}
 
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat()
+    }
+    
 @app.get("/club")
-def club():
-    return {"message": "Club page"}
-
-@app.get("/club/<username>")
-def club_data(username):
+async def list_clubs(
+    limit: int = Query(100, description="Maximum number of clubs to return"),
+    offset: int = Query(0, description="Number of clubs to skip"),
+    category: Optional[str] = Query(None, description="Filter by category")
+):
+    """Get a list of all clubs."""
     try:
-        if not retriever.club_data_exists(username):
-            s3_client.download_instagram_directory(username)
-            
-        logger.info(f"Fetching data for club: {username}")
-        return retriever.fetch_club_info(username)
-    except FileNotFoundError as e:
-        return JSONResponse(content = f"Club not found, {e}", status_code = 404)
-    except Exception as e:
-        logger.error(f"Error fetching club data: {e}")
-        return JSONResponse(content = f"Error: {e}", status_code = 500)
-
-@app.get("/club/<username>/posts")
-def club_post_data(username):
-    try:
-        if not retriever.club_data_exists(username):
-            s3_client.download_instagram_directory(username)
-            
-        logger.info(f"Fetching posts for club: {username}")
-        return retriever.fetch_club_posts(username)
-    except FileNotFoundError:
-        return JSONResponse(content = f"Club posts not found", status_code = 404)
-    except Exception as e:
-        logger.error(f"Error fetching club posts: {e}")
-        return JSONResponse(content = f"Error: {e}", status_code = 500)
-
-@app.get("/club-manifest")
-def club_manifest():
-    try:
-        logger.info("Fetching club manifest.")
-        return retriever.fetch_manifest()
-    except Exception as e:
-        logger.error(f"Error fetching club manifest: {e}")
-        return JSONResponse(content = f"Error: {e}", status_code = 500)
-
-    #@TODO: FIX "Error: [Errno 2] No such file or directory: 'C:\\\\Users\\\\wudan\\\\Instinct\\\\Instinct-2.0\\\\backend\\\\app\\\\tools\\\\..\\\\..\\\\manifest.json'" when accessing page
-
-
-@app.get("/club/<username>/calendar.ics")
-def club_calendar(username):
-    try:
-        if not retriever.club_data_exists(username):
-            s3_client.download_instagram_directory(username)
-            
-        logger.info(f"Fetching calendar for club: {username}")
-        calendar_path = retriever.fetch_club_calendar(username)
+        # This would be implemented to fetch clubs from Supabase
+        # For now, let's imagine we're fetching all clubs
+        clubs = db.get_all_clubs()
         
-        return send_file(
-            calendar_path,  # File-like object containing the .ics content
-            download_name=f"{username}_calendar.ics",  # Name of the file when downloaded
-            as_attachment=False,  # Set to True if you want to force download
-            mimetype='text/calendar',  # MIME type for .ics files
+        # Apply category filter if specified
+        if category:
+            # This filtering would happen at the database level
+            # For illustration purposes only
+            filtered_clubs = []
+            for club in clubs:
+                if club.get("categories") and any(cat.get("name") == category for cat in club.get("categories", [])):
+                    filtered_clubs.append(club)
+            clubs = filtered_clubs
+        
+        # Apply pagination
+        paginated_clubs = clubs[offset:offset + limit]
+        
+        return {
+            "count": len(clubs),
+            "results": paginated_clubs
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching clubs: {str(e)}"}
         )
         
-    except FileNotFoundError as e:
-        logger.error(f"Calendar file not found for {username}: {e}")
-        raise HTTPException(status_code = 404, detail = "Calendar file not found")
+@app.get("/club/{instagram_handle}")
+async def get_club_data(instagram_handle: str):
+    """Get detailed information about a specific club."""
+    try:
+        # Check if club exists
+        club = db.get_club_by_instagram(instagram_handle)
+        if not club:
+            raise HTTPException(status_code=404, detail=f"Club with Instagram handle '{instagram_handle}' not found")
+        
+        # Return club data
+        return club
+    except HTTPException as http_e:
+        raise http_e
     except Exception as e:
-        logger.error(f"Error fetching calendar for {username}: {e}")
-        raise HTTPException(status_code = 500, detail = "Internal Server Error")
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching club data: {str(e)}"}
+        )
 
 
-@app.get("/job-status")
-def job_status():
-    response = {}
-    for job_id in ['reload_data_job', 'file_cleanup_job']:
-        job = scheduler.get_job(job_id)
-        response[job_id] = {
-            "job_id": job.id if job else "N/A",
-            "next_run_time": str(job.next_run_time) if job else "N/A"
+@app.get("/club/{instagram_handle}/posts")
+async def get_club_posts(
+    instagram_handle: str,
+    limit: int = Query(20, description="Maximum number of posts to return"),
+    offset: int = Query(0, description="Number of posts to skip")
+):
+    """Get posts for a specific club."""
+    try:
+        # Check if club exists
+        club = db.get_club_by_instagram(instagram_handle)
+        if not club:
+            raise HTTPException(status_code=404, detail=f"Club with Instagram handle '{instagram_handle}' not found")
+        
+        # Get club ID
+        club_id = club["id"]
+        
+        # Query posts (this would be implemented in your SupabaseQueries class)
+        # For illustration, we're assuming a method exists
+        posts = db.get_posts_by_club_id(club_id, limit, offset)
+        
+        return {
+            "count": len(posts),
+            "results": posts
         }
-    return response
+    except HTTPException as http_e:
+        raise http_e
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching club posts: {str(e)}"}
+        )
+        
+@app.get("/club/{instagram_handle}/events")
+async def get_club_events(
+    instagram_handle: str,
+    start_date: Optional[datetime] = Query(None, description="Filter events after this date"),
+    end_date: Optional[datetime] = Query(None, description="Filter events before this date")
+):
+    """Get events for a specific club."""
+    try:
+        # Check if club exists
+        club = db.get_club_by_instagram(instagram_handle)
+        if not club:
+            raise HTTPException(status_code=404, detail=f"Club with Instagram handle '{instagram_handle}' not found")
+        
+        # Get club ID
+        club_id = club["id"]
+        
+        # Get events
+        events = db.get_events_for_club(club_id)
+        
+        # Apply date filters if specified
+        filtered_events = []
+        for event in events:
+            event_date = datetime.fromisoformat(event["date"].replace('Z', '+00:00'))
+            
+            if start_date and event_date < start_date:
+                continue
+                
+            if end_date and event_date > end_date:
+                continue
+                
+            filtered_events.append(event)
+        
+        return {
+            "count": len(filtered_events),
+            "results": filtered_events
+        }
+    except HTTPException as http_e:
+        raise http_e
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching club events: {str(e)}"}
+        )
+
+
+@app.get("/club/{instagram_handle}/calendar.ics")
+async def get_club_calendar(instagram_handle: str):
+    """Get calendar file (ICS) for a specific club."""
+    try:
+        # Check if club exists
+        club = db.get_club_by_instagram(instagram_handle)
+        if not club:
+            raise HTTPException(status_code=404, detail=f"Club with Instagram handle '{instagram_handle}' not found")
+        
+        # Get club ID
+        club_id = club["id"]
+        
+        # Get calendar content
+        calendar_content = db.get_calendar_file(club_id)
+        
+        if not calendar_content:
+            raise HTTPException(status_code=404, detail="Calendar file not found")
+        
+        # Return as ICS file
+        return Response(
+            content=calendar_content,
+            media_type="text/calendar",
+            headers={
+                "Content-Disposition": f"attachment; filename={instagram_handle}_calendar.ics"
+            }
+        )
+    except HTTPException as http_e:
+        raise http_e
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching calendar: {str(e)}"}
+        )
+
+
+@app.get("/club-manifest")
+async def get_club_manifest():
+    """Get manifest of all clubs with basic information."""
+    try:
+        # Get all clubs
+        clubs = db.get_all_clubs()
+        
+        # Create simplified manifest
+        manifest = []
+        for club in clubs:
+            manifest.append({
+                "id": club["id"],
+                "name": club["name"],
+                "instagram_handle": club["instagram_handle"],
+                "profile_pic": club.get("profile_pic", ""),
+                "categories": [cat["name"] for cat in club.get("categories", [])]
+            })
+        
+        return manifest
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching club manifest: {str(e)}"}
+        )
+        
+@app.get("/categories")
+async def get_categories():
+    """Get list of all categories."""
+    try:
+        # Query categories (implement this in your SupabaseQueries class)
+        response = supabase.table("categories").select("id, name").execute()
+        categories = response.data if response.data else []
+        
+        return {
+            "count": len(categories),
+            "results": categories
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching categories: {str(e)}"}
+        )
+
+
+@app.get("/search")
+async def search_clubs(
+    q: str = Query(..., description="Search query"),
+    category: Optional[str] = Query(None, description="Filter by category")
+):
+    """Search for clubs by name or description."""
+    try:
+        # This would be a more complex query in your database
+        # For illustration purposes only
+        response = supabase.table("clubs").select("*").ilike("name", f"%{q}%").execute()
+        name_matches = response.data if response.data else []
+        
+        response = supabase.table("clubs").select("*").ilike("description", f"%{q}%").execute()
+        desc_matches = response.data if response.data else []
+        
+        # Combine results and remove duplicates
+        all_matches = name_matches.copy()
+        existing_ids = set(club["id"] for club in all_matches)
+        
+        for club in desc_matches:
+            if club["id"] not in existing_ids:
+                all_matches.append(club)
+                existing_ids.add(club["id"])
+        
+        # Apply category filter if specified
+        filtered_matches = all_matches
+        if category:
+            # This filtering would happen at the database level in a real implementation
+            filtered_matches = []
+            for club in all_matches:
+                # Get categories for this club
+                club_categories_response = supabase.table("clubs_categories") \
+                    .select("categories!inner(name)") \
+                    .eq("club_id", club["id"]) \
+                    .execute()
+                    
+                club_categories = club_categories_response.data if club_categories_response.data else []
+                
+                # Check if club has the specified category
+                if any(cat["categories"]["name"] == category for cat in club_categories):
+                    filtered_matches.append(club)
+        
+        return {
+            "count": len(filtered_matches),
+            "results": filtered_matches
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error searching clubs: {str(e)}"}
+        )
+
+
+def run_scraper_process():
+    from tools.scraper_rotation import ScraperRotation
+    scraper = ScraperRotation()
+    scraper.run()
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, debug = True, host='127.0.0.1', port=5022)
+
+    
+    # Check if running on Heroku
+    is_heroku = 'DYNO' in os.environ
+    
+    if is_heroku:
+        # On Heroku, use a worker process instead (defined in Procfile)
+        # Run only the web server in this process
+        import uvicorn
+        uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    else:
+        # For local development, start both the scraper and server
+        # Start the scraper in a separate process
+        # scraper_process = multiprocessing.Process(target=run_scraper_process)
+        # scraper_process.daemon = True
+        # scraper_process.start()
+        
+        # Run the FastAPI server
+        import uvicorn
+        uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
