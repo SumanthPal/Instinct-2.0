@@ -115,5 +115,5 @@ class CalendarConnection:
 if __name__ == "__main__":
     calendar_conn = CalendarConnection()
     # Example: create calendar for a specific club by username
-    calendar_conn.create_calendar_file("icssc.uci")
+    calendar_conn.create_calendar_file("uciavahita")
     

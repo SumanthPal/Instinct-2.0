@@ -71,8 +71,14 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
     setSelectedImage(null);
   };
 
-  // Fetch posts if not provided initially
-  const formatDate = (date) => date.toISOString().split("T")[0];
+  // Create a consistent date formatting function that ignores time component
+  // to prevent timezone shifts when comparing dates
+  const formatDate = (date) => {
+    if (!date) return '';
+    // Create a new date at noon to avoid timezone crossing day boundary
+    const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
+    return normalizedDate.toISOString().split('T')[0];
+  };
 
   useEffect(() => {
     console.log("Selected Date:", formatDate(selectedDate));
@@ -91,71 +97,75 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
     setSelectedDate(date);
   };
 
-  // Function to safely extract post date
-  const getPostDate = (post) => {
-    if (!post) return null;
-    
-    // Try to get date from parsed.Date
-    if (post.parsed && post.parsed.Date) {
-      try {
-        return new Date(post.parsed.Date);
-      } catch (e) {
-        console.error("Error parsing post.parsed.Date:", e);
+  // Updated function to safely extract post date
+  const getPostDate = (item, type = "post") => {
+    if (!item) return null;
+  
+    try {
+      if (type === "event") {
+        // For events, check direct date field first, then fallback to parsed.Date
+        if (item.date) {
+          const dateObj = new Date(item.date);
+          // Normalize to avoid timezone issues
+          return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        }
+        if (item.parsed?.Date) {
+          const dateObj = new Date(item.parsed.Date);
+          // Normalize to avoid timezone issues
+          return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        }
+      } else if (type === "post") {
+        // For posts, use posted field
+        if (item.posted) {
+          const dateObj = new Date(item.posted);
+          // Normalize to avoid timezone issues
+          return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+        }
       }
+    } catch (e) {
+      console.error("Failed to parse date for", type, item, e);
     }
-    
-    // Fall back to posted field
-    if (post.posted) {
-      try {
-        return new Date(post.posted);
-      } catch (e) {
-        console.error("Error parsing post.posted:", e);
-      }
-    }
-    
+  
     return null;
   };
 
-  const postsOnSelectedDate = clubEvents.filter((event) => {
-    const postDate = getPostDate(event);
-    if (!postDate) return false;
-    
-    return formatDate(postDate) === formatDate(selectedDate);
-  });
+  // Get items for a specific date
+  const getItemsForDate = (items, date, type = "post") => {
+    const dateStr = formatDate(date);
+    return items.filter(item => {
+      const itemDate = getPostDate(item, type);
+      return itemDate && formatDate(itemDate) === dateStr;
+    });
+  };
+  
+  // Check if a date has posts or events
+  const hasItemsOnDate = (items, date, type = "post") => {
+    const dateStr = formatDate(date);
+    return items.some(item => {
+      const itemDate = getPostDate(item, type);
+      return itemDate && formatDate(itemDate) === dateStr;
+    });
+  };
   
   const tileContent = ({ date, view }) => {
-    if (view === "month") {
-      // Check if there are posts on this date
-      const hasPost = clubPosts.some((post) => {
-        const postDate = getPostDate(post);
-        return postDate && formatDate(postDate) === formatDate(date);
-      });
-      
-      // Check if there are events on this date
-      const hasEvent = clubEvents.some((event) => {
-        const eventDate = getPostDate(event);
-        return eventDate && formatDate(eventDate) === formatDate(date);
-      });
-      
-      // Return different indicators based on what's available
-      if (hasPost && hasEvent) {
-        // Both post and event
-        return (
-          <div className="flex justify-center gap-1 mt-1">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-          </div>
-        );
-      } else if (hasPost) {
-        // Only post
-        return <div className="w-2 h-2 rounded-full bg-blue-500 mx-auto mt-1" />;
-      } else if (hasEvent) {
-        // Only event
-        return <div className="w-2 h-2 rounded-full bg-green-500 mx-auto mt-1" />;
-      }
-      
-      return null;
+    if (view !== "month") return null;
+  
+    const hasPost = hasItemsOnDate(clubPosts, date, "post");
+    const hasEvent = hasItemsOnDate(clubEvents, date, "event");
+  
+    if (hasPost && hasEvent) {
+      return (
+        <div className="flex justify-center gap-1 mt-1">
+          <div className="w-2 h-2 rounded-full bg-blue-500" />
+          <div className="w-2 h-2 rounded-full bg-green-500" />
+        </div>
+      );
+    } else if (hasPost) {
+      return <div className="w-2 h-2 rounded-full bg-blue-500 mx-auto mt-1" />;
+    } else if (hasEvent) {
+      return <div className="w-2 h-2 rounded-full bg-green-500 mx-auto mt-1" />;
     }
+  
     return null;
   };
   
@@ -172,8 +182,8 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-[100vw] mx-auto px-4 sm:px-6 py-8">
-        {/* Header Section */}
+<div className="max-w-full sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 py-8">
+{/* Header Section */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8">
           <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden">
@@ -256,19 +266,19 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
                 className="flex items-center justify-center space-x-2 px-4 py-3 sm:px-6 sm:py-4 rounded-full bg-gray-100 dark:bg-dark-profile-card hover:bg-gray-200 dark:hover:bg-dark-gradient-start transform transition-all duration-300 ease-in-out hover:scale-105"
               >
                 <FaDownload className="w-6 h-6 sm:w-8 sm:h-8 text-dark-base dark:text-gray-200" />
-                <span className="text-lg sm:text-2xl font-bold text-dark-text dark:text-gray-200">
+                <span className="text-lg sm:text-2xl font-bold text-dark-base dark:text-gray-200">
                   Download Calendar
                 </span>
               </Button>
               <Button
                 onClick={() => {
-                  const subscribeUrl = calendarUrl.replace("https", "webcal");
+                  const subscribeUrl = calendarUrl.replace("http", "webcal");
                   window.open(subscribeUrl);
                 }}
                 className="flex items-center justify-center space-x-2 px-4 py-3 sm:px-6 sm:py-4 rounded-full bg-gray-100 dark:bg-dark-profile-card hover:bg-gray-200 dark:hover:bg-dark-gradient-start transform transition-all duration-300 ease-in-out hover:scale-105 text-dark-base dark:text-gray-200 font-bold"
               >
                 <FaGlobe className="w-6 h-6 sm:w-8 sm:h-8 text-dark-base dark:text-gray-200" />
-                <span className="text-lg sm:text-2xl font-bold text-dark-text dark:text-gray-200">
+                <span className="text-lg sm:text-2xl font-bold text-dark-base dark:text-gray-200">
                   Subscribe to Calendar
                 </span>
               </Button>
@@ -412,19 +422,13 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
             onChange={handleDateChange}
             value={selectedDate}
             tileContent={tileContent}
-            className="transition-transform duration-300 ease-in-out hover:scale-105 font-bold text-lg sm:text-2xl text-gray-900 dark:text-white w-full rounded-lg shadow-md"
+            className="transition-transform duration-300 ease-in-out  font-bold text-lg sm:text-2xl text-gray-900 dark:text-white w-full rounded-lg shadow-md"
             tileClassName={({ date, view }) => {
               // Check for posts
-              const hasPost = clubPosts.some(post => {
-                const postDate = getPostDate(post);
-                return postDate && formatDate(postDate) === formatDate(date);
-              });
+              const hasPost = hasItemsOnDate(clubPosts, date, "post");
               
               // Check for events
-              const hasEvent = clubEvents.some(event => {
-                const eventDate = getPostDate(event);
-                return eventDate && formatDate(eventDate) === formatDate(date);
-              });
+              const hasEvent = hasItemsOnDate(clubEvents, date, "event");
               
               // Apply appropriate classes
               let classes = [];
@@ -458,11 +462,8 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
     
     {/* Posts section */}
     {(() => {
-      // Find posts for selected date
-      const postsForDate = clubPosts.filter(post => {
-        const postDate = getPostDate(post);
-        return postDate && formatDate(postDate) === formatDate(selectedDate);
-      });
+      // Find posts for selected date using the updated helper function
+      const postsForDate = getItemsForDate(clubPosts, selectedDate, "post");
       
       if (postsForDate.length > 0) {
         return (
@@ -473,25 +474,11 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
             </h4>
             <div className="grid grid-cols-1 gap-3">
               {postsForDate.map((post, index) => (
-                <Card key={`post-${index}`} className="bg-white dark:bg-dark-card dark:text-dark-text">
+                <Card key={`post-${index}`} className="bg-white dark:bg-dark-card dark:text-dark-text w-full">
                   <CardContent className="p-4">
-                    {post.image_url && (
-                      <div 
-                        className="relative w-full h-40 mb-3 cursor-pointer"
-                        onClick={() => handleImageClick(post.image_url)}
-                      >
-                        <Image
-                          src={post.image_url}
-                          alt="Post Image"
-                          fill
-                          className="rounded-lg object-cover"
-                          sizes="(max-width: 640px) 100vw, 600px"
-                          loading="lazy"
-                        />
-                      </div>
-                    )}
+                    
                     {post.caption && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="text-sm text-gray-700 dark:text-dark-text mb-2">
                         {post.caption.length > 200 
                           ? post.caption.substring(0, 200) + "..." 
                           : post.caption}
@@ -525,11 +512,8 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
     
     {/* Events section */}
     {(() => {
-      // Find events for selected date
-      const eventsForDate = clubEvents.filter(event => {
-        const eventDate = getPostDate(event);
-        return eventDate && formatDate(eventDate) === formatDate(selectedDate);
-      });
+      // Find events for selected date using the updated helper function
+      const eventsForDate = getItemsForDate(clubEvents, selectedDate, "event");
       
       if (eventsForDate.length > 0) {
         return (
@@ -543,7 +527,7 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
                 <Card key={`event-${index}`} className="bg-white dark:bg-dark-card dark:text-dark-text w-full">
                   <CardContent className="p-4">
                     <h2 className="text-xl font-bold mb-2 text-gray-900 dark:text-dark-text">
-                      {event.parsed?.Name || "Event"}
+                      {event.parsed?.Name || event.name || "Event"}
                     </h2>
                     {event.image_url && (
                       <div 
@@ -561,7 +545,7 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
                       </div>
                     )}
                     <p className="text-sm text-gray-700 dark:text-dark-text mb-2">
-                      {event.parsed?.Details || event.caption || "No details available"}
+                      {event.parsed?.Details || event.details || event.caption || "No details available"}
                     </p>
                     <div className="flex items-center mt-2 text-sm text-gray-600 dark:text-gray-400">
                       <span className="flex items-center">
@@ -570,15 +554,17 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
                         </svg>
                         {event.parsed?.Date
                           ? format(new Date(event.parsed.Date), "PPp")
+                          : event.date
+                          ? format(new Date(event.date), "PPp")
                           : format(new Date(event.posted), "PPp")}
                       </span>
-                      {event.parsed?.Location && (
+                      {(event.parsed?.Location || event.location) && (
                         <span className="flex items-center ml-4">
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                           </svg>
-                          {event.parsed.Location}
+                          {event.parsed?.Location || event.location}
                         </span>
                       )}
                     </div>
@@ -594,15 +580,8 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
     
     {/* No content message */}
     {(() => {
-      const postsForDate = clubPosts.filter(post => {
-        const postDate = getPostDate(post);
-        return postDate && formatDate(postDate) === formatDate(selectedDate);
-      });
-      
-      const eventsForDate = clubEvents.filter(event => {
-        const eventDate = getPostDate(event);
-        return eventDate && formatDate(eventDate) === formatDate(selectedDate);
-      });
+      const postsForDate = getItemsForDate(clubPosts, selectedDate, "post");
+      const eventsForDate = getItemsForDate(clubEvents, selectedDate, "event");
       
       if (postsForDate.length === 0 && eventsForDate.length === 0) {
         return (

@@ -174,7 +174,6 @@ class InstagramScraper:
             self._wait.until(EC.presence_of_element_located((By.XPATH,
                                                              "//h1[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu')]")))
             
-            time.sleep(1)
             post_source = self._driver.page_source
             post_soup = BeautifulSoup(post_source, 'html.parser')
 
@@ -500,7 +499,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--headless",  # Run in headless mode for better speed
+            #"--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
@@ -624,6 +623,7 @@ def scrape_with_retries(scraper, username, max_retries=3, delay=5):
         try:
             scraper.store_club_data(username)
             logger.info(f"Scraping of {username} complete.")
+            scraper._driver_quit()
             return scraper
         except Exception as e:
             logger.warning(f"Attempt {attempt + 1} failed for {username}: {e}")
@@ -689,7 +689,7 @@ if __name__ == "__main__":
 
         dotenv.load_dotenv()
         starttime = time.time()
-        multi_threaded_scrape(['icssc.uci'], 1)
+        multi_threaded_scrape(['uciavahita'], 1)
         
     
 

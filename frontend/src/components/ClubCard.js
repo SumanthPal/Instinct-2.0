@@ -1,15 +1,43 @@
+'use client';
+
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardHeader, CardContent, CardFooter } from './ui/Card';
 import { FaUserCircle } from 'react-icons/fa';
+import { FaStar, FaRegStar } from 'react-icons/fa';
+import { useAuth } from '@/context/auth-context';
+import { likesService } from '@/lib/like-service';
+import { useToast } from './ui/toast'; // Import the hook, not the function
 
 export default function ClubCard({ club }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [averageColor, setAverageColor] = useState('rgba(103, 86, 204, 0.3)'); // Default color (light lavender)
+  const [isLiked, setIsLiked] = useState(false);
+  const [isLikeLoading, setIsLikeLoading] = useState(false);
+  const [averageColor, setAverageColor] = useState('rgba(103, 86, 204, 0.3)');
   const cardRef = useRef(null);
   const imageRef = useRef(null);
+  const { user } = useAuth();
+  const { toast } = useToast(); // Use the hook here
+
+  // Check if club is liked when user is available
+  useEffect(() => {
+    const checkLikeStatus = async () => {
+      if (!user || !club.instagram) return;
+      
+      try {
+        const liked = await likesService.isClubLiked(club.instagram);
+        setIsLiked(liked);
+      } catch (error) {
+        console.error('Error checking like status:', error);
+      }
+    };
+    
+    if (user) {
+      checkLikeStatus();
+    }
+  }, [user, club.instagram]); // Changed from club.id to club.instagram
 
   // Intersection Observer to detect when the card is in view
   useEffect(() => {
@@ -34,6 +62,7 @@ export default function ClubCard({ club }) {
     };
   }, []);
 
+
   // Extract average color from image when image loads or use a predefined color scheme
   useEffect(() => {
     // Generate a color based on the club name if no profile picture is available
@@ -49,7 +78,7 @@ export default function ClubCard({ club }) {
       const g = Math.abs((hash & 0x00FF00) >> 8);
       const b = Math.abs(hash & 0x0000FF);
       
-      return `rgba(${r}, ${g}, ${b}, 0.2)`;
+      return `rgba(${r}, ${g}, ${b}, 0.3)`;
     };
 
     if (isVisible) {
@@ -110,8 +139,14 @@ export default function ClubCard({ club }) {
     const matches = str.match(/"([^"]*)"/g);
     return matches ? matches.map(match => match.slice(1, -1)).join(' ') : '';
   };
-
-  const handleClick = (e) => {
+  const handleCardClick = (e) => {
+    // Check if the click is coming from the star button
+    if (e.target.closest('.star-button') || e.target.closest('.star-icon')) {
+      e.preventDefault(); // Prevent navigation
+      return;
+    }
+    
+    // Continue with card navigation
     e.preventDefault(); // Prevent default link behavior
     setIsLoading(true);
 
@@ -122,12 +157,59 @@ export default function ClubCard({ club }) {
     }, 1000); 
   };
 
+  const handleLikeToggle = async (e) => {
+    e.preventDefault(); // Prevent card navigation
+    e.stopPropagation(); // Stop event propagation
+    
+    if (!user) {
+      // Show toast to log in if user isn't authenticated
+      toast({
+        title: "Login Required",
+        description: "Please log in to save clubs to your favorites",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    try {
+      setIsLikeLoading(true);
+      
+      // Call the toggle service
+      const newLikedState = await likesService.toggleLikeClub(club.instagram);
+      setIsLiked(newLikedState);
+      
+      // Show toast
+      toast({
+        title: newLikedState ? "Club Added to Favorites" : "Club Removed from Favorites",
+        description: newLikedState 
+          ? `${club.name} has been added to your favorites.` 
+          : `${club.name} has been removed from your favorites.`,
+        status: newLikedState ? "success" : "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      toast({
+        title: "Error",
+        description: "Could not update your favorites. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLikeLoading(false);
+    }
+  };
+
   return (
     <div ref={cardRef} className={`fade-in ${isVisible ? 'visible' : ''}`}>
       {isVisible ? (
         <Link href={`/club/${club.instagram}`} passHref>
           <div
-            onClick={handleClick}
+            onClick={handleCardClick}
             className="relative p-3 bg-white dark:bg-dark-card rounded-lg shadow-md 
               border border-white dark:border-gray-700 
               transition-all duration-300 
@@ -143,6 +225,25 @@ export default function ClubCard({ club }) {
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-dark-text"></div>
               </div>
             ) : null}
+
+            {/* Star/Like Button - Only show for logged in users */}
+            {user && (
+              <button 
+                className="absolute top-3 right-3 z-20 star-button p-2 rounded-full 
+                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={handleLikeToggle}
+                aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
+                disabled={isLikeLoading}
+              >
+                {isLikeLoading ? (
+                  <div className="animate-spin h-5 w-5 border-2 border-t-transparent border-yellow-400 rounded-full"></div>
+                ) : isLiked ? (
+                  <FaStar className="text-yellow-400 text-xl star-icon" />
+                ) : (
+                  <FaRegStar className="text-gray-400 hover:text-yellow-400 text-xl star-icon" />
+                )}
+              </button>
+            )}
 
             <CardHeader className="flex items-center space-x-3 flex-shrink-0 py-2 px-3">
               <div className="relative w-16 h-16 rounded-full overflow-hidden border-2" style={{ borderColor: averageColor }}>
@@ -163,17 +264,17 @@ export default function ClubCard({ club }) {
                 )}
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-text">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-base">
                   {club.name}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-dark-text">
+                <p className="text-sm text-gray-500 dark:text-dark-base">
                   @{club.instagram}
                 </p>
               </div>
             </CardHeader>
 
             <CardContent className="flex-grow overflow-hidden px-3 py-2">
-              <p className="text-gray-600 dark:text-dark-text line-clamp-4 text-sm leading-relaxed">
+              <p className="text-gray-600 dark:text-dark-base line-clamp-4 text-sm leading-relaxed">
                 {extractQuotedContent(club.description || '')}
               </p>
             </CardContent>

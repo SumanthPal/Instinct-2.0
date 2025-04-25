@@ -57,7 +57,13 @@ class Club(BaseModel):
     followers: Optional[int] = None
     following: Optional[int] = None
     club_links: Optional[List[str]] = None
-    
+
+class PendingClubSubmission(BaseModel):
+    club_name: str
+    instagram_handle: str
+    categories: List[str]
+    submitted_by_email: EmailStr
+
 class Post(BaseModel):
     id: str
     club_id: str
@@ -84,59 +90,86 @@ class ClubSubmission(BaseModel):
     honeypot: Optional[str] = ""  # should be empty if real user
 
 HCAPTCHA_SECRET = os.getenv("HCAPTCHA_SECRET") 
-
-@router.post("/submit-club")
-async def submit_club(data: ClubSubmission, request: Request):
-    # 1. Basic honeypot check
-    if data.honeypot:
-        raise HTTPException(status_code=400, detail="Bot detected")
-
-    # 2. CAPTCHA validation
-    captcha_resp = requests.post(
-        "https://hcaptcha.com/siteverify",  # or Turnstile URL
-        data={
-            "secret": HCAPTCHA_SECRET,
-            "response": data.captcha_token,
-            "remoteip": request.client.host
-        }
-    )
-    if not captcha_resp.json().get("success"):
-        raise HTTPException(status_code=400, detail="CAPTCHA verification failed")
-
-    # 3. Get user from headers (assumes you're passing in Supabase token)
+@router.post("/club/add")
+async def submit_pending_club(new_club: PendingClubSubmission, request: Request):
+    # 1. Validate user auth
     auth_header = request.headers.get("authorization")
     if not auth_header:
-        raise HTTPException(status_code=401, detail="Missing authorization")
+        raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    # 4. Validate Supabase user (backend service key, not client key)
     supabase_user = db.get_user_from_token(auth_header)
     if not supabase_user:
         raise HTTPException(status_code=401, detail="Invalid Supabase token")
 
+    # 2. Check UCI email
     if not supabase_user["email"].endswith("@uci.edu"):
-        raise HTTPException(status_code=403, detail="Only UCI students may submit")
+        raise HTTPException(status_code=403, detail="Only UCI students can submit clubs")
 
-    # 5. Optional: Rate limiting or trust score
-    recent_submission = db.get_last_submission_by_user(supabase_user["id"])
-    if recent_submission and recent_submission.within_last_hour():
-        raise HTTPException(status_code=429, detail="Please wait before submitting again")
-
-    # 6. Check if club exists already
-    existing = db.get_club_by_instagram(data.instagram_handle)
+    # 3. Check if club already exists in real table
+    existing = db.get_club_by_instagram(new_club.instagram_handle)
     if existing:
-        raise HTTPException(status_code=409, detail="Club already exists")
+        raise HTTPException(status_code=409, detail="Club with this Instagram handle already exists")
 
-    # 7. Insert into pending table
-    db.insert_pending_club({
-        "name": data.name,
-        "instagram_handle": data.instagram_handle,
-        "description": data.description,
-        "club_links": data.club_links,
-        "submitted_by": supabase_user["id"],
-        "approved": False,
-    })
+    # 4. Insert into pending_clubs table
+    result = supabase.table("pending_clubs").insert({
+        "name": new_club.club_name,
+        "instagram_handle": new_club.instagram_handle,
+        "categories": [{"name": category} for category in new_club.categories],  # assume jsonb[]
+        "submitted_by_email": new_club.submitted_by_email,
+        "submitted_at": datetime.now().isoformat(),
+        "approved": False
+    }).execute()
+
+    if result.error:
+        raise HTTPException(status_code=500, detail=f"Failed to submit pending club: {result.error.message}")
 
     return {"message": "Club submitted successfully. Awaiting approval."}
+
+@router.post("/pending-club/{pending_id}/approve")
+async def approve_pending_club(pending_id: str, request: Request):
+    # 1. Validate admin authentication
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    supabase_user = db.get_user_from_token(auth_header)
+    if not supabase_user:
+        raise HTTPException(status_code=401, detail="Invalid Supabase token")
+
+    # 2. Fetch pending club
+    response = supabase.table("pending_clubs").select("*").eq("id", pending_id).single().execute()
+    if response.error or not response.data:
+        raise HTTPException(status_code=404, detail="Pending club not found")
+    
+    pending_club = response.data
+
+    # 3. Insert into real clubs table (ONLY necessary fields)
+    insert_payload = {
+        "name": pending_club["name"],
+        "instagram_handle": pending_club["instagram_handle"],
+    }
+
+    # If optional fields exist, include them
+    if pending_club.get("club_links"):
+        insert_payload["club_links"] = pending_club["club_links"]
+
+    insert_result = supabase.table("clubs").insert(insert_payload).execute()
+
+    if insert_result.error:
+        raise HTTPException(status_code=500, detail=f"Failed to insert into clubs: {insert_result.error.message}")
+
+    # 4. Mark pending as approved
+    update_result = supabase.table("pending_clubs").update({
+        "approved": True,
+        "reviewed_by_email": supabase_user["email"],
+        "reviewed_at": datetime.now().isoformat()
+    }).eq("id", pending_id).execute()
+
+    if update_result.error:
+        raise HTTPException(status_code=500, detail=f"Failed to update pending club: {update_result.error.message}")
+
+    return {"message": "Club approved and added successfully"}
+
 
 
 @app.get("/")
@@ -461,9 +494,9 @@ if __name__ == "__main__":
         uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
     else:
         
-        scraper_process = multiprocessing.Process(target=run_scraper_process)
-        scraper_process.daemon = True
-        scraper_process.start()
+        # scraper_process = multiprocessing.Process(target=run_scraper_process)
+        # scraper_process.daemon = True
+        # scraper_process.start()
         
         # Run the FastAPI server
         import uvicorn

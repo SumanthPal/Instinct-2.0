@@ -112,3 +112,27 @@ export const fetchClubEvents = async (username, page = 1, limit = 10) => {
 export const getCalendarUrl = (username) => {
   return `${API_BASE_URL}/club/${username}/calendar.ics`;
 };
+
+export const submitNewClub = async (clubData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/club/add`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(clubData)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to submit new club: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Successfully submitted new club:', data);
+    return data;
+  } catch (error) {
+    console.error('Error submitting new club:', error);
+    throw error;
+  }
+};

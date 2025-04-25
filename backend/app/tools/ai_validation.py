@@ -378,4 +378,4 @@ class EventParser:
 if __name__ == "__main__":
     # Example usage
     parser = EventParser()
-    parser.parse_all_posts("icssc.uci")
+    parser.parse_all_posts("uciavahita")
