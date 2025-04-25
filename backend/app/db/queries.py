@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import uuid
 from pathlib import Path
 import sys
+import httpx
 
 
 from pathlib import Path
@@ -20,7 +21,9 @@ class SupabaseQueries:
     def __init__(self):
         """Initialize the Supabase client"""
         self.supabase = supabase
-        
+        self.SUPABASE_URL = os.getenv("SUPABASE_URL")
+        self.SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
         
     def get_category_id(self, category_name: str) -> Optional[str]:
         """Get the UUID for a category by name, or None if it doesn't exist"""
@@ -497,12 +500,23 @@ class SupabaseQueries:
             return response.data[0]["scrapped"]
         return False
 
-    def get_user_from_token(self, token: str):
-        try:
-            user = supabase.auth.get_user(token)
-            return user.user if user.user else None
-        except Exception as e:
+    async def get_user_from_token(self, token: str):
+        # Remove "Bearer " if present
+        token = token.replace("Bearer ", "")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.SUPABASE_URL}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": self.SUPABASE_KEY,
+                },
+            )
+
+        if response.status_code != 200:
             return None
+        
+        return response.json()
     
     def insert_pending_club(self, data: dict):
         supabase.table("clubs_pending").insert(data).execute()

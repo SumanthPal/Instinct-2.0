@@ -97,7 +97,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    supabase_user = db.get_user_from_token(auth_header)
+    supabase_user = await db.get_user_from_token(auth_header)
     if not supabase_user:
         raise HTTPException(status_code=401, detail="Invalid Supabase token")
 
@@ -111,19 +111,69 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
         raise HTTPException(status_code=409, detail="Club with this Instagram handle already exists")
 
     # 4. Insert into pending_clubs table
-    result = supabase.table("pending_clubs").insert({
-        "name": new_club.club_name,
-        "instagram_handle": new_club.instagram_handle,
-        "categories": [{"name": category} for category in new_club.categories],  # assume jsonb[]
-        "submitted_by_email": new_club.submitted_by_email,
-        "submitted_at": datetime.now().isoformat(),
-        "approved": False
-    }).execute()
+    try:
+        result = supabase.table("pending_clubs").insert({
+            "name": new_club.club_name,
+            "instagram_handle": new_club.instagram_handle,
+            "categories": [{"name": category} for category in new_club.categories],
+            "submitted_by_email": new_club.submitted_by_email,
+            "submitted_at": datetime.now().isoformat(),
+            "approved": False
+        }).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit pending club: {str(e)}")
 
-    if result.error:
-        raise HTTPException(status_code=500, detail=f"Failed to submit pending club: {result.error.message}")
-
+    # If it gets here, it was successful
     return {"message": "Club submitted successfully. Awaiting approval."}
+@router.delete("/pending-club/{pending_id}/reject")
+async def reject_pending_club(pending_id: str, request: Request):
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+    
+    if auth_header != f"Bearer {db.SUPABASE_KEY}":
+        raise HTTPException(status_code=401, detail="Invalid service token")
+
+    try:
+        # Set approved = false
+        result = supabase.table("pending_clubs").update({
+            "approved": False
+        }).eq('id', pending_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reject club: {str(e)}")
+
+    return {"message": f"Club {pending_id} rejected and will be auto-deleted by trigger."}
+
+@router.get("/pending-clubs")
+async def list_pending_clubs(
+    limit: int = Query(20, description="Number of pending clubs to fetch"),
+    offset: int = Query(0, description="Pagination offset")
+):
+    """List pending clubs that have not been approved yet."""
+    try:
+        response = supabase.table("pending_clubs") \
+            .select("*") \
+            .eq("approved", False) \
+            .order("submitted_at", desc=False) \
+            .range(offset, offset + limit - 1) \
+            .execute()
+        
+        # FIX: Check if response.data is not None
+        pending = response.data
+        if not pending:
+            pending = []
+
+        return {
+            "count": len(pending),
+            "results": pending
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching pending clubs: {str(e)}"})
+
+from datetime import datetime  # Make sure you have this imported!
 
 @router.post("/pending-club/{pending_id}/approve")
 async def approve_pending_club(pending_id: str, request: Request):
@@ -132,44 +182,43 @@ async def approve_pending_club(pending_id: str, request: Request):
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    supabase_user = db.get_user_from_token(auth_header)
+    supabase_user = await db.get_user_from_token(auth_header)  # <<<<<< await it!
     if not supabase_user:
         raise HTTPException(status_code=401, detail="Invalid Supabase token")
 
     # 2. Fetch pending club
-    response = supabase.table("pending_clubs").select("*").eq("id", pending_id).single().execute()
-    if response.error or not response.data:
+    try:
+        response = supabase.table("pending_clubs").select("*").eq("id", pending_id).single().execute()
+        pending_club = response.data
+        if not pending_club:
+            raise HTTPException(status_code=404, detail="Pending club not found")
+    except Exception as e:
         raise HTTPException(status_code=404, detail="Pending club not found")
-    
-    pending_club = response.data
 
-    # 3. Insert into real clubs table (ONLY necessary fields)
+    # 3. Insert into real clubs table
     insert_payload = {
         "name": pending_club["name"],
         "instagram_handle": pending_club["instagram_handle"],
     }
-
-    # If optional fields exist, include them
     if pending_club.get("club_links"):
         insert_payload["club_links"] = pending_club["club_links"]
 
-    insert_result = supabase.table("clubs").insert(insert_payload).execute()
-
-    if insert_result.error:
-        raise HTTPException(status_code=500, detail=f"Failed to insert into clubs: {insert_result.error.message}")
+    try:
+        supabase.table("clubs").insert(insert_payload).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to insert into clubs: {str(e)}")
 
     # 4. Mark pending as approved
-    update_result = supabase.table("pending_clubs").update({
-        "approved": True,
-        "reviewed_by_email": supabase_user["email"],
-        "reviewed_at": datetime.now().isoformat()
-    }).eq("id", pending_id).execute()
-
-    if update_result.error:
-        raise HTTPException(status_code=500, detail=f"Failed to update pending club: {update_result.error.message}")
+    try:
+        supabase.table("pending_clubs").update({
+            "approved": True,
+            "reviewed_by_email": supabase_user["email"],
+            "reviewed_at": datetime.now().isoformat()
+        }).eq("id", pending_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update pending club: {str(e)}")
 
     return {"message": "Club approved and added successfully"}
-
 
 
 @app.get("/")
