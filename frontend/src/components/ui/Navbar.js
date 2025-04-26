@@ -102,7 +102,7 @@ export default function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-card rounded-lg shadow-lg py-2 z-20">
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-card rounded-lg shadow-lg py-2 z-30">
                   <div className="px-4 py-2 border-b dark:border-gray-700">
                     <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
                       {user.user_metadata.full_name || user.email}
