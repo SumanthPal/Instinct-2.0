@@ -14,7 +14,7 @@ from queue import Queue
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tools.logger import logger
 from db.queries import SupabaseQueries
-from tools.insta_scraper import InstagramScraper, scrape_with_retries, scrape_sequence
+from tools.insta_scraper import InstagramScraper, scrape_with_retries, scrape_sequence, RateLimitDetected
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
 from tools.redis_queue import RedisScraperQueue
@@ -25,17 +25,22 @@ class ScraperRotation:
         dotenv.load_dotenv()
         self.db = SupabaseQueries()
         self.clubs_per_session = 40
-        self.cooldown_hours = 1
+        self.cooldown_hours = 72  # Don't scrape same club more than once every 3 days
         self.session_cooldown_hours = 2  # Wait between sessions
         self.max_threads = 1  # Start with 1 thread (can be increased based on Heroku dyno)
         self.queue = RedisScraperQueue()
     
     def populate_queue(self):
         """Get clubs from database and add to queue"""
+        logger.info("Starting to populate queue...")
+
         clubs_to_scrape = self.get_clubs_to_scrape()
-        for i, username in enumerate(clubs_to_scrape):
-            # Use index as priority - earlier in list = higher priority
-            self.queue.enqueue_club(username, priority=i)
+        for username in clubs_to_scrape:
+            self.queue.enqueue_club(username)
+        
+        logger.info(f"Finished populating queue with {clubs_to_scrape}")
+
+
     
     def start_event_processing_thread(self):
         """Start a separate thread for processing events"""
@@ -83,6 +88,8 @@ class ScraperRotation:
                 
     def process_queue(self):
         """Process clubs from the queue"""
+        logger.info("Starting to process queue...")
+
         while True:
             # Requeue any stalled jobs
             self.queue.requeue_stalled()
@@ -91,11 +98,14 @@ class ScraperRotation:
             # Get next job
             job = self.queue.get_next_club()
             if not job:
+                logger.info("No club jobs found in queue, sleeping 30s...")
                 # No job available or rate limited
                 time.sleep(30)
                 continue
                 
             instagram_handle = job['instagram_handle']
+            logger.info(f"Processing club {instagram_handle}...")
+
             
             try:
                 # Initialize scraper
@@ -120,11 +130,17 @@ class ScraperRotation:
                 # Random delay between scrapes
                 delay = random.uniform(2, 5)
                 time.sleep(delay)
-                
+            
+            except RateLimitDetected as rl:
+                logger.error(f"🚨 [RATE LIMIT DETECTED] Cooling down scraper for 12 hours... {rl}")
+                logger.warning("Severe rate limit detected. Cooling down scraper for 12 hours...")
+                time.sleep(12 * 60 * 60)  # Sleep for 12 hours (12 hours × 60 minutes × 60 seconds)
+                self.queue.requeue_job(instagram_handle)
+
             except Exception as e:
                 logger.error(f"Error scraping {instagram_handle}: {e}")
                 self.queue.mark_failed(instagram_handle, error=str(e))
-            
+                        
             
     def get_clubs_to_scrape(self) -> List[str]:
         """
@@ -201,6 +217,7 @@ class ScraperRotation:
             scraper.login()
             
             # Process each club
+            logger.info(f"Processing batch of {len(usernames)} clubs...")
             for username in usernames:
                 try:
                     logger.info(f"Scraping {username}...")
@@ -219,6 +236,7 @@ class ScraperRotation:
                     continue
             
             # Clean up
+            logger.info(f"Successfully scraped {username}")
             scraper._driver_quit()
             
         except Exception as e:
@@ -263,6 +281,8 @@ class ScraperRotation:
             
             # Process events for successful scrapes
             self.process_events(successful_scrapes)
+
+
             
         except Exception as e:
             logger.error(f"Session error: {e}")
@@ -313,9 +333,9 @@ class ScraperRotation:
             base_frequency = self.cooldown_hours
             
             # Adjust for follower count (popular clubs get scraped more often)
-            if followers > 10000:
+            if followers > 1000:
                 base_frequency *= 0.7  # 30% reduction in time between scrapes
-            elif followers > 5000:
+            elif followers > 500:
                 base_frequency *= 0.85  # 15% reduction
                 
             # Adjust for post frequency

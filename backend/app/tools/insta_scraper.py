@@ -24,6 +24,9 @@ import boto3
 import datetime
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
+class RateLimitDetected(Exception):
+    """Raised when a potential rate limit is detected during scraping."""
+    pass
 
 
 class InstagramScraper:
@@ -39,12 +42,17 @@ class InstagramScraper:
         self.working_path = os.path.join(os.path.dirname(__file__), '..')
 
         # Initialize WebDriver with options
-        logger.info("initing driver")
+        logger.info("Initializing WebDriver")
         self._driver = self._create_driver(options)
-        logger.info("driver inited")
+        logger.info("WebDriver successfully initialized")
         self._wait = WebDriverWait(self._driver, 5)
-        
-        
+        self.cookies_list = [
+            os.getenv('COOKIE_1'),
+            os.getenv('COOKIE_2')
+        ]
+        self.current_cookie_index = 0  # Start from the first cookie
+                
+                
     
     def _create_driver(self, chrome_options):
         # Initialize WebDriver
@@ -59,6 +67,25 @@ class InstagramScraper:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self._driver_quit()
+    
+    def swap_cookies(self):
+        """Switch to the next cookie/account when rate limited."""
+        self.current_cookie_index = (self.current_cookie_index + 1) % len(self.cookies_list)
+        logger.warning(f"🔄 Swapping to cookie account #{self.current_cookie_index + 1}...")
+
+        try:
+            self._driver.delete_all_cookies()
+            decoded_cookies = base64.b64decode(self.cookies_list[self.current_cookie_index])
+            cookies = json.loads(decoded_cookies.decode('utf-8'))
+            for cookie in cookies:
+                self._driver.add_cookie(cookie)
+            
+            self._driver.refresh()
+            time.sleep(5)  # Give some time to reload
+            logger.info("Cookies swapped and page refreshed successfully.")
+        except Exception as e:
+            logger.error(f"Error while swapping cookies: {e}")
+
 
     def login(self) -> None:
         """
@@ -70,19 +97,20 @@ class InstagramScraper:
             cookies_str = os.getenv('COOKIE')
             print(cookies_str)
             
-            if cookies_str:
+            if self.cookies_list[self.current_cookie_index]:
                 self._driver.delete_all_cookies()
-                logger.info("Cookies found. Loading...")
+                logger.info(f"Cookies found for account {self.current_cookie_index + 1}. Loading...")
                 self._driver.get("https://www.instagram.com/")
 
-                decoded_cookies = base64.b64decode(cookies_str)
-                cookies = decoded_cookies.decode('utf-8')
+                decoded_cookies = base64.b64decode(self.cookies_list[self.current_cookie_index])
+                cookies = json.loads(decoded_cookies.decode('utf-8'))
                 
-                for cookie in json.loads(cookies):
+                for cookie in cookies:
                     self._driver.add_cookie(cookie)
-                
+
                 logger.info("Cookies loaded.")
                 self._driver.refresh()
+
             else:
                 logger.info("No cookies file found. Logging in...")
                 self._driver.get("https://www.instagram.com")
@@ -193,12 +221,13 @@ class InstagramScraper:
             
             # look for post pic
             img_tag = post_soup.find('img', class_="x5yr21d xu96u03 x10l6tqk x13vifvy x87ps6o xh8yej3")
-            try:
-                img_src = img_tag.get('src', 'http://www.w3.org/2000/svg') if img_tag else 'http://www.w3.org/2000/svg'
-            except Exception as e:
-                logger.info("could not find img_src")
-                img_src = "http://www.w3.org/2000/svg"
- 
+
+            if not img_tag:
+                logger.warning("Image source missing, possible rate limit.")
+                raise RateLimitDetected("Instagram rate limit suspected: no image found.")
+
+            img_src = img_tag.get('src', 'http://www.w3.org/2000/svg')
+            
             
         except WebDriverException as e:
             logger.error(f"Error fetching post info: {str(e)}")
@@ -566,6 +595,7 @@ class InstagramScraper:
 
             # Encode to base64
             encoded_cookies = base64.b64encode(cookies_json.encode()).decode()
+            logger.info(encoded_cookies)
 
             # Save to .env file
             current_file = Path(__file__).resolve()
@@ -625,66 +655,66 @@ def scrape_with_retries(scraper, username, max_retries=3, delay=5):
             logger.info(f"Scraping of {username} complete.")
             scraper._driver_quit()
             return scraper
+        except RateLimitError as rate_limit_exc:
+            logger.warning(f"Rate limit detected during scrape of {username}: {rate_limit_exc}")
+            scraper.swap_cookies()
+            time.sleep(5)  # Short pause after swapping
+            continue
         except Exception as e:
             logger.warning(f"Attempt {attempt + 1} failed for {username}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(delay)
             else:
-                logger.error(f"Restarting WebDriver after repeated failures for {username}.")
+                logger.error(f"Giving up after repeated failures for {username}. Restarting driver.")
                 scraper._driver_quit()
                 scraper = InstagramScraper(os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD"))
                 scraper.login()
                 return scraper
+            
 
 
 def scrape_sequence(username_list: list[str]) -> None:
-    """
-    Scrape the Instagram page of a club and store the data.
-    Args:
-        username_list (list[str]): List of Instagram usernames of clubs.
-    """
     scraper = None
     try:
-        
+        logger.info(f"Starting scraper sequence for {len(username_list)} club(s)...")
         scraper = InstagramScraper(os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD"))
-        logger.info("Init scraper")
+        logger.info("Scraper initialized.")
+        
         scraper.login()
-        logger.info("Logged in")
-        for username in username_list:
-            logger.info(f"Scraping {username}...")
-            scraper = scrape_with_retries(scraper, username)
-            logger.info(f"Scraping of {username} complete.")
+        logger.info("Logged into Instagram.")
 
+        for username in username_list:
+            logger.info(f"Starting scrape for {username}...")
+            scraper = scrape_with_retries(scraper, username)
+            logger.info(f"Finished scraping {username}.")
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred during scrape sequence: {e}")
     finally:
         if scraper:
+            logger.info("Quitting scraper driver...")
             scraper._driver_quit()
+            logger.info("Driver quit successfully.")
+
     
 
     
 def multi_threaded_scrape(clubs: list[str], max_threads: int) -> None:
-    """
-    Runs scraper on multiple threads, dividing clubs among threads.
-
-    Args:
-        clubs (list[str]): Instagram usernames of clubs.
-        max_threads (int): Number of threads to use.
-    """
-    club_chunks = _chunk_list(clubs, max_threads)  # Divide the clubs list into chunks
-    logger.info(f"Divided {len(clubs)} clubs into {len(club_chunks)} chunks for {max_threads} threads.")
-
+    club_chunks = _chunk_list(clubs, max_threads)
+    logger.info(f"Launching multi-threaded scrape: {len(clubs)} clubs across {max_threads} threads.")
+    
     with ThreadPoolExecutor(max_threads) as executor:
         futures = []
         for chunk in club_chunks:
             futures.append(executor.submit(scrape_sequence, chunk))
 
-        # Wait for all threads to complete
         for future in futures:
             try:
-                future.result()  # This raises any exception that occurred during task execution
+                future.result()
             except Exception as e:
-                logger.error(f"An error occurred in a thread: {e}")
+                logger.error(f"An error occurred inside a thread: {e}")
+
+    logger.info("All threads completed scraping.")
+
 if __name__ == "__main__":
 
         dotenv.load_dotenv()
