@@ -130,13 +130,17 @@ class ScraperRotation:
         logger.info("Starting to process queue...")
 
         while True:
+            # Requeue stuck jobs
             self.queue.requeue_stalled()
             self.queue.requeue_stalled_event_jobs()
 
             job = self.queue.get_next_club()
+
             if not job:
-                logger.info("No club jobs found in queue, sleeping 30s...")
-                time.sleep(30)
+                logger.info("Queue empty. Sleeping 6 hours before retrying...")
+                time.sleep(6 * 60 * 60)  # Sleep for 6 hours
+                logger.info("Waking up and repopulating queue...")
+                self.populate_queue()
                 continue
 
             instagram_handle = job['instagram_handle']
@@ -148,7 +152,7 @@ class ScraperRotation:
                     os.getenv("INSTAGRAM_PASSWORD")
                 )
                 scraper.login()
-                
+
                 scraper = scrape_with_retries(scraper, instagram_handle)
 
                 self.update_club_last_scraped(instagram_handle)
@@ -158,7 +162,6 @@ class ScraperRotation:
                 delay = random.uniform(2, 5)
                 time.sleep(delay)
 
-                # Rate limit detection
                 rate_limit_level = self.check_recent_rate_limits()
 
                 if rate_limit_level == 2:
