@@ -77,9 +77,14 @@
 
   }
 
+
   html, body {
     height: 100%;
     margin: 0;
+    
+    @apply bg-pastel-pink dark:bg-dark-gradient-start;
+
+
     padding: 0;
   }
 

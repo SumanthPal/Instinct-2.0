@@ -52,7 +52,7 @@ export default function Navbar() {
   `;
 
   return (
-<nav className="fixed w-full bg-white/40 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-sm rounded-2xl">
+<nav className="fixed w-full overflow-x-hidden bg-white/40 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-sm rounded-full">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         {/* Logo */}
         <div className="flex items-center space-x-3">
@@ -142,7 +142,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
-      <div className={`md:hidden overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
+      <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[600px]' : 'max-h-0'}`}>
   <div className="px-6 pt-6 pb-10 bg-white/50 dark:bg-dark-profile-card/70 backdrop-blur-2xl rounded-2xl mx-4 mt-2 shadow-lg space-y-8">
     <Link href="/" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 text-2xl font-semibold text-gray-800 dark:text-white bg-white/60 dark:bg-dark-profile-card/80 rounded-xl hover:bg-lavender/30 dark:hover:bg-dark-gradient-start transition">
       Home
@@ -180,7 +180,6 @@ export default function Navbar() {
     )}
   </div>
 </div>
-
       </div>
     </nav>
   );

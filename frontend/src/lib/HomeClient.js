@@ -307,6 +307,8 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
             </div>
           )}
         </div>
+        <div id="load-more-trigger" className="h-1 w-full"></div>
+
 
       
       </main>

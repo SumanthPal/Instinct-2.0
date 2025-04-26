@@ -2,7 +2,7 @@ import React from 'react';
 
 const Footer = () => {
   return (
-    <footer className="w-full backdrop-blur-md bg-white/50 dark:bg-dark-profile-card/60 border-t border-gray-200 dark:border-gray-700 mt-auto">
+    <footer className="w-full backdrop-blur-md bg-white/50 dark:bg-dark-profile-card/60 border-t border-gray-200 dark:border-gray-700 mt-auto rounded-full">
       <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col items-center justify-center space-y-4 text-center">
         
         {/* Social Links */}

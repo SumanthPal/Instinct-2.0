@@ -88,7 +88,7 @@ const UCIBackground = () => {
   }, [currentImageIndex, uciImages.length]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden -z-10">
+    <div className="fixed inset-0 overflow-hidden z-5">
       {/* Background images */}
       <div className="absolute inset-0">
         {/* Current image (always visible) */}
