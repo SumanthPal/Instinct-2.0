@@ -94,9 +94,7 @@ class InstagramScraper:
         """
         try:
             
-            cookies_str = os.getenv('COOKIE')
-            print(cookies_str)
-            
+           
             if self.cookies_list[self.current_cookie_index]:
                 self._driver.delete_all_cookies()
                 logger.info(f"Cookies found for account {self.current_cookie_index + 1}. Loading...")
@@ -144,6 +142,7 @@ class InstagramScraper:
         :param club_username: the instagram tag of the club
         """
         try:
+            club_username = club_username[1:] if club_username.startswith('@') else club_username
             club_info = self.get_club_info(club_username)
             
             self.save_club_info(club_info)
@@ -528,7 +527,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            #"--headless",  # Run in headless mode for better speed
+            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
@@ -651,11 +650,12 @@ def _chunk_list(lst, n):
 def scrape_with_retries(scraper, username, max_retries=3, delay=5):
     for attempt in range(max_retries):
         try:
+            username = username[1:] if username.startswith('@') else username
             scraper.store_club_data(username)
             logger.info(f"Scraping of {username} complete.")
             scraper._driver_quit()
             return scraper
-        except RateLimitError as rate_limit_exc:
+        except RateLimitDetected as rate_limit_exc:
             logger.warning(f"Rate limit detected during scrape of {username}: {rate_limit_exc}")
             scraper.swap_cookies()
             time.sleep(5)  # Short pause after swapping
@@ -670,8 +670,7 @@ def scrape_with_retries(scraper, username, max_retries=3, delay=5):
                 scraper = InstagramScraper(os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD"))
                 scraper.login()
                 return scraper
-            
-
+    
 
 def scrape_sequence(username_list: list[str]) -> None:
     scraper = None

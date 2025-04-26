@@ -210,7 +210,54 @@ async def on_ready():
 
 
 # --- Bot Commands ---
+@bot.command()
+async def emergencyrequeue(ctx):
+    """Emergency: Requeue all currently processing jobs back into the queue."""
+    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+    bot_redis = redis.from_url(redis_url)
+    try:
+        class ConfirmRequeueView(View):
+            def __init__(self):
+                super().__init__(timeout=30)  # Timeout after 30 seconds
 
+            @discord.ui.button(label="🚨 YES, Requeue All", style=discord.ButtonStyle.danger)
+            async def confirm(self, interaction: discord.Interaction, button: Button):
+                try:
+                    processing_jobs = bot_redis.hgetall('scraper:processing')
+                    requeued_count = 0
+
+                    for job_json in processing_jobs.values():
+                        job = json.loads(job_json)
+                        instagram_handle = job['instagram_handle']
+
+                        # Requeue into main scraper queue
+                        new_job = {
+                            'instagram_handle': instagram_handle,
+                            'enqueued_at': time.time(),
+                            'attempts': job.get('attempts', 0) + 1
+                        }
+                        bot_redis.zadd('scraper:queue', {json.dumps(new_job): -10})
+                        bot_redis.hdel('scraper:processing', instagram_handle)
+                        requeued_count += 1
+
+                    await interaction.response.edit_message(content=f"✅ Emergency requeue complete! {requeued_count} jobs requeued.", view=None)
+                except Exception as e:
+                    await interaction.response.edit_message(content=f"❌ Failed emergency requeue: {e}", view=None)
+
+            @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary)
+            async def cancel(self, interaction: discord.Interaction, button: Button):
+                await interaction.response.edit_message(content="❎ Emergency requeue cancelled.", view=None)
+
+        await ctx.send(
+            "**⚠️ WARNING: Emergency Requeue!**\n"
+            "This will force all currently stuck jobs back into the queue.\n"
+            "Are you absolutely sure?",
+            view=ConfirmRequeueView()
+        )
+
+    except Exception as e:
+        await ctx.send(f"❌ Failed emergency requeue setup: {e}")
+        logger.error(f"Emergency requeue command error: {e}")
 @bot.command()
 async def checkpending(ctx):
     """Fetch and post pending clubs."""

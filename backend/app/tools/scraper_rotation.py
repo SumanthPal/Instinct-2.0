@@ -19,6 +19,9 @@ from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
 from tools.redis_queue import RedisScraperQueue
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
+
 class ScraperRotation:
     def __init__(self):
         """Initialize the scraper rotation manager"""
@@ -85,61 +88,97 @@ class ScraperRotation:
             except Exception as e:
                 logger.error(f"Error in event processing worker: {e}")
                 time.sleep(30)  # Sleep before retrying
+    def check_recent_rate_limits(self, window_minutes=30) -> int:
+        """
+        Checks for recent rate limits and returns an intensity level:
+        - 0 => No issues
+        - 1 => Mild (1-2 rate limits recently)
+        - 2 => Severe (3+ rate limits recently)
+        """
+        try:
+            with open(LOG_FILE_PATH, 'r') as f:
+                lines = f.readlines()
+
+            now = datetime.datetime.now()
+            count = 0
+            for line in reversed(lines):
+                if "Possible rate limit detected" in line:
+                    timestamp_str = line.split(' - ')[0]
+                    try:
+                        timestamp = datetime.datetime.fromisoformat(timestamp_str)
+                        if (now - timestamp).total_seconds() <= window_minutes * 60:
+                            count += 1
+                        else:
+                            break  # No need to go further back
+                    except Exception:
+                        continue
+                
+            if count >= 3:
+                return 2  # Severe
+            elif count >= 1:
+                return 1  # Mild
+            else:
+                return 0  # No rate limits
+                
+        except Exception as e:
+            logger.error(f"Error checking for rate limits: {e}")
+            return 0
+
                 
     def process_queue(self):
-        """Process clubs from the queue"""
+        """Process clubs from the queue."""
         logger.info("Starting to process queue...")
 
         while True:
-            # Requeue any stalled jobs
             self.queue.requeue_stalled()
             self.queue.requeue_stalled_event_jobs()
-            
-            # Get next job
+
             job = self.queue.get_next_club()
             if not job:
                 logger.info("No club jobs found in queue, sleeping 30s...")
-                # No job available or rate limited
                 time.sleep(30)
                 continue
-                
+
             instagram_handle = job['instagram_handle']
             logger.info(f"Processing club {instagram_handle}...")
 
-            
             try:
-                # Initialize scraper
                 scraper = InstagramScraper(
                     os.getenv("INSTAGRAM_USERNAME"), 
                     os.getenv("INSTAGRAM_PASSWORD")
                 )
                 scraper.login()
                 
-                # Scrape the club
                 scraper = scrape_with_retries(scraper, instagram_handle)
-                
-                # Update last_scraped timestamp in database
+
                 self.update_club_last_scraped(instagram_handle)
-                
-                # Enqueue for event processing instead of processing directly
                 self.queue.enqueue_event_job(instagram_handle)
-                
-                # Mark job as complete
                 self.queue.mark_complete(instagram_handle)
-                
-                # Random delay between scrapes
+
                 delay = random.uniform(2, 5)
                 time.sleep(delay)
-            
+
+                # Rate limit detection
+                rate_limit_level = self.check_recent_rate_limits()
+
+                if rate_limit_level == 2:
+                    logger.warning("🚨 Severe rate limits detected! Cooling down for 12 hours...")
+                    time.sleep(12 * 60 * 60)
+                    continue
+                elif rate_limit_level == 1:
+                    logger.warning("⚠️ Mild rate limits detected. Cooling down for 6 hours...")
+                    time.sleep(6 * 60 * 60)
+                    continue
+
             except RateLimitDetected as rl:
                 logger.error(f"🚨 [RATE LIMIT DETECTED] Cooling down scraper for 12 hours... {rl}")
-                logger.warning("Severe rate limit detected. Cooling down scraper for 12 hours...")
-                time.sleep(12 * 60 * 60)  # Sleep for 12 hours (12 hours × 60 minutes × 60 seconds)
                 self.queue.requeue_job(instagram_handle)
+                time.sleep(12 * 60 * 60)
 
             except Exception as e:
                 logger.error(f"Error scraping {instagram_handle}: {e}")
                 self.queue.mark_failed(instagram_handle, error=str(e))
+
                         
             
     def get_clubs_to_scrape(self) -> List[str]:
