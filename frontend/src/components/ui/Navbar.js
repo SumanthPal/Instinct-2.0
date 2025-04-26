@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import DarkModeToggle from './DarkModeToggle';
 import { FaBars, FaTimes, FaGoogle, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '@/context/auth-context';
+import { Suspense } from 'react';
+
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
