@@ -471,57 +471,50 @@ async def next_scrape(
         )
         
 
-@app.get("/search")
-async def search_clubs(
+@router.get("/smart-search")
+async def smart_search(
     q: str = Query(..., description="Search query"),
+    page: int = Query(1, description="Page number starting from 1"),
+    limit: int = Query(20, description="Number of clubs per page"),
     category: Optional[str] = Query(None, description="Filter by category")
 ):
-    """Search for clubs by name or description."""
+    """Full text smart search on clubs."""
     try:
-        # This would be a more complex query in your database
-        # For illustration purposes only
-        response = supabase.table("clubs").select("*").ilike("name", f"%{q}%").execute()
-        name_matches = response.data if response.data else []
-        
-        response = supabase.table("clubs").select("*").ilike("description", f"%{q}%").execute()
-        desc_matches = response.data if response.data else []
-        
-        # Combine results and remove duplicates
-        all_matches = name_matches.copy()
-        existing_ids = set(club["id"] for club in all_matches)
-        
-        for club in desc_matches:
-            if club["id"] not in existing_ids:
-                all_matches.append(club)
-                existing_ids.add(club["id"])
-        
-        # Apply category filter if specified
-        filtered_matches = all_matches
+        # Perform full text search without pagination (Supabase Python limitation)
+        response = supabase.table("clubs") \
+            .select("*") \
+            .text_search("search_vector", q) \
+            .execute()
+
+        matches = response.data if response.data else []
+
+        # Optional: further filter by category
         if category:
-            # This filtering would happen at the database level in a real implementation
-            filtered_matches = []
-            for club in all_matches:
-                # Get categories for this club
-                club_categories_response = supabase.table("clubs_categories") \
-                    .select("categories!inner(name)") \
-                    .eq("club_id", club["id"]) \
-                    .execute()
-                    
-                club_categories = club_categories_response.data if club_categories_response.data else []
-                
-                # Check if club has the specified category
-                if any(cat["categories"]["name"] == category for cat in club_categories):
-                    filtered_matches.append(club)
-        
+            matches = [
+                club for club in matches
+                if any(cat["name"] == category for cat in club.get("categories", []))
+            ]
+
+        # Now manually paginate results
+        total_matches = len(matches)
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_matches = matches[start:end]
+
         return {
-            "count": len(filtered_matches),
-            "results": filtered_matches
+            "count": total_matches,
+            "results": paginated_matches,
+            "hasMore": end < total_matches,
+            "page": page,
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
-            content={"message": f"Error searching clubs: {str(e)}"}
+            content={"message": f"Error in smart search: {str(e)}"}
         )
+
 
 
 def run_scraper_process():
