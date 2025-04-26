@@ -358,11 +358,37 @@ class EventParser:
                 
                 logger.info(f"Inserted new event: {event['Name']}")
 
+    def safe_int(self, value, default=0):
+        """Convert value safely to integer, handling numeric strings and simple words like 'one'."""
+        word_to_number = {
+            "zero": 0,
+            "one": 1,
+            "two": 2,
+            "three": 3,
+            "four": 4,
+            "five": 5,
+            "six": 6,
+            "seven": 7,
+            "eight": 8,
+            "nine": 9,
+            "ten": 10
+        }
+
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            if isinstance(value, str):
+                value_clean = value.strip().lower()
+                if value_clean in word_to_number:
+                    return word_to_number[value_clean]
+            return default
+
+
     def dict_to_interval(self, duration_dict: dict) -> str:
-        """Convert duration dictionary to a PostgreSQL interval string."""
-        days = duration_dict.get('days', 0)
-        hours = duration_dict.get('hours', 0)
-        minutes = duration_dict.get('minutes', 0)
+        """Convert duration dictionary to a PostgreSQL interval string safely."""
+        days = self.safe_int(duration_dict.get('days', 0))
+        hours = self.safe_int(duration_dict.get('hours', 0))
+        minutes = self.safe_int(duration_dict.get('minutes', 0))
 
         parts = []
         if days:
@@ -373,6 +399,7 @@ class EventParser:
             parts.append(f"{minutes} minutes")
 
         return ' '.join(parts) or '0 minutes'
+
 
 
 if __name__ == "__main__":
