@@ -3,7 +3,9 @@ import '../../../styles/globals.css';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 import { SiNextdotjs, SiTailwindcss, SiRedis, SiSupabase, SiFastapi, SiSelenium } from 'react-icons/si';
-import { FaLinkedin, FaGithub, FaTwitter, FaDiscord } from 'react-icons/fa';
+import { FaLinkedin, FaGithub, FaDiscord } from 'react-icons/fa';
+import { FaXTwitter } from "react-icons/fa6";
+
 import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai, SiPostgresql } from 'react-icons/si'; // Added new icons
 
 const About = () => {
@@ -46,14 +48,14 @@ const About = () => {
               <p className="text-lg text-gray-700 dark:text-dark-subtext">Founder & Developer</p>
               {/* Social Links */}
               <div className="mt-4 flex space-x-6">
-                <a href="https://www.linkedin.com/in/yourprofile" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.linkedin.com/in/sumanth-p-88271b239" target="_blank" rel="noopener noreferrer">
                   <FaLinkedin className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-blue-700 dark:hover:text-blue-500" />
                 </a>
-                <a href="https://github.com/yourprofile" target="_blank" rel="noopener noreferrer">
-                  <FaGithub className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-black dark:hover:text-gray-200" />
+                <a href="https://github.com/SumanthPal" target="_blank" rel="noopener noreferrer">
+                  <FaGithub className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-gray-700 dark:hover:text-gray-200" />
                 </a>
-                <a href="https://twitter.com/yourprofile" target="_blank" rel="noopener noreferrer">
-                  <FaTwitter className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-blue-400 dark:hover:text-blue-300" />
+                <a href="https://x.com/lifeofsumpal_" target="_blank" rel="noopener noreferrer">
+                  <FaXTwitter className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-gray-700 dark:hover:text-gray-200" />
                 </a>
               </div>
             </div>
