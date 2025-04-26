@@ -22,6 +22,11 @@ from tools.logger import logger
 from db.queries import SupabaseQueries
 import boto3
 import datetime
+import tempfile
+
+# Create a random temporary directory
+user_data_dir = tempfile.mkdtemp()
+
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
 class RateLimitDetected(Exception):
@@ -549,6 +554,8 @@ class InstagramScraper:
             "--password-store=basic",
             "--use-mock-keychain",
             "--blink-settings=imagesEnabled=false",
+           f'--user-data-dir={user_data_dir}'
+
         ]
         for arg in args:
             option.add_argument(arg)

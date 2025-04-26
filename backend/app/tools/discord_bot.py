@@ -65,6 +65,47 @@ async def send_error(embed=None, message=None):
             await channel.send(embed=embed)
         elif message:
             await channel.send(message)
+@bot.command()
+async def flushqueue(ctx):
+    """Force clear the entire club scraper queue."""
+    try:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_conn = redis.from_url(redis_url)
+
+        # Confirm the queue name you are using
+        club_queue_name = 'scraper:queue'
+
+        queue_size = redis_conn.zcard(club_queue_name)
+
+        if queue_size == 0:
+            await ctx.send("✅ Club queue is already empty!")
+            return
+
+        # Confirmation button
+        class ConfirmFlushView(View):
+            def __init__(self):
+                super().__init__(timeout=30)
+
+            @discord.ui.button(label="🚨 YES, Flush Club Queue", style=discord.ButtonStyle.danger)
+            async def confirm_flush(self, interaction: discord.Interaction, button: Button):
+                try:
+                    redis_conn.delete(club_queue_name)
+                    await interaction.response.edit_message(content="✅ Club queue has been flushed successfully!", view=None)
+                except Exception as e:
+                    await interaction.response.edit_message(content=f"❌ Failed to flush queue: {e}", view=None)
+
+            @discord.ui.button(label="❌ Cancel", style=discord.ButtonStyle.secondary)
+            async def cancel_flush(self, interaction: discord.Interaction, button: Button):
+                await interaction.response.edit_message(content="❎ Flush cancelled.", view=None)
+
+        await ctx.send(
+            f"⚠️ **Warning!**\nClub queue currently has `{queue_size}` jobs pending.\n\nAre you sure you want to *flush* the entire queue?",
+            view=ConfirmFlushView()
+        )
+
+    except Exception as e:
+        await ctx.send(f"❌ Failed to setup flushqueue command: {e}")
+        logger.error(f"Error in flushqueue command: {e}")
 
 @tasks.loop(hours=24)
 async def clean_old_events():
