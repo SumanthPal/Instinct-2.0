@@ -3,7 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import AuthWrapper from "./authwrapper";
 import { ToastProvider } from '@/components/ui/toast';
 import { DarkModeProvider } from '@/context/dark-mode-context';
-
+import { Suspense } from 'react'; // ok to import Suspense even without "use client"
 
 export const metadata = {
   title: "Instinct for UCI",
@@ -17,20 +17,17 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-     
-      </head>
       <body>
-
-        <AuthWrapper>
-          <ToastProvider>
-          <DarkModeProvider>
-
-            {children}
-            </DarkModeProvider>
-            <Analytics />
-          </ToastProvider>
-        </AuthWrapper>
+        <Suspense fallback={<div>Loading...</div>}>
+          <AuthWrapper>
+            <ToastProvider>
+              <DarkModeProvider>
+                {children}
+              </DarkModeProvider>
+              <Analytics />
+            </ToastProvider>
+          </AuthWrapper>
+        </Suspense>
       </body>
     </html>
   );

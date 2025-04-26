@@ -146,11 +146,7 @@ export default function Home() {
             </button>
           </a>
 
-          <a href="/signup">
-            <button className="px-12 py-5 text-lg font-bold bg-gradient-to-r from-lavender to-sky-blue dark:from-dark-card dark:to-dark-subtext text-white rounded-2xl shadow-xl hover:scale-105 hover:brightness-110 transition-all duration-300">
-              Join Instinct
-            </button>
-          </a>
+          
         </div>
       </div>
 

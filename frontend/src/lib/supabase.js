@@ -4,7 +4,6 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 // Ensure environment variables are available
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-console.log(supabaseUrl, supabaseAnonKey)
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables');

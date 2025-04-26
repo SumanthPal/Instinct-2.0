@@ -52,6 +52,8 @@ export default function Navbar() {
   `;
 
   return (
+    <Suspense fallback={null}>
+
 <nav className="fixed w-full overflow-x-hidden bg-white/40 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-sm rounded-3xl">
 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         {/* Logo */}
@@ -181,5 +183,7 @@ export default function Navbar() {
   </div>
 </div>
     </nav>
+    </Suspense>
+
   );
 }
