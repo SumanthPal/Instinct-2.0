@@ -11,6 +11,8 @@ import redis
 import datetime
 import json
 import time
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from db.queries import SupabaseQueries
 
 # --- PATH SETUP ---
