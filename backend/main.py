@@ -1,14 +1,16 @@
+# DEPRECATED// LOOK AT server.py
 import os
-import sys
-import dotenv
-import uvicorn
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app"))
-
-from app import server
-
-app = server.app
-
+import multiprocessing
+import app.server
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', )))
+if __name__ == "__main__":
 
     
-if __name__ == "__main__":
-    uvicorn.run(app, host='127.0.0.1', port=5022)
+    # Check if running on Heroku
+    is_heroku = 'DYNO' in os.environ
+    
+        # On Heroku, use a worker process instead (defined in Procfile)
+        # Run only the web server in this process
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    
