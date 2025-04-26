@@ -5,6 +5,9 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "../components/ui/Navbar";
 import Footer from "../components/ui/Footer";
 import TypingAnimation from "../components/ui/TypingAnimation";
+import { useToast } from '@/components/ui/toast';
+import { useSearchParams, useRouter } from 'next/navigation';
+
 
 
 
@@ -14,6 +17,10 @@ const UCIBackground = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const timerRef = useRef(null);
   const intervalRef = useRef(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { toast } = useToast();
+
   
   const uciImages = [
     "campus_1.jpg",
@@ -31,6 +38,22 @@ const UCIBackground = () => {
       img.src = src;
     });
   }, []);
+  useEffect(() => {
+    const error = searchParams.get('error');
+
+    if (error === 'invalid-email') {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please sign in with your UCI email address.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+
+      // ✅ Immediately remove query param to prevent infinite loops
+      router.replace(window.location.pathname);
+    }
+  }, [searchParams, router, toast]);
 
   useEffect(() => {
     const startSlideshow = () => {

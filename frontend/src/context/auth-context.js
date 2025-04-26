@@ -1,42 +1,89 @@
 'use client'
 
-// src/context/auth-context.js
-
 import { createContext, useContext, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation' // Using navigation from App Router
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase'
+import { useToast } from '@/components/ui/toast';
 
 const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
+  const searchParams = useSearchParams();
+
   const [user, setUser] = useState(null)
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+  const { toast } = useToast();
+
+  const [toastShown, setToastShown] = useState(false); // 🔥 NEW GUARD
+
 
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      await handleSession(session)
     }
     
     getSession()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
+      handleSession(session)
     })
 
     return () => {
       subscription.unsubscribe()
     }
   }, [])
+  useEffect(() => {
+    const error = searchParams.get('error');
 
-  // Sign in with Google OAuth
+    if (error === 'invalid-email' && !toastShown) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please sign in with your UCI email address.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+
+      setToastShown(true); // ✅ Mark as shown
+      router.replace(window.location.pathname); // ✅ Clear URL
+    }
+  }, [searchParams, router, toast, toastShown]); // watch toastShown too!
+
+
+  const handleSession = async (session) => {
+    if (session?.user) {
+      const email = session.user.email
+
+      if (email && !email.endsWith('@uci.edu')) {
+        console.warn('Non-UCI email detected. Signing out user:', email)
+        
+        // Immediately sign them out
+        await supabase.auth.signOut()
+
+        // Optionally redirect to home or error page
+        router.push('/?error=invalid-email')
+        
+        setUser(null)
+        setSession(null)
+        setLoading(false)
+        return
+      }
+
+      setSession(session)
+      setUser(session.user)
+    } else {
+      setSession(null)
+      setUser(null)
+    }
+
+    setLoading(false)
+  }
+
+  // Sign in with Google
   const signInWithGoogle = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -46,19 +93,18 @@ export function AuthProvider({ children }) {
             access_type: 'offline',
             prompt: 'consent',
           },
-          // For App Router, we'll use the auth/callback route instead of API routes
           redirectTo: `${window.location.origin}/auth/callback`
         }
-      })
-      
-      if (error) throw error
+      });
+      if (error) throw error;
     } catch (error) {
-      console.error('Error signing in with Google:', error)
-      throw error
+      console.error('Error signing in with Google:', error);
+      // Push error to homepage
+      router.push('/?error=invalid-login');
     }
-  }
+  };
+  
 
-  // Sign out
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut()
