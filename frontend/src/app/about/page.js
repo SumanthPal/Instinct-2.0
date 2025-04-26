@@ -8,7 +8,7 @@ import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai, SiPostgresql } from '
 
 const About = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
       <main className="container mx-auto px-4 py-24 text-center">
         {/* Hero Section */}
