@@ -25,7 +25,6 @@ import datetime
 import tempfile
 
 # Create a random temporary directory
-user_data_dir = tempfile.mkdtemp()
 
 #import chromedriver_binary  # This automatically sets up ChromeDriver
 
@@ -43,7 +42,8 @@ class InstagramScraper:
 
         options = Options()
         self.db = SupabaseQueries()
-        self._add_options(options)
+        self.user_data_dir = tempfile.mkdtemp()
+        self._add_options(options, self.user_data_dir)
         self.working_path = os.path.join(os.path.dirname(__file__), '..')
 
         # Initialize WebDriver with options
@@ -519,7 +519,7 @@ class InstagramScraper:
         if hasattr(self, '_driver') and self._driver:
             self._driver.quit()
 
-    def _add_options(self, option: Options):
+    def _add_options(self, option: Options, user_dir):
         """Add options to the Chrome WebDriver."""
         # Add all the common arguments in one go
         args = [
@@ -554,7 +554,7 @@ class InstagramScraper:
             "--password-store=basic",
             "--use-mock-keychain",
             "--blink-settings=imagesEnabled=false",
-           f'--user-data-dir={user_data_dir}'
+           f"--user-data-dir={user_data_dir}"
 
         ]
         for arg in args:
