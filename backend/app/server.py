@@ -235,50 +235,60 @@ async def health_check():
         "timestamp": datetime.now().isoformat()
     }
     
+from fastapi import FastAPI, Query
+from typing import Optional
+from fastapi.responses import JSONResponse
+
 @app.get("/club")
 async def list_clubs(
     page: int = Query(1, description="Page number, starting from 1"),
     limit: int = Query(20, description="Number of clubs per page"),
-    category: Optional[str] = Query(None, description="Filter by category")
+    category: Optional[str] = Query(None, description="Filter by category name (exact match)")
 ):
-    """Get a paginated list of clubs."""
+    """Get a paginated list of clubs, optionally filtered by category."""
     try:
-        # Calculate offset based on page and limit
+        # Calculate offset
         offset = (page - 1) * limit
         
-        # Fetch all clubs (in a real app, you'd use pagination at the database level)
+        # Fetch all clubs
         all_clubs = db.get_all_clubs()
         
-        # Apply category filter if specified
+        # Apply category filter if provided
         if category:
             filtered_clubs = []
             for club in all_clubs:
-                if club.get("categories") and any(cat == category for cat in club.get("categories", [])):
+                if club.get("categories") and any(
+                    cat.get("name") == category for cat in club.get("categories", [])
+                ):
                     filtered_clubs.append(club)
             all_clubs = filtered_clubs
         
-        # Get total count before pagination
+        # Calculate total count
         total_count = len(all_clubs)
         
-        # Apply pagination
+        # Paginate the filtered clubs
         paginated_clubs = all_clubs[offset:offset + limit]
         
-        # Calculate if there are more pages
+        # Determine if there are more pages
         has_more = total_count > (offset + limit)
         
+        # Return the response
         return {
             "total": total_count,
             "results": paginated_clubs,
             "hasMore": has_more,
             "page": page,
-            "pages": (total_count + limit - 1) // limit  # Calculate total pages
+            "pages": (total_count + limit - 1) // limit
         }
+    
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"message": f"Error fetching clubs: {str(e)}"}
         )
-        
+
 @app.get("/club/{instagram_handle}")
 async def get_club_data(instagram_handle: str):
     """Get detailed information about a specific club."""
@@ -412,13 +422,11 @@ async def get_club_calendar(instagram_handle: str):
 
 
 @app.get("/club-manifest")
-async def get_club_manifest():
-    """Get manifest of all clubs with basic information."""
+async def get_club_manifest(category: Optional[str] = Query(None)):
+    """Get manifest of all clubs with optional category filter."""
     try:
-        # Get all clubs
         clubs = db.get_all_clubs()
-        
-        # Create simplified manifest
+
         manifest = []
         for club in clubs:
             manifest.append({
@@ -428,13 +436,23 @@ async def get_club_manifest():
                 "profile_pic": club.get("profile_pic", ""),
                 "categories": [cat["name"] for cat in club.get("categories", [])],
             })
-        
+
+        # 🔥 Filter by category if provided
+        if category:
+            manifest = [
+                club for club in manifest
+                if any(cat == category for cat in club.get("categories", []))
+            ]
+
         return manifest
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"message": f"Error fetching club manifest: {str(e)}"}
         )
+
         
 @app.get("/categories")
 async def get_categories():
