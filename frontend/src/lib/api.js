@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase'
 
 const supabase = createClient()
 
-const API_BASE_URL = 'http://localhost:8000'; // or your production API URL
+const API_BASE_URL = 'https://instinct-f4ae805488a8.herokuapp.com'; // or your production API URL
 
 export const fetchClubManifest = async (page = 1, limit = 20, category = null) => {
   try {
