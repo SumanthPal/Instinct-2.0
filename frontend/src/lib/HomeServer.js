@@ -57,15 +57,7 @@ export default function HomeServer() {
   }
 
   // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-900">
-        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-xl text-gray-700 dark:text-gray-300">Loading clubs...</p>
-      </div>
-    );
-  }
-
+ 
   // Show main content
   return (
     <HomeClient 

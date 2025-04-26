@@ -8,6 +8,8 @@ import ParallaxBackground from "../components/ui/ParallaxBackground";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
 import { fetchClubManifest, fetchSmartSearch, fetchMoreClubs, fetchClubsByCategory } from '@/lib/api';
+import "../../styles/globals.css"
+import CategoryFooter from "@/components/ui/CategoryFooter";
 
 export default function HomeClient({ initialClubs, totalCount, hasMore, currentPage }) {
   const [clubs, setClubs] = useState(initialClubs || []);
@@ -228,6 +230,10 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   selectedCategories={selectedCategories}
   onChange={handleCategoryChange}
 />
+<CategoryFooter />
+
+
+
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {selectedCategories.map((category) => (
@@ -302,22 +308,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
           )}
         </div>
 
-        {/* Load More Trigger for Intersection Observer */}
-        {hasMoreClubs && (
-          <div id="load-more-trigger" className="h-10 w-full flex items-center justify-center mb-8">
-            {loading ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-gray-900 dark:border-gray-200"></div>
-            ) : (
-              <button
-                onClick={handleLoadMore}
-                className="px-6 py-2 text-base font-semibold bg-blue-600 text-white rounded-lg 
-                         hover:bg-blue-700 transition-colors duration-200"
-              >
-                Load More
-              </button>
-            )}
-          </div>
-        )}
+      
       </main>
       <Footer />
     </div>

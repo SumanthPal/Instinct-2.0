@@ -145,7 +145,7 @@ export default function Dashboard() {
 
         {/* No liked clubs message */}
         {/* No liked clubs or not logged in */}
-{!isLoading && (
+        {!isLoading && likedClubs.length === 0 && (
   <div className="w-full flex flex-col items-center justify-center py-24 px-6 space-y-8">
     <h2 className="text-5xl font-bold text-gray-900 dark:text-dark-text">
       {user ? 'No Favorite Clubs Yet' : 'Welcome to Instinct'}

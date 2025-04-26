@@ -21,6 +21,7 @@ export default function ClubCard({ club }) {
   const { user } = useAuth();
   const { toast } = useToast(); // Use the hook here
 
+  
   // Check if club is liked when user is available
   useEffect(() => {
     const checkLikeStatus = async () => {
@@ -123,7 +124,9 @@ export default function ClubCard({ club }) {
         };
         
         img.onerror = () => {
-          console.error('Error loading image for color extraction');
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Warning: Image color extraction failed, using fallback color.');
+          }
           // Fallback to name-based color if image fails to load
           setAverageColor(generateColorFromText(club.name));
         };
@@ -274,8 +277,8 @@ export default function ClubCard({ club }) {
             </CardHeader>
 
             <CardContent className="flex-grow overflow-hidden px-3 py-2">
-              <p className="text-gray-600 dark:text-dark-base line-clamp-4 text-sm leading-relaxed">
-                {extractQuotedContent(club.description || '')}
+            <p className="text-gray-800  line-clamp-4 text-base md:text-lg font-medium leading-relaxed">
+            {extractQuotedContent(club.description || '')}
               </p>
             </CardContent>
 
