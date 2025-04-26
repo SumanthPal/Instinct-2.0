@@ -554,7 +554,7 @@ class InstagramScraper:
             "--password-store=basic",
             "--use-mock-keychain",
             "--blink-settings=imagesEnabled=false",
-           f"--user-data-dir={user_data_dir}"
+           f"--user-data-dir={user_dir}"
 
         ]
         for arg in args:
