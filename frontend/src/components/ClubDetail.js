@@ -272,7 +272,7 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
               </Button>
               <Button
                 onClick={() => {
-                  const subscribeUrl = calendarUrl.replace("http", "webcal");
+                  const subscribeUrl = calendarUrl.replace("https", "webcal");
                   window.open(subscribeUrl);
                 }}
                 className="flex items-center justify-center space-x-2 px-4 py-3 sm:px-6 sm:py-4 rounded-full bg-gray-100 dark:bg-dark-profile-card hover:bg-gray-200 dark:hover:bg-dark-gradient-start transform transition-all duration-300 ease-in-out hover:scale-105 text-dark-base dark:text-gray-200 font-bold"
