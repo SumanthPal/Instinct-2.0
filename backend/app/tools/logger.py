@@ -2,7 +2,22 @@ import logging
 import os
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
+import redis
+class RedisLogHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        self.redis_conn = redis.from_url(redis_url)
 
+    def emit(self, record):
+        try:
+            log_entry = self.format(record)
+            self.redis_conn.rpush('logs:entries', log_entry)
+        except Exception as e:
+            print(f"Failed to push log to Redis: {e}")
+            
+            
+        
 # Define the log file directory
 log_file_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
 
@@ -17,9 +32,11 @@ log_file_path = os.path.join(log_file_dir, 'logfile.log')
 handler = TimedRotatingFileHandler(log_file_path, when="midnight", interval=1, backupCount=7)  # Keep logs for the last 7 days
 
 handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+redis_handler = RedisLogHandler()
+redis_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 # Configure the root logger with the handler and the log level
-logging.basicConfig(level=logging.INFO, handlers=[handler, logging.StreamHandler()])
+logging.basicConfig(level=logging.INFO, handlers=[handler, logging.StreamHandler(), redis_handler])
 
 # Create a logger object
 logger = logging.getLogger(__name__)

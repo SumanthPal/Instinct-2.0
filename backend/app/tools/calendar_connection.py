@@ -8,6 +8,57 @@ from ics import Calendar, Event
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from db.queries import SupabaseQueries
 from tools.logger import logger
+import re
+
+def parse_duration_string(duration_str: str) -> timedelta:
+    """
+    Parses a flexible duration string into a timedelta object.
+    
+    Supports formats like:
+    - "2 days 4:30"
+    - "1 day"
+    - "4:30"
+    - "2d 4h 30m"
+    - "3h 15m"
+    - "45m"
+    """
+    duration_str = duration_str.strip().lower()
+
+    # Default values
+    days = hours = minutes = 0
+
+    # Case 1: Explicit "day" keyword
+    if "day" in duration_str:
+        day_match = re.search(r'(\d+)\s*day', duration_str)
+        if day_match:
+            days = int(day_match.group(1))
+        else:
+            # If no number before "day", assume 1 day
+            days = 1
+
+        # After "day", parse time if available (e.g., "2 days 4:30")
+        time_part = re.findall(r'(\d+:\d+)', duration_str)
+        if time_part:
+            hours, minutes = map(int, time_part[0].split(":"))
+
+    # Case 2: Formats like "2d 4h 30m"
+    else:
+        d_match = re.search(r'(\d+)d', duration_str)
+        h_match = re.search(r'(\d+)h', duration_str)
+        m_match = re.search(r'(\d+)m', duration_str)
+
+        if d_match:
+            days = int(d_match.group(1))
+        if h_match:
+            hours = int(h_match.group(1))
+        if m_match:
+            minutes = int(m_match.group(1))
+
+        # Case 3: Simple "4:30" format
+        if ':' in duration_str and not (d_match or h_match or m_match):
+            hours, minutes = map(int, duration_str.split(":")[:2])
+
+    return timedelta(days=days, hours=hours, minutes=minutes)
 
 class CalendarConnection:
     def __init__(self):
@@ -56,22 +107,22 @@ class CalendarConnection:
                 new_event.begin = event_date
                 
                 # Handle duration
-                if db_event["duration"]:
-                    duration_str = db_event["duration"]
-                    
-                    days, hours, minutes = 0, 0, 0
-                    if "day" in duration_str:
-                        parts = duration_str.split()
-                        days = int(parts[0])
-                        if len(parts) > 1:
-                            time_part = parts[1]
-                            hours, minutes = map(int, time_part.split(":")[:2])
-                    else:
-                        hours, minutes = map(int, duration_str.split(":")[:2])
-                    
-                    new_event.duration = timedelta(days=days, hours=hours, minutes=minutes)
-                    
-                    logger.info(f"Set duration: {days}d {hours}h {minutes}m for event '{new_event.name}'.")
+                # --- inside your for db_event in events loop ---
+                if db_event.get("duration"):
+                    try:
+                        new_event.duration = parse_duration_string(db_event["duration"])
+                        logger.info(f"Set duration for event '{new_event.name}' from '{db_event['duration']}'.")
+                    except Exception as e:
+                        logger.warning(f"Could not parse duration '{db_event['duration']}' for event '{new_event['name']}': {e}")
+                        # Default fallback if parsing fails
+                        new_event.duration = timedelta(hours=1)
+                        logger.info(f"Defaulted to 1 hour duration for '{new_event.name}'.")
+                else:
+                    # No duration provided at all → safe fallback
+                    new_event.duration = timedelta(hours=1)
+                    logger.info(f"No duration provided for '{new_event.name}', defaulted to 1 hour.")
+
+
 
                 # Add optional details
                 if db_event.get("details"):

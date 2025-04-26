@@ -28,7 +28,7 @@ class ScraperRotation:
         dotenv.load_dotenv()
         self.db = SupabaseQueries()
         self.clubs_per_session = 40
-        self.cooldown_hours = 72  # Don't scrape same club more than once every 3 days
+        self.cooldown_hours = 24  # Don't scrape same club more than once every 3 days
         self.session_cooldown_hours = 2  # Wait between sessions
         self.max_threads = 1  # Start with 1 thread (can be increased based on Heroku dyno)
         self.queue = RedisScraperQueue()
@@ -193,45 +193,36 @@ class ScraperRotation:
         clubs_to_scrape = []
         
         try:
-            # This query would need to be implemented in your SupabaseQueries class
-            # Get clubs that have never been scraped first
-            query = """
-            SELECT id, instagram_handle 
-            FROM clubs 
-            WHERE last_scraped IS NULL 
-            ORDER BY created_at ASC 
-            LIMIT $1
-            """
-            response = self.db.supabase.rpc('get_never_scraped_clubs', {'limit_num': self.clubs_per_session}).execute()
-            never_scraped = response.data
-            clubs_to_scrape = [club["instagram_handle"] for club in never_scraped]
+            # First: Get clubs that have never been scraped
+            response = self.db.supabase.rpc('get_never_scraped_clubs', {
+                'limit_num': self.clubs_per_session
+            }).execute()
+
+            if response.data:
+                never_scraped = response.data
+                clubs_to_scrape = [club["instagram_handle"] for club in never_scraped]
             
-            # If we need more clubs, get the oldest scraped ones
+            # Second: If not enough, get oldest scraped clubs
             if len(clubs_to_scrape) < self.clubs_per_session:
                 remaining = self.clubs_per_session - len(clubs_to_scrape)
                 cooldown_time = datetime.datetime.now() - datetime.timedelta(hours=self.cooldown_hours)
-                
-                query = """
-                SELECT id, instagram_handle 
-                FROM clubs 
-                WHERE last_scraped < $1 OR last_scraped IS NULL
-                ORDER BY last_scraped ASC NULLS FIRST
-                LIMIT $2
-                """
+
                 response = self.db.supabase.rpc('get_oldest_scraped_clubs', {
                     'cooldown_time': cooldown_time.isoformat(),
                     'limit_num': remaining
                 }).execute()
-                
-                oldest_scraped = response.data
-                clubs_to_scrape.extend([club["instagram_handle"] for club in oldest_scraped])
-            
-            logger.info(f"Selected {len(clubs_to_scrape)} clubs for scraping")
+
+                if response.data:
+                    oldest_scraped = response.data
+                    clubs_to_scrape.extend([club["instagram_handle"] for club in oldest_scraped])
+
+            logger.info(f"Selected {len(clubs_to_scrape)} clubs for scraping.")
             return clubs_to_scrape
-            
+
         except Exception as e:
             logger.error(f"Error selecting clubs to scrape: {e}")
             return []
+
     
     def update_club_last_scraped(self, instagram_handle: str):
         """Update the last_scraped timestamp for a club"""
@@ -279,6 +270,7 @@ class ScraperRotation:
             
             # Clean up
             logger.info(f"Successfully scraped {username}")
+            
             scraper._driver_quit()
             
         except Exception as e:
@@ -290,6 +282,7 @@ class ScraperRotation:
         """Run a complete scraping session with batched processing"""
         start_time = datetime.datetime.now()
         logger.info(f"Starting scraping session at {start_time}")
+        
         
         try:
             # Get clubs to scrape
@@ -332,6 +325,8 @@ class ScraperRotation:
             end_time = datetime.datetime.now()
             duration = end_time - start_time
             logger.info(f"Scraping session completed in {duration}. Sleeping until next session.")
+            self.db.supabase.rpc('refresh_club_search_vector').execute()
+
     
     def process_events(self, usernames: List[str]):
         """Process events for the successfully scraped clubs"""

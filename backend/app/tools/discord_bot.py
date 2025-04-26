@@ -9,6 +9,9 @@ from discord import ButtonStyle
 from discord.ui import Button, View
 import redis
 import datetime
+import json
+import time
+from db.queries import SupabaseQueries
 
 # --- PATH SETUP ---
 # (1) Allow importing from 'tools'
@@ -31,6 +34,8 @@ DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 DISCORD_CHANNEL_ID = int(os.getenv('DISCORD_CHANNEL_ID'))
 DISCORD_CHANNEL_ID_2 = int(os.getenv('DISCORD_CHANNEL_ID_2'))
 DISCORD_CHANNEL_IDS = [DISCORD_CHANNEL_ID, DISCORD_CHANNEL_ID_2]
+
+db = SupabaseQueries()
 
 
 
@@ -58,6 +63,14 @@ async def send_error(embed=None, message=None):
             await channel.send(embed=embed)
         elif message:
             await channel.send(message)
+
+@tasks.loop(hours=24)
+async def clean_old_events():
+    try:
+        db.supabase.rpc('delete_old_events').execute()
+        logger.info("✅ Old events cleaned up successfully.")
+    except Exception as e:
+        logger.error(f"Failed to clean old events: {e}")
 
 @tasks.loop(minutes=60)
 async def nightly_summary_check():
@@ -140,14 +153,38 @@ class ApprovalView(View):
         await interaction.message.delete()  # Delete the embed message
         await interaction.response.send_message(f"❌ Rejected club `{self.pending_id}`.", ephemeral=True)
 
+@tasks.loop(hours=24)
+async def clean_old_logs():
+    """Daily task to trim old Redis logs (keep only latest N entries)."""
+    try:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_conn = redis.from_url(redis_url)
+
+        max_logs_to_keep = 10000  # keep last 10,000 logs (adjust if needed)
+
+        log_count = redis_conn.llen('logs:entries')
+
+        if log_count > max_logs_to_keep:
+            # Trim the list: Keep only the latest `max_logs_to_keep`
+            redis_conn.ltrim('logs:entries', -max_logs_to_keep, -1)
+            logger.info(f"✅ Cleaned old logs. Kept {max_logs_to_keep} recent entries.")
+
+    except Exception as e:
+        logger.error(f"Error during log cleaning: {e}")
+
 @tasks.loop(seconds=60)
 async def passive_error_monitor():
     """Background task to monitor new critical errors or rate limits."""
     try:
-        with open(LOG_FILE_PATH, 'r') as f:
-            lines = f.readlines()
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_conn = redis.from_url(redis_url)
 
-        error_lines = [line for line in lines if 'ERROR' in line or '[RATE LIMIT DETECTED]' in line]
+        # Fetch all logs from Redis
+        all_logs = redis_conn.lrange('logs:entries', 0, -1)
+        decoded_logs = [log.decode('utf-8') for log in all_logs]
+
+        # Filter error lines
+        error_lines = [line for line in decoded_logs if 'ERROR' in line or '[RATE LIMIT DETECTED]' in line]
 
         if not hasattr(passive_error_monitor, "last_error_count"):
             passive_error_monitor.last_error_count = len(error_lines)
@@ -173,6 +210,7 @@ async def passive_error_monitor():
                     )
                 await channel.send(embed=embed)
 
+            # Update last seen count
             passive_error_monitor.last_error_count = len(error_lines)
 
     except Exception as e:
@@ -206,7 +244,42 @@ async def on_ready():
     await bot.get_channel(DISCORD_CHANNEL_ID).send("ur boy is back")
     passive_error_monitor.start()  # <<< start the background monitor
     queue_backlog_check.start()
+    monitor_and_flush_logs.start()
+    nightly_summary_check.start()
+    
 
+@tasks.loop(minutes=5)
+async def monitor_and_flush_logs():
+    """Monitor Redis log storage size and flush/send to Discord if too big."""
+    try:
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_conn_logs = redis.from_url(redis_url)
+        log_entries = redis_conn_logs.lrange('logs:entries', 0, -1)
+        
+        # Rough estimate of size
+        total_size_bytes = sum(len(entry) for entry in log_entries)
+        max_size_bytes = 3 * 1024 * 1024  # 3 MB
+
+        if total_size_bytes >= max_size_bytes:
+            logger.warning(f"🚨 Log size exceeded {total_size_bytes} bytes. Flushing to Discord...")
+
+            # Write logs into a temporary file
+            temp_log_file_path = '/tmp/redis_logs_flush.log'
+            with open(temp_log_file_path, 'w') as f:
+                for entry in log_entries:
+                    f.write(entry.decode('utf-8') + '\n')
+
+            # Send the log file to Discord
+            channel = bot.get_channel(DISCORD_CHANNEL_ID_2)
+            await channel.send("🚨 **Auto-Flush: Logs exceeded 3MB!**", file=discord.File(temp_log_file_path))
+
+            # Clear the logs in Redis
+            redis_conn_logs.delete('logs:entries')
+
+            logger.info("✅ Logs flushed and reset after sending to Discord.")
+        
+    except Exception as e:
+        logger.error(f"Error in monitor_and_flush_logs: {e}")
 
 
 # --- Bot Commands ---
@@ -374,42 +447,75 @@ async def systemstatus(ctx):
 
 @bot.command()
 async def getlogs(ctx):
-    """Send latest log file."""
+    """Send latest logs stored in Redis."""
     try:
-        await ctx.send(file=discord.File(LOG_FILE_PATH))
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_conn = redis.from_url(redis_url)
+
+        log_entries = redis_conn.lrange('logs:entries', 0, -1)
+        
+        if not log_entries:
+            await ctx.send("✅ No logs currently stored!")
+            return
+        
+        temp_log_path = '/tmp/current_redis_logs.log'
+        
+        with open(temp_log_path, 'w') as f:
+            for entry in log_entries:
+                f.write(entry.decode('utf-8') + '\n')
+
+        await ctx.send(file=discord.File(temp_log_path))
+
     except Exception as e:
         await ctx.send(f"❌ Failed to fetch logs: {e}")
-        logging.error(f"Error sending logs: {e}")
+        logger.error(f"Error sending logs from Redis: {e}")
+
 @bot.command()
 async def lasterrors(ctx):
-    """Fetch the last 10 error logs and show in an embed."""
+    """Fetch the last 10 error logs stored in Redis and show in an embed."""
     try:
-        with open(LOG_FILE_PATH, 'r') as f:
-            lines = f.readlines()
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        redis_conn = redis.from_url(redis_url)
+
+        log_entries = redis_conn.lrange('logs:entries', 0, -1)
+        
+        if not log_entries:
+            await ctx.send("✅ No logs currently stored!")
+            return
 
         # Filter only ERROR lines
-        error_lines = [line for line in lines if 'ERROR' in line]
+        error_lines = [
+            entry.decode('utf-8') 
+            for entry in log_entries 
+            if 'ERROR' in entry.decode('utf-8')
+        ]
+
         if not error_lines:
             await ctx.send("✅ No recent errors found.")
             return
 
-        latest_errors = error_lines[-10:]  # Last 10 errors
+        latest_errors = error_lines[-10:]  # Get the last 10 errors
 
-        # Create Embed
+        # Create the embed
         embed = discord.Embed(
             title="🚨 Last 10 Errors",
             color=0xED4245  # Red color for errors
         )
-        for idx, error in enumerate(latest_errors, start=1):
-            timestamp = error.split(' - ')[0]
-            message = ' - '.join(error.split(' - ')[2:]).strip()
-            short_message = (message[:80] + '...') if len(message) > 80 else message
 
-            embed.add_field(
-                name=f"{idx}. {timestamp}",
-                value=f"```{short_message}```",
-                inline=False
-            )
+        for idx, error in enumerate(latest_errors, start=1):
+            try:
+                timestamp = error.split(' - ')[0]
+                message = ' - '.join(error.split(' - ')[2:]).strip()
+                short_message = (message[:80] + '...') if len(message) > 80 else message
+
+                embed.add_field(
+                    name=f"{idx}. {timestamp}",
+                    value=f"```{short_message}```",
+                    inline=False
+                )
+            except Exception as parse_error:
+                logger.warning(f"Error parsing a single log entry: {parse_error}")
+                continue
 
         embed.set_footer(text="Instinct System Error Monitor", icon_url="https://img.icons8.com/color/48/000000/high-priority.png")
 
@@ -418,6 +524,7 @@ async def lasterrors(ctx):
     except Exception as e:
         await ctx.send(f"❌ Failed to fetch last errors: {e}")
         logger.error(f"Error in lasterrors command: {e}")
+
 
 # --- Run the bot ---
 
