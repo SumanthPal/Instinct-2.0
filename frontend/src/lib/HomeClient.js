@@ -7,7 +7,7 @@ import CategoryFilter from "../components/ui/CategoryFilter";
 import ParallaxBackground from "../components/ui/ParallaxBackground";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
-import { fetchMoreClubs, fetchClubsByCategory } from "../lib/api";
+import { fetchClubManifest, fetchSmartSearch, fetchMoreClubs, fetchClubsByCategory } from '@/lib/api';
 
 export default function HomeClient({ initialClubs, totalCount, hasMore, currentPage }) {
   const [clubs, setClubs] = useState(initialClubs || []);
@@ -22,48 +22,47 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   
   // Filter clubs whenever search input changes
   useEffect(() => {
-    if (searchInput === "") {
-      setFilteredClubs(clubs);
-      return;
-    }
-    
-    const filtered = clubs.filter((club) => {
-      return club.name.toLowerCase().includes(searchInput.toLowerCase());
-    });
-    
-    setFilteredClubs(filtered);
-  }, [searchInput, clubs]);
-
-  // Handle category changes
-  useEffect(() => {
-    const fetchClubsWithCategory = async () => {
-      // If no categories selected, restore original list
-      if (selectedCategories.length === 0) {
-        setFilteredClubs(clubs);
+    const searchClubs = async () => {
+      if (searchInput.trim() === "") {
+        // 🔥 Full reset when search input cleared
+        setLoading(true);
+        try {
+          const data = await fetchClubManifest(1, 20); // ← Fetch page 1 again
+          setClubs(data.results);              // <- base list
+          setFilteredClubs(data.results);       // <- filtered display
+          setPage(1);                           // <- reset pagination pointer
+          setTotalClubCount(data.totalCount);   // <- reset total count
+          setHasMoreClubs(data.hasMore);         // <- reset scroll flag
+        } catch (error) {
+          console.error("Error resetting clubs:", error);
+        } finally {
+          setLoading(false);
+        }
         return;
       }
-      
+  
+      // Normal smart search when typing
       setLoading(true);
-      
       try {
-        // In a real app, you'd make an API call with the category filter
-        // For this example, we're filtering client-side
-        const filtered = clubs.filter((club) => {
-          return selectedCategories.some((category) => 
-            club.categories.includes(category)
-          );
-        });
-        
-        setFilteredClubs(filtered);
+        const data = await fetchSmartSearch(searchInput, 1, 20);
+        setFilteredClubs(data.results);
+        setTotalClubCount(data.totalCount);
+        setHasMoreClubs(data.hasMore);
+        setPage(data.page);
       } catch (error) {
-        console.error("Error fetching clubs by category:", error);
+        console.error("Error smart searching clubs:", error);
       } finally {
         setLoading(false);
       }
     };
+  
+    const timeout = setTimeout(searchClubs, 500); // debounce
     
-    fetchClubsWithCategory();
-  }, [selectedCategories, clubs]);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+  
+  
+  
 
   const scrollToClubs = () => {
     clubsRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,38 +72,65 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     setSearchInput(event.target.value);
   };
 
-  const handleCategoryChange = (categories) => {
+  const handleCategoryChange = async (categories) => {
     setSelectedCategories(categories);
+  
+    if (categories.length === 0) {
+      // 🔥 No categories selected → Reset
+      if (searchInput.trim() === "") {
+        const data = await fetchClubManifest(1, 20);
+        setClubs(data.results);
+        setFilteredClubs(data.results);
+        setPage(1);
+        setTotalClubCount(data.totalCount);
+        setHasMoreClubs(data.hasMore);
+      } else {
+        const data = await fetchSmartSearch(searchInput, 1, 20);
+        setFilteredClubs(data.results);
+        setPage(1);
+        setTotalClubCount(data.totalCount);
+        setHasMoreClubs(data.hasMore);
+      }
+      return;
+    }
+  
+    // 🔥 Categories selected
+    if (searchInput.trim() === "") {
+      // Browsing mode: Fetch clubs filtered by category
+      const data = await fetchClubsByCategory(categories[0], 1, 20);
+      setClubs(data.results);
+      setFilteredClubs(data.results);
+      setPage(1);
+      setTotalClubCount(data.totalCount);
+      setHasMoreClubs(data.hasMore);
+    } else {
+      // Search mode: Filter the existing search results locally
+      const filtered = filteredClubs.filter(club => 
+        club.categories.some(cat => categories.includes(cat.name))
+      );
+      setFilteredClubs(filtered);
+    }
   };
-
+  
   const handleLoadMore = async () => {
     if (loading || !hasMoreClubs) return;
     
     setLoading(true);
     try {
       const nextPage = page + 1;
+      let data;
       
-      // Use the category in the API call if one is selected
-      const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
-      const data = await fetchMoreClubs(nextPage, 20, category);
+      if (searchInput.trim() !== "") {
+        // If searching, use smart search
+        data = await fetchSmartSearch(searchInput, nextPage, 20);
+      } else {
+        // Normal load more
+        const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
+        data = await fetchMoreClubs(nextPage, 20, category);
+      }
       
-      // Append new clubs to existing ones
-      setClubs(prevClubs => [...prevClubs, ...data.results]);
-      setFilteredClubs(prevFilteredClubs => {
-        // Filter the new clubs with current search and category filters
-        const newFilteredClubs = data.results.filter(club => {
-          const matchesSearch = searchInput === "" || 
-            club.name.toLowerCase().includes(searchInput.toLowerCase());
-          
-          const matchesCategory = selectedCategories.length === 0 ||
-            selectedCategories.some(category => club.categories.includes(category));
-            
-          return matchesSearch && matchesCategory;
-        });
-        
-        return [...prevFilteredClubs, ...newFilteredClubs];
-      });
-      
+      setClubs(prev => [...prev, ...data.results]);
+      setFilteredClubs(prev => [...prev, ...data.results]);
       setHasMoreClubs(data.hasMore);
       setPage(nextPage);
     } catch (error) {
@@ -113,6 +139,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
       setLoading(false);
     }
   };
+  
 
   // Setup intersection observer for infinite scrolling
   useEffect(() => {
@@ -138,9 +165,29 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   }, [hasMoreClubs, loading]);
 
   // Get all unique categories from clubs
-  const allCategories = [
-    ...new Set(clubs.flatMap((club) => club.categories)),
+  const categoriesList = [
+    'Diversity and Inclusion',
+    'Greek Life',
+    'International',
+    'Peer Support',
+    'Fitness',
+    'Hobbies and Interest',
+    'Religious and Spiritual',
+    'Cultural and Social',
+    'Technology',
+    'Graduate',
+    'Performance and Entertainment',
+    'Career and Professional',
+    'LGBTQ',
+    'Academics and Honors',
+    'Media',
+    'Political',
+    'Education',
+    'Environmental',
+    'Community Service',
+    'Networking'
   ];
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
@@ -150,8 +197,9 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
 
       <Navbar />
       <main className="w-full px-4 py-8 flex flex-col items-center justify-center text-center">
-        <div className="hero min-h-[50vh] flex flex-col items-center justify-center z-10 mb-8">
-          <div className="flex items-center justify-center space-x-4 mb-6">
+      <div className="hero min-h-[50vh] w-full max-w-7xl flex flex-col items-center justify-center z-10 mb-8 px-4">
+
+<div className="flex items-center justify-center space-x-4 mb-6">
             <h1
               className="font-bold text-gray-900 dark:text-white"
               style={{
@@ -167,19 +215,20 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
           </h2>
 
           {/* Search Bar and Category Filter */}
-          <div className="flex flex-col items-start w-full max-w-2xl mx-auto">
-            <SearchBar
+          <div className="flex flex-col items-center w-full max-w-4xl mx-auto">
+          <SearchBar
               value={searchInput}
               onChange={handleSearchChange}
               onEnter={scrollToClubs}
               placeholder="Search clubs by name, category, or keyword..."
             />
             <div className="relative mt-4 w-full">
-              <CategoryFilter
-                categories={allCategories}
-                selectedCategories={selectedCategories}
-                onChange={handleCategoryChange}
-              />
+            <CategoryFilter
+  categories={categoriesList}
+  selectedCategories={selectedCategories}
+  onChange={handleCategoryChange}
+/>
+
               <div className="mt-4 flex flex-wrap gap-2">
                 {selectedCategories.map((category) => (
                   <div

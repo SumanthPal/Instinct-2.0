@@ -1,3 +1,7 @@
+import { createClient } from '@/lib/supabase'
+
+const supabase = createClient()
+
 const API_BASE_URL = 'http://localhost:8000'; // or your production API URL
 
 export const fetchClubManifest = async (page = 1, limit = 20, category = null) => {
@@ -62,6 +66,32 @@ export const fetchClubData = async (username) => {
     throw error;
   }
 };
+export const fetchSmartSearch = async (query, page = 1, limit = 20, category = null) => {
+  try {
+    let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+    if (category) {
+      queryParams += `&category=${encodeURIComponent(category)}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/smart-search?${queryParams}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch smart search: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return {
+      results: data.results || [],
+      totalCount: data.count || 0,
+      hasMore: data.hasMore || false,
+      page: data.page || page,
+    };
+  } catch (error) {
+    console.error('Error fetching smart search:', error);
+    return { results: [], totalCount: 0, hasMore: false, page: 1 };
+  }
+};
 
 export const fetchClubPosts = async (username, page = 1, limit = 10) => {
   try {
@@ -115,10 +145,21 @@ export const getCalendarUrl = (username) => {
 
 export const submitNewClub = async (clubData) => {
   try {
+    // ✅ Get the current session
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      throw new Error('User is not authenticated')
+    }
+
+    const token = session.access_token
+
+    // ✅ Attach Authorization header with Bearer token
     const response = await fetch(`${API_BASE_URL}/club/add`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // <-- Add this
       },
       body: JSON.stringify(clubData)
     });

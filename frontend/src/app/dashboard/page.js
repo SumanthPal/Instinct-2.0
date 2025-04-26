@@ -144,21 +144,26 @@ export default function Dashboard() {
         )}
 
         {/* No liked clubs message */}
-        {!isLoading && likedClubs.length === 0 && user && (
-          <div className="bg-white/80 dark:bg-gray-800/80 rounded-lg shadow-lg p-8 max-w-lg mx-auto">
-            <h3 className="text-xl font-semibold mb-4">No favorite clubs yet</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Start exploring clubs and add them to your favorites by clicking the star icon!
-            </p>
-            <button
-              onClick={() => router.push('/clubs')}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg 
-                       hover:bg-blue-700 transition-colors duration-200"
-            >
-              Explore Clubs
-            </button>
-          </div>
-        )}
+        {/* No liked clubs or not logged in */}
+{!isLoading && (
+  <div className="w-full flex flex-col items-center justify-center py-24 px-6 space-y-8">
+    <h2 className="text-5xl font-bold text-gray-900 dark:text-dark-text">
+      {user ? 'No Favorite Clubs Yet' : 'Welcome to Instinct'}
+    </h2>
+    <p className="text-2xl text-gray-700 dark:text-dark-subtext max-w-2xl">
+      {user
+        ? 'Start exploring UCI clubs and add them to your favorites by clicking the star icon!'
+        : 'Please sign in to explore and save your favorite clubs across campus.'}
+    </p>
+    <button
+      onClick={() => router.push(user ? '/clubs' : '/')}
+      className="px-8 py-4 bg-purple-300 hover:bg-purple-500 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white text-2xl rounded-full transition-all duration-300"
+    >
+      {user ? 'Explore Clubs' : 'Return Home'}
+    </button>
+  </div>
+)}
+
 
         {/* Club Cards Grid */}
         {!isLoading && likedClubs.length > 0 && (

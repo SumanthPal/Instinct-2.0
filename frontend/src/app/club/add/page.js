@@ -5,13 +5,14 @@ import Footer from '@/components/ui/Footer';
 import { submitNewClub } from '@/lib/api'; // or wherever
 import { useAuth } from '@/context/auth-context'; // Assuming you're using some auth context
 
-const { user } = useAuth(); // user.email should exist if logged in
 
 
 const ClubForm = () => {
   const [clubName, setClubName] = useState('');
   const [instagramHandle, setInstagramHandle] = useState('');
   const [categories, setCategories] = useState([]);
+  const { user } = useAuth(); // user.email should exist if logged in
+
 
   const categoriesList = [
     'Diversity and Inclusion',

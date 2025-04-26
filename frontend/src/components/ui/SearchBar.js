@@ -14,10 +14,10 @@ export default function SearchBar({ value, onChange, onEnter }) {
       value={value}
       onChange={onChange}
       onKeyDown={handleKeyDown}
-      className="w-full p-5 text-3xl font-semibold border border-gray-300 rounded-full shadow-md 
+      className="w-full max-w-3xl px-8 py-3 text-2xl font-semibold border border-gray-300 rounded-full shadow-md
         focus:outline-none focus:ring-2 focus:ring-lavender
         transition-all duration-300 ease-in-out
-        sm:p-6 sm:text-4xl"
+        sm:px-10 sm:py-4 sm:text-3xl"
     />
   );
 }
