@@ -430,19 +430,35 @@ class ScraperRotation:
 
 if __name__ == "__main__":
     rotation = ScraperRotation()
+
+    if os.environ.get("DYNO"):
+        dyno_type = os.environ.get("DYNO_TYPE", "").lower()
+        if "performance" in dyno_type:
+            rotation.max_threads = 4
+        elif "standard-2x" in dyno_type:
+            rotation.max_threads = 2
+        else:
+            rotation.max_threads = 1
+
+    rotation.start_event_processing_thread()
+    rotation.populate_queue()
     
-    # Check if running in Heroku
-    # if os.environ.get("DYNO"):
-    #     # In Heroku, determine thread count based on dyno type
-    #     dyno_type = os.environ.get("DYNO_TYPE", "").lower()
-    #     if "performance" in dyno_type:
-    #         rotation.max_threads = 4  # More threads for Performance dynos
-    #     elif "standard-2x" in dyno_type:
-    #         rotation.max_threads = 2  # 2 threads for Standard-2X
-    #     else:
-    #         rotation.max_threads = 1  # Default to 1 thread for basic dynos
-    # rotation = ScraperRotation()
-    rotation.run()
+    # Start the initial scraping session
+    rotation.run_scraping_session()
     
-    # Start the rotation
-    #rotation.schedule_scraping()
+    # Now set up scheduled scraping every few hours
+    schedule.every(rotation.session_cooldown_hours).hours.do(rotation.run_scraping_session)
+
+    # Main loop
+    while True:
+        try:
+            # Keep checking for jobs
+            rotation.process_queue()
+
+            # Also run any scheduled jobs
+            schedule.run_pending()
+
+            time.sleep(60)  # Sleep a bit between checks
+        except Exception as e:
+            logger.error(f"Error in main scheduler loop: {e}")
+            time.sleep(60)
