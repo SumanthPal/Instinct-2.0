@@ -42,8 +42,7 @@ class InstagramScraper:
 
         options = Options()
         self.db = SupabaseQueries()
-        self.user_data_dir = tempfile.mkdtemp()
-        self._add_options(options, self.user_data_dir)
+        self._add_options(options)
         self.working_path = os.path.join(os.path.dirname(__file__), '..')
 
         # Initialize WebDriver with options
@@ -60,11 +59,16 @@ class InstagramScraper:
                 
     
     def _create_driver(self, chrome_options):
-        # Initialize WebDriver
-        #For heroku: '/app/.chrome-for-testing/chromedriver-linux64/chromedriver'
-        service = Service()
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        from selenium.webdriver.chrome.service import Service
+
+        # 🔥 Set Chrome binary location
+        if os.environ.get('DYNO'):
+            chrome_options.binary_location = os.getenv('GOOGLE_CHROME_BIN')
         
+        # 🔥 Set Chromedriver path
+        service = Service(executable_path=os.getenv('CHROMEDRIVER_PATH'))
+        
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         return driver
     
     def __enter__(self):
@@ -519,7 +523,7 @@ class InstagramScraper:
         if hasattr(self, '_driver') and self._driver:
             self._driver.quit()
 
-    def _add_options(self, option: Options, user_dir):
+    def _add_options(self, option: Options):
         """Add options to the Chrome WebDriver."""
         # Add all the common arguments in one go
         args = [
@@ -554,7 +558,6 @@ class InstagramScraper:
             "--password-store=basic",
             "--use-mock-keychain",
             "--blink-settings=imagesEnabled=false",
-           f"--user-data-dir={user_dir}"
 
         ]
         for arg in args:
@@ -725,7 +728,7 @@ if __name__ == "__main__":
 
         dotenv.load_dotenv()
         starttime = time.time()
-        multi_threaded_scrape(['uciavahita'], 1)
+        multi_threaded_scrape(['_openjam_'], 1)
         
     
 

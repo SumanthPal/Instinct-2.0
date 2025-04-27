@@ -407,4 +407,4 @@ class EventParser:
 if __name__ == "__main__":
     # Example usage
     parser = EventParser()
-    parser.parse_all_posts("birdingatuci")
+    parser.parse_all_posts("_openjam_")

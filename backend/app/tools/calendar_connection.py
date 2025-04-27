@@ -165,4 +165,4 @@ class CalendarConnection:
 
 if __name__ == "__main__":
     calendar_conn = CalendarConnection()
-    calendar_conn.create_calendar_file("uciavahita")
+    calendar_conn.create_calendar_file("_openjam_")
