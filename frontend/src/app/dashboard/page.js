@@ -118,8 +118,8 @@ export default function Dashboard() {
       
       <Navbar />
       
-      <main className="w-full px-4 py-8 flex flex-col items-center justify-center text-center z-10 relative">
-        <div className="hero min-h-[20vh] flex flex-col items-center justify-center z-10 mb-20">
+      <main className="w-full px-4 pt-24 md:pt-32 pb-8 flex flex-col items-center justify-center text-center z-10 relative">
+      <div className="hero min-h-[20vh] flex flex-col items-center justify-center z-10 mb-20">
           <div className="flex items-center justify-center space-x-4 mb-6 mt-12">
   <h1
     className="font-bold text-gray-900 dark:text-white"

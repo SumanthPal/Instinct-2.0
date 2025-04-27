@@ -198,7 +198,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
       </div>
 
       <Navbar />
-      <main className="w-full px-4 py-8 flex flex-col items-center justify-center text-center">
+      <main className="w-full px-4 pt-28 pb-8 flex flex-col items-center justify-center text-center">
       <div className="hero min-h-[50vh] w-full max-w-7xl flex flex-col items-center justify-center z-10 mb-8 px-4">
 
 <div className="flex items-center justify-center space-x-4 mb-6">
