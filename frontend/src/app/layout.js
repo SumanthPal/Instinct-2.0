@@ -4,6 +4,7 @@ import AuthWrapper from "./authwrapper";
 import { ToastProvider } from '@/components/ui/toast';
 import { DarkModeProvider } from '@/context/dark-mode-context';
 import { Suspense } from 'react'; // ok to import Suspense even without "use client"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata = {
   title: "Instinct for UCI",
@@ -25,6 +26,7 @@ export default function RootLayout({ children }) {
                 {children}
               </DarkModeProvider>
               <Analytics />
+              <SpeedInsights />
             </ToastProvider>
           </AuthWrapper>
         </Suspense>
