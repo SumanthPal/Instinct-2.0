@@ -138,14 +138,14 @@ const UCIBackground = () => {
 
 export default function Home() {
   return (
-    <div className="h-screen flex flex-col justify-between items-center text-gray-900 dark:text-dark-text relative overflow-hidden">
-      <ErrorHandler />
+<div className="min-h-screen flex flex-col justify-between items-center text-gray-900 dark:text-dark-text relative overflow-hidden">
+<ErrorHandler />
       <UCIBackground />
       <Navbar />
 
       {/* Hero Section */}
-      <div className="flex flex-col items-center justify-center text-center flex-1 px-6 z-10">
-        <h1 className="text-8xl md:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-sky-blue to-lavender dark:from-dark-text-white dark:to-dark-subtext mb-8 drop-shadow-lg">
+      <div className="flex flex-col items-center justify-center text-center flex-1 px-6 pt-24 sm:pt-32 pb-24 sm:pb-32 z-10">
+      <h1 className="text-8xl md:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-sky-blue to-lavender dark:from-dark-text-white dark:to-dark-subtext mb-8 drop-shadow-lg">
           Instinct at UC Irvine
         </h1>
 

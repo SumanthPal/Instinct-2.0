@@ -181,7 +181,7 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
   }
 
   return (
-    <div className="min-h-screen">
+<div className="min-h-screen w-full overflow-x-hidden">
 <div className="max-w-full sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 py-8">
 {/* Header Section */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8">
