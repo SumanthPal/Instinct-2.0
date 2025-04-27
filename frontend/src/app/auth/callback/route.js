@@ -1,5 +1,3 @@
-// src/app/auth/callback/route.js
-
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
@@ -18,7 +16,7 @@ export async function GET(request) {
     if (error) {
       console.error('Auth error:', error, errorDescription)
       return NextResponse.redirect(
-        new URL(`/?error=${encodeURIComponent(errorDescription || error)}`, request.url)
+        new URL(`/?error=${encodeURIComponent(errorDescription || error)}`, requestUrl)
       )
     }
 
@@ -26,8 +24,37 @@ export async function GET(request) {
     if (code) {
       const cookieStore = cookies()
       const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-      
-      await supabase.auth.exchangeCodeForSession(code)
+
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+      if (exchangeError) {
+        console.error('Exchange error:', exchangeError.message)
+        return NextResponse.redirect(
+          new URL(`/?error=${encodeURIComponent(exchangeError.message)}`, requestUrl)
+        )
+      }
+
+      // ✅ Now check the email
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Get user error:', userError.message);
+        return NextResponse.redirect(
+          new URL(`/?error=${encodeURIComponent('Failed to get user')}`, requestUrl)
+        );
+      }
+
+      if (user && user.email && !user.email.endsWith('@uci.edu')) {
+        console.log('Deleting non-UCI user:', user.email);
+
+        // ❗ You CANNOT delete a user from a normal client session
+        // You need to call the Admin API from the server (if you want full delete)
+        // For now, easiest hack = sign them out immediately and redirect with error
+
+        await supabase.auth.signOut();
+
+        return NextResponse.redirect(
+          new URL(`/?error=${encodeURIComponent('invalid-email')}`, requestUrl)
+        );
+      }
     }
 
     // URL to redirect to after sign in process completes
