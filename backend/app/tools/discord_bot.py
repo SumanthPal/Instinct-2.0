@@ -374,6 +374,7 @@ async def emergencyrequeue(ctx):
     except Exception as e:
         await ctx.send(f"❌ Failed emergency requeue setup: {e}")
         logger.error(f"Emergency requeue command error: {e}")
+
 @bot.command()
 async def checkpending(ctx):
     """Fetch and post pending clubs."""
@@ -405,7 +406,9 @@ async def checkpending(ctx):
             embed.add_field(name="Categories", value=categories_formatted, inline=False)
             embed.set_footer(text=f"Submitted by {club['submitted_by_email']}")
 
-            await send_update(embed=embed, message=None)
+            # ✅ Send with approval buttons
+            channel = bot.get_channel(DISCORD_CHANNEL_ID)
+            await channel.send(embed=embed, view=ApprovalView(pending_id))
 
             pending_clubs[pending_id] = ctx.message.id  # Tracking posted
 
