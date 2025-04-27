@@ -254,7 +254,7 @@ class ScraperRotation:
             for username in usernames:
                 try:
                     logger.info(f"Scraping {username}...")
-                    scraper = scrape_sequence([scrape_sequence])
+                    scraper = scrape_sequence([username])
                     
                     # Update last_scraped timestamp in database
                     self.update_club_last_scraped(username)
