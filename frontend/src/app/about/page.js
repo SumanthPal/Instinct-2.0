@@ -6,7 +6,7 @@ import { SiNextdotjs, SiTailwindcss, SiRedis, SiSupabase, SiFastapi, SiSelenium 
 import { FaLinkedin, FaGithub, FaDiscord } from 'react-icons/fa';
 import { FaXTwitter } from "react-icons/fa6";
 
-import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai, SiPostgresql } from 'react-icons/si'; // Added new icons
+import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai, SiPostgresql, SiJavascript } from 'react-icons/si'; // Added new icons
 
 const About = () => {
   return (
@@ -164,6 +164,13 @@ const About = () => {
               <span className="text-xl text-gray-700 dark:text-dark-text">Discord</span>
               <div className="absolute bottom-full mb-2 w-64 text-sm text-white bg-black dark:bg-dark-base px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
               Our choice for monitoring system health, logs, and user requests.
+              </div>
+            </div>
+            <div className="relative group flex items-center space-x-4 justify-center">
+              <SiJavascript className="w-8 h-8 text-gray-900 dark:text-dark-text" />
+              <span className="text-xl text-gray-700 dark:text-dark-text">JavaScript</span>
+              <div className="absolute bottom-full mb-2 w-64 text-sm text-white bg-black dark:bg-dark-base px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              Lanaguage of choice used for our frontend.
               </div>
             </div>
           </div>

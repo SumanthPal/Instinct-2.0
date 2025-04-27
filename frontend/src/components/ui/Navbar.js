@@ -56,12 +56,12 @@ export default function Navbar() {
       <nav className="fixed w-full  bg-white/40 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-sm rounded-b-3xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
-            <img src="/logo.svg" alt="Logo" className="h-10 w-10" />
-            <span className="text-3xl font-bold text-gray-900 dark:text-white">
-              Instinct
-            </span>
-          </div>
+          <Link href="/" className="flex items-center space-x-3">
+  <img src="/logo.svg" alt="Logo" className="h-10 w-10 cursor-pointer" />
+  <span className="text-3xl font-bold text-gray-900 dark:text-white cursor-pointer">
+    Instinct
+  </span>
+</Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
