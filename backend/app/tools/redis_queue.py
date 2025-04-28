@@ -16,7 +16,7 @@ class QueueType(Enum):
 
 class RedisScraperQueue:
     def __init__(self):
-        redis_url = os.getenv('REDIS_UL', 'redis://localhost:6379')
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
         self.redis = redis.from_url(redis_url)
         
         # Initialize all queue keys with prefixes
@@ -278,6 +278,7 @@ class RedisScraperQueue:
                 })
             else:
                 # Mark as permanently failed
+                
                 self.redis.hset(failed_key, job_id, json.dumps(job))
                 logger.error(f"{queue_type.value} job {job_id} permanently failed after {max_attempts} attempts. Error: {error}")
                 

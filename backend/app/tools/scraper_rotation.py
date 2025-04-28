@@ -251,8 +251,9 @@ class ScraperRotation:
                     total_jobs = queue_status.get("queue_count", 0) + queue_status.get("processing_count", 0)
                     
                     if total_jobs == 0:
-                        logger.info("Queue empty. Repopulating...")
-                        self.populate_queue()
+                        logger.info("Queue empty. Sleeping...")
+                        time.sleep(60)
+
                         
                     # Sleep a bit to avoid CPU spinning
                     time.sleep(10)

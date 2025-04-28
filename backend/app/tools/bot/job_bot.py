@@ -18,7 +18,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 # Set base directory for logs
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
-ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
 
 # Import custom modules
 from tools.logger import logger
@@ -34,6 +33,7 @@ JOB_BOT_CHANNEL_ID = int(os.getenv('JOB_BOT_CHANNEL_ID', '0'))
 JOB_BOT_ERROR_CHANNEL_ID = int(os.getenv('JOB_BOT_ERROR_CHANNEL_ID', '0'))
 JOB_BOT_ADMIN_ROLE_ID = int(os.getenv('JOB_BOT_ADMIN_ROLE_ID', '0'))
 OWNER_USER_ID = int(os.getenv("USER_ID"))  # 👈  Discord user ID
+ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
 
 # Initialize bot with intents
 intents = discord.Intents.default()
@@ -1077,6 +1077,80 @@ async def system_status_cmd(ctx):
         logger.error(f"Error in systemstatus command: {e}")
         await ctx.send(f"🥺 uhh i tripped trying to check system status... pls check logs 👉 {e}")
 
+
+@job_bot.command(name="listfailed")
+@is_admin()
+async def list_failed_cmd(ctx):
+    """Show failed clubs."""
+    failed_jobs = redis_conn.hgetall(QUEUE_KEYS["scraper"]["failed"])
+    if not failed_jobs:
+        await ctx.send("💖 no failed clubs rn! she's perfect fr ✨")
+        return
+
+    embed = discord.Embed(title="💥 Failed Clubs", color=0xED4245)
+
+    for idx, (job_id, job_data) in enumerate(failed_jobs.items(), start=1):
+        job = json.loads(job_data)
+        error = job.get("error", "unknown error")
+        embed.add_field(
+            name=f"{idx}. {job_id.decode() if isinstance(job_id, bytes) else job_id}",
+            value=f"Error: `{error}`",
+            inline=False
+        )
+        if idx >= 20:
+            break  # Cap at 20 per page for now
+
+    await ctx.send(embed=embed)
+
+@job_bot.command(name="buryclub")
+@is_admin()
+async def bury_club_cmd(ctx, instagram_handle: str):
+    """Permanently remove a failed club."""
+    if redis_conn.hdel(QUEUE_KEYS["scraper"]["failed"], instagram_handle):
+        await ctx.send(f"🪦 buried `{instagram_handle}` forever... rest in peace queen ✨")
+    else:
+        await ctx.send(f"💔 couldn't find `{instagram_handle}` in failed list...")
+@job_bot.command(name="massbury")
+@is_admin()
+async def mass_bury_cmd(ctx):
+    """Delete all failed clubs."""
+    failed_count = len(redis_conn.hkeys(QUEUE_KEYS["scraper"]["failed"]))
+    if failed_count == 0:
+        await ctx.send("✅ no failed clubs to bury!")
+        return
+
+    class ConfirmBuryView(View):
+        def __init__(self):
+            super().__init__(timeout=20)
+
+        @discord.ui.button(label="YES, Bury All", style=discord.ButtonStyle.danger)
+        async def confirm_bury(self, interaction: discord.Interaction, button: Button):
+            redis_conn.delete(QUEUE_KEYS["scraper"]["failed"])
+            await interaction.response.edit_message(content=f"🪦 all {failed_count} failed clubs buried. rest easy ✨", view=None)
+
+        @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+        async def cancel_bury(self, interaction: discord.Interaction, button: Button):
+            await interaction.response.edit_message(content="okok cancelling mass burial 🙈✨", view=None)
+
+    await ctx.send(
+        f"⚠️ there's `{failed_count}` failed clubs... you sure you wanna mass bury them??? 🪦",
+        view=ConfirmBuryView()
+    )
+@job_bot.command(name="revive")
+@is_admin()
+async def revive_club_cmd(ctx, instagram_handle: str):
+    """Retry a failed club manually."""
+    job_json = redis_conn.hget(QUEUE_KEYS["scraper"]["failed"], instagram_handle)
+    if not job_json:
+        await ctx.send(f"💔 umm `{instagram_handle}` isn't in failed list...")
+        return
+
+    job = json.loads(job_json)
+    redis_conn.hdel(QUEUE_KEYS["scraper"]["failed"], instagram_handle)
+    redis_conn.zadd(QUEUE_KEYS["scraper"]["queue"], {json.dumps(job): 0})
+
+    await ctx.send(f"✨ revived `{instagram_handle}` back into the queue! she's gonna try again fr 🏃‍♀️")
+
 @job_bot.command(name="cleanup")
 @is_admin()
 async def cleanup_cmd(ctx):
@@ -1093,13 +1167,7 @@ async def cleanup_cmd(ctx):
             await ctx.send(f"❌ umm i tripped while cleaning orphaned records 😭 `{e}`")
 
         # Refresh materialized views
-        try:
-            db.supabase.rpc('refresh_materialized_views').execute()
-            await ctx.send("✅ refreshed my brain (materialized views) 🧠✨")
-        except Exception as e:
-            logger.error(f"Error refreshing materialized views: {e}")
-            await ctx.send(f"❌ couldn't refresh views 😔 `{e}`")
-
+       
         # Delete old events
         try:
             db.supabase.rpc('delete_old_events').execute()
@@ -1176,17 +1244,28 @@ async def help_cmd(ctx):
             value="spring clean the whole thing 🧹✨ (fresh vibes only)",
             inline=False
         )
+        embed.add_field(
+    name="!buryclub <instagram_handle>",
+    value="🪦 move a failed job to the graveyard (so i stop retrying it 🥀)",
+    inline=False
+)
+        embed.add_field(
+            name="!revive <instagram_handle>",
+            value="✨ bring a graveyard job back to life (she deserves a second chance!!)",
+            inline=False
+        )
+        embed.add_field(
+            name="!massbury[queue_type]",
+            value="🧹 delete all jobs in the graveyard (rip but necessary sometimes 💔)",
+            inline=False
+        )
+
 
         embed.set_footer(text="ur fav girlboss bot 💅 powered by caffeine + chaos", icon_url="https://img.icons8.com/emoji/48/robot-emoji.png")
 
         await ctx.send(embed=embed)
 
-@job_bot.check
-async def globally_restrict_server(ctx):
-    if ctx.guild and ctx.guild.id != ALLOWED_SERVER_ID:
-        await ctx.send("sorryyy i can't work here 😔 i'm a private worker!")
-        return False
-    return True
+
 
 # Run the bot
 if __name__ == "__main__":
