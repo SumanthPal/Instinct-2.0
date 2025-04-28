@@ -175,6 +175,7 @@ async def list_pending_clubs(
 
 from datetime import datetime  # Make sure you have this imported!
 
+
 @router.post("/pending-club/{pending_id}/approve")
 async def approve_pending_club(pending_id: str, request: Request):
     # 1. Validate admin authentication
@@ -201,16 +202,46 @@ async def approve_pending_club(pending_id: str, request: Request):
         "instagram_handle": pending_club["instagram_handle"],
     }
     
-    # Add optional fields if they exist
-    if pending_club.get("club_links"):
-        insert_payload["club_links"] = pending_club["club_links"]
-        
+    # Note: club_links don't exist yet, but we'll need to handle categories
+    # Categories should be processed separately after club creation
+    
     try:
-        # Perform the insert
+        # Insert the club
         club_result = db.supabase.table("clubs").insert(insert_payload).execute()
         
-        # Optional: Process club categories if needed
-        # (Code for handling categories would go here)
+        # Get the new club ID for category association
+        if not club_result.data or len(club_result.data) == 0:
+            raise Exception("Failed to insert club - no data returned")
+            
+        new_club_id = club_result.data[0]["id"]
+        
+        # Process categories if they exist
+        if pending_club.get("categories") and isinstance(pending_club["categories"], list):
+            # Log for debugging
+            logger.info(f"Processing categories: {pending_club['categories']}")
+            
+            # Handle your categories based on your schema
+            # This assumes you have a club_categories junction table
+            # and that categories are formatted as objects with a "name" field
+            for category in pending_club["categories"]:
+                # Find or create the category
+                category_name = category.get("name")
+                if not category_name:
+                    continue
+                    
+                # Look up category ID by name
+                cat_response = db.supabase.table("categories").select("id").eq("name", category_name).execute()
+                
+                if cat_response.data and len(cat_response.data) > 0:
+                    category_id = cat_response.data[0]["id"]
+                    
+                    # Insert association
+                    db.supabase.table("club_categories").insert({
+                        "club_id": new_club_id,
+                        "category_id": category_id
+                    }).execute()
+                else:
+                    logger.warning(f"Category '{category_name}' not found, skipping")
             
     except Exception as e:
         logger.error(f"Failed to insert into clubs: {str(e)}")

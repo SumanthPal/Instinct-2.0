@@ -182,7 +182,7 @@ def approve_club(pending_id):
         
         response = requests.post(
             f"{API_URL}/pending-club/{pending_id}/approve",
-            headers=headers
+            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
         )
         
         # Log the full response for debugging
