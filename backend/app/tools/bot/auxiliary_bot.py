@@ -99,7 +99,7 @@ def is_admin():
 # security_checks.py or just at top of bot file
 
 
-@job_bot.event
+@aux_bot.event
 async def on_command(ctx):
     if ctx.guild is None or ctx.guild.id not in ALLOWED_SERVER_LIST:
         try:
