@@ -182,44 +182,55 @@ async def approve_pending_club(pending_id: str, request: Request):
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    supabase_user = await db.get_user_from_token(auth_header)  # <<<<<< await it!
+    supabase_user = await db.get_user_from_token(auth_header)  
     if not supabase_user:
         raise HTTPException(status_code=401, detail="Invalid Supabase token")
 
     # 2. Fetch pending club
     try:
-        response = supabase.table("pending_clubs").select("*").eq("id", pending_id).single().execute()
+        response = db.supabase.table("pending_clubs").select("*").eq("id", pending_id).single().execute()
         pending_club = response.data
         if not pending_club:
             raise HTTPException(status_code=404, detail="Pending club not found")
     except Exception as e:
-        raise HTTPException(status_code=404, detail="Pending club not found")
+        raise HTTPException(status_code=404, detail=f"Pending club not found: {str(e)}")
 
     # 3. Insert into real clubs table
     insert_payload = {
         "name": pending_club["name"],
         "instagram_handle": pending_club["instagram_handle"],
     }
+    
+    # Add optional fields if they exist
     if pending_club.get("club_links"):
         insert_payload["club_links"] = pending_club["club_links"]
-
+        
     try:
-        supabase.table("clubs").insert(insert_payload).execute()
+        # Perform the insert
+        club_result = db.supabase.table("clubs").insert(insert_payload).execute()
+        
+        # Optional: Process club categories if needed
+        # (Code for handling categories would go here)
+            
     except Exception as e:
+        logger.error(f"Failed to insert into clubs: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to insert into clubs: {str(e)}")
 
-    # 4. Mark pending as approved
+    # 4. Delete the pending club entry
     try:
-        supabase.table("pending_clubs").update({
-            "approved": True,
-            "reviewed_by_email": supabase_user["email"],
-            "reviewed_at": datetime.now().isoformat()
-        }).eq("id", pending_id).execute()
+        delete_result = db.supabase.table("pending_clubs").delete().eq("id", pending_id).execute()
+        logger.info(f"Deleted pending club: {delete_result.data}")
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update pending club: {str(e)}")
+        logger.error(f"Failed to delete pending club: {str(e)}")
+        # Note: We don't raise an exception here because the club was already successfully added
+        # Just log the error and return a warning
+        return {
+            "message": "Club approved and added successfully, but failed to remove from pending queue",
+            "warning": f"Failed to delete pending club: {str(e)}"
+        }
 
     return {"message": "Club approved and added successfully"}
-
 
 @app.get("/")
 async def home():

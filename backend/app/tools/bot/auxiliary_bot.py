@@ -47,7 +47,7 @@ aux_bot = commands.Bot(command_prefix=AUX_BOT_PREFIX, intents=intents)
 db = SupabaseQueries()
 
 # Redis connection (shared resource)
-redis_url = os.getenv('REDIS_UR', 'redis://localhost:6379')
+redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
 redis_conn = redis.from_url(redis_url)
 
 # Redis queue key names (for status checks)
@@ -173,20 +173,31 @@ def get_queue_status():
 def approve_club(pending_id):
     """Approve a pending club."""
     try:
+        # Make sure API_AUTH_TOKEN is properly set and in the expected format
+        # The server expects: Bearer <token>
+        headers = {"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+        
+        # Log the request before sending
+        logger.info(f"🔄 Sending approval request for club {pending_id}")
+        
         response = requests.post(
             f"{API_URL}/pending-club/{pending_id}/approve",
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=headers
         )
+        
+        # Log the full response for debugging
+        logger.debug(f"Response: {response.status_code} - {response.text}")
         
         if response.status_code == 200:
             logger.info(f"✅ Successfully approved club {pending_id}")
             publish_notification(f"Club {pending_id} approved", {"pending_id": pending_id})
             return True
         else:
+            # More detailed error logging
             logger.error(f"⚠️ Failed to approve club {pending_id}: {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        logger.error(f"❌ Error approving club {pending_id}: {e}")
+        logger.error(f"❌ Error approving club {pending_id}: {str(e)}")
         return False
 
 def reject_club(pending_id):
@@ -905,12 +916,6 @@ async def help_cmd(ctx):
 
     
     await ctx.send(embed=embed)
-@job_bot.check
-async def globally_restrict_server(ctx):
-    if ctx.guild and ctx.guild.id != ALLOWED_SERVER_ID:
-        await ctx.send("sorryyy i can't work here 😔 i'm a private worker!")
-        return False
-    return True
 
 # Run the bot
 if __name__ == "__main__":
