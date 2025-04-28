@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 from datetime import datetime, timedelta
+import pytz
 from typing import Optional, List, Dict
 from ics import Calendar, Event
 
@@ -12,71 +13,88 @@ import re
 
 def parse_duration_string(duration_str: str) -> timedelta:
     """
-    Parses a flexible duration string into a timedelta object.
-    
-    Supports formats like:
-    - "2 days 4:30"
-    - "1 day"
-    - "4:30"
-    - "2d 4h 30m"
-    - "3h 15m"
-    - "45m"
+    Parses Supabase/Postgres INTERVAL string into timedelta.
+    Supports formats like '2 days 04:30:00', '04:30:00', etc.
     """
+    if not duration_str:
+        return timedelta(hours=1)  # Default duration
+    
     duration_str = duration_str.strip().lower()
-
-    # Default values
-    days = hours = minutes = 0
-
-    # Case 1: Explicit "day" keyword
-    if "day" in duration_str:
+    
+    # Case: "2 days 04:30:00"
+    if 'day' in duration_str:
         day_match = re.search(r'(\d+)\s*day', duration_str)
-        if day_match:
-            days = int(day_match.group(1))
+        time_match = re.search(r'(\d+):(\d+):(\d+)', duration_str)
+        days = int(day_match.group(1)) if day_match else 0
+        if time_match:
+            hours, minutes, seconds = map(int, time_match.groups())
         else:
-            # If no number before "day", assume 1 day
-            days = 1
+            hours = minutes = seconds = 0
+        return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+    
+    # Case: "04:30:00"
+    time_match = re.search(r'(\d+):(\d+):(\d+)', duration_str)
+    if time_match:
+        hours, minutes, seconds = map(int, time_match.groups())
+        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
-        # After "day", parse time if available (e.g., "2 days 4:30")
-        time_part = re.findall(r'(\d+:\d+)', duration_str)
-        if time_part:
-            hours, minutes = map(int, time_part[0].split(":"))
+    # Fallback if somehow it's just "45m" etc.
+    h_match = re.search(r'(\d+)h', duration_str)
+    m_match = re.search(r'(\d+)m', duration_str)
 
-    # Case 2: Formats like "2d 4h 30m"
-    else:
-        d_match = re.search(r'(\d+)d', duration_str)
-        h_match = re.search(r'(\d+)h', duration_str)
-        m_match = re.search(r'(\d+)m', duration_str)
+    hours = int(h_match.group(1)) if h_match else 0
+    minutes = int(m_match.group(1)) if m_match else 0
 
-        if d_match:
-            days = int(d_match.group(1))
-        if h_match:
-            hours = int(h_match.group(1))
-        if m_match:
-            minutes = int(m_match.group(1))
+    return timedelta(hours=hours, minutes=minutes)
 
-        # Case 3: Simple "4:30" format
-        if ':' in duration_str and not (d_match or h_match or m_match):
-            hours, minutes = map(int, duration_str.split(":")[:2])
-
-    return timedelta(days=days, hours=hours, minutes=minutes)
 
 class CalendarConnection:
     def __init__(self):
         """Initialize the CalendarConnection with Supabase client"""
         self.supabase = SupabaseQueries()
+        # Default timezone if none is specified for the club
+        self.default_timezone = pytz.timezone('America/Los_Angeles')
         logger.info("Initialized CalendarConnection.")
+    
+    def _get_club_timezone(self, club_data: Dict) -> pytz.timezone:
+        """
+        Get the timezone for a club.
+        
+        Args:
+            club_data: Club data dictionary
+            
+        Returns:
+            pytz.timezone: The club's timezone, or default if not specified
+        """
+        tz_name = club_data.get('timezone', 'America/Los_Angeles')
+        try:
+            return pytz.timezone(tz_name)
+        except pytz.exceptions.UnknownTimeZoneError:
+            logger.warning(f"Unknown timezone {tz_name}, using default")
+            return self.default_timezone
 
     def create_calendar_file(self, username: str) -> Optional[str]:
         """
         Create or update a calendar file for a club based on its username.
+        Properly handles timezones for consistent event times.
         """
         logger.info(f"Starting calendar creation for club: {username}")
         
-        club_id = self.supabase.get_club_by_instagram_handle(username)
+        # Get club details 
+        club_data = self.supabase.get_club_by_instagram(username)
         
-        if not club_id:
+        if not club_data:
             logger.error(f"Club with username '{username}' does not exist. Cannot create calendar file.")
             return None
+        
+        club_id = club_data.get('id')
+        if not club_id:
+            logger.error(f"Invalid club data returned for {username}")
+            return None
+            
+        # Get club's timezone
+        club_timezone = self._get_club_timezone(club_data)
+        logger.info(f"Using timezone {club_timezone} for club {username}")
         
         calendar = Calendar()
         
@@ -92,53 +110,92 @@ class CalendarConnection:
             return self.supabase.save_calendar_file(club_id, str(calendar))
         
         # Process each event
+        
+
         for db_event in events:
             try:
-                logger.info(f"Adding event: {db_event.get('name', 'Unnamed Event')}")
+                event_name = db_event.get('name', 'Unnamed Event')
+                logger.info(f"Adding event: {event_name}")
                 
                 new_event = Event()
-                new_event.name = db_event["name"]
+                new_event.name = event_name
                 
-                # Convert string date to datetime
-                event_date = db_event["date"]
+                # Convert string date to datetime with proper timezone
+                event_date = db_event.get("date")
+                if not event_date:
+                    logger.warning(f"Event {event_name} has no date, skipping")
+                    continue
+                    
+                # Handle date string conversion
                 if isinstance(event_date, str):
-                    event_date = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+                    try:
+                        # Try to parse with timezone info
+                        if 'Z' in event_date:
+                            # UTC date
+                            utc_date = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+                            # Convert to club's timezone
+                            event_date = utc_date.astimezone(club_timezone)
+                        elif '+' in event_date or '-' in event_date and 'T' in event_date:
+                            # Already has timezone info
+                            event_date = datetime.fromisoformat(event_date)
+                        else:
+                            # No timezone info, assume club's timezone
+                            naive_date = datetime.fromisoformat(event_date)
+                            event_date = club_timezone.localize(naive_date)
+                    except ValueError:
+                        # Fallback for other date formats
+                        logger.warning(f"Could not parse date {event_date} for event {event_name}, using current date")
+                        event_date = club_timezone.localize(datetime.now())
+                
+                # Ensure event date has timezone info
+                if event_date.tzinfo is None:
+                    event_date = club_timezone.localize(event_date)
                 
                 new_event.begin = event_date
                 
-                # Handle duration
-                # --- inside your for db_event in events loop ---
+                # Handle duration with better error handling
                 if db_event.get("duration"):
                     try:
-                        new_event.duration = parse_duration_string(db_event["duration"])
-                        logger.info(f"Set duration for event '{new_event.name}' from '{db_event['duration']}'.")
+                        duration = parse_duration_string(db_event["duration"])
+                        new_event.duration = duration
+                        logger.info(f"Set duration for event '{event_name}' to {duration} from '{db_event['duration']}'")
                     except Exception as e:
-                        logger.warning(f"Could not parse duration '{db_event['duration']}' for event '{new_event['name']}': {e}")
+                        logger.warning(f"Could not parse duration '{db_event['duration']}' for event '{event_name}': {e}")
                         # Default fallback if parsing fails
                         new_event.duration = timedelta(hours=1)
-                        logger.info(f"Defaulted to 1 hour duration for '{new_event.name}'.")
+                        logger.info(f"Defaulted to 1 hour duration for '{event_name}'")
                 else:
                     # No duration provided at all → safe fallback
                     new_event.duration = timedelta(hours=1)
-                    logger.info(f"No duration provided for '{new_event.name}', defaulted to 1 hour.")
+                    logger.info(f"No duration provided for '{event_name}', defaulted to 1 hour")
 
-
-
-                # Add optional details
+                # Add additional details
                 if db_event.get("details"):
                     new_event.description = db_event["details"]
                 
+                # Add location if available
+                if db_event.get("location"):
+                    new_event.location = db_event["location"]
+                    
+                # Add URL if available
+                if db_event.get("url"):
+                    new_event.url = db_event["url"]
+                
+                # Generate UID for the event if not already set
+                new_event.uid = db_event.get("uid") or str(uuid.uuid4())
+                
                 calendar.events.add(new_event)
-                logger.info(f"Successfully added event '{new_event.name}'.")
+                logger.info(f"Successfully added event '{event_name}'")
                 
             except Exception as e:
                 logger.error(f"Error while adding event {db_event.get('id', 'unknown id')}: {e}")
+                continue
 
         # Save the full calendar
         try:
             ics_content = str(calendar)
             calendar_id = self.supabase.save_calendar_file(club_id, ics_content)
-            logger.info(f"Calendar file successfully created/updated for '{username}' with {len(calendar.events)} events.")
+            logger.info(f"Calendar file successfully created/updated for '{username}' with {len(calendar.events)} events")
             return calendar_id
         except Exception as e:
             logger.error(f"Error saving calendar for {username}: {e}")
@@ -164,5 +221,13 @@ class CalendarConnection:
             return None
 
 if __name__ == "__main__":
-    calendar_conn = CalendarConnection()
-    calendar_conn.create_calendar_file("_openjam_")
+
+
+
+    conn = CalendarConnection()
+    result = conn.create_calendar_file("icssc.uci")
+
+    if result:
+        print(f"✅ Successfully created calendar for icssc.uci")
+    else:
+        print(f"❌ Failed to create calendar for icssc.uci")

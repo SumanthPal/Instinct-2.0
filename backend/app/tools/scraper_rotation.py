@@ -4,11 +4,13 @@ import sys
 import datetime
 import random
 import dotenv
-from typing import List, Dict
+import threading
+import signal
+from typing import List, Dict, Optional, Any, Union
 import schedule
 from concurrent.futures import ThreadPoolExecutor
-import threading
 from queue import Queue
+import json
 
 # Import your existing tools
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,7 +19,7 @@ from db.queries import SupabaseQueries
 from tools.insta_scraper import InstagramScraper, scrape_with_retries, scrape_sequence, RateLimitDetected
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
-from tools.redis_queue import RedisScraperQueue
+from tools.redis_queue import RedisScraperQueue, QueueType
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
@@ -32,40 +34,337 @@ class ScraperRotation:
         self.session_cooldown_hours = 2  # Wait between sessions
         self.max_threads = 1  # Start with 1 thread (can be increased based on Heroku dyno)
         self.queue = RedisScraperQueue()
-    
-    def populate_queue(self):
-        """Get clubs from database and add to queue"""
-        logger.info("Starting to populate queue...")
-
-        clubs_to_scrape = self.get_clubs_to_scrape()
-        for username in clubs_to_scrape:
-            self.queue.enqueue_club(username)
         
-        logger.info(f"Finished populating queue with {clubs_to_scrape}")
-
-
+        # Control flags
+        self.running = False
+        self.paused = False
+        self.rate_limited = False
+        self.rate_limit_end_time = 0
+        
+        # Thread references
+        self.scraper_thread = None
+        self.event_thread = None
+        self.monitor_thread = None
+        self.log_processor_thread = None
+        
+        # Stream reading positions
+        self.last_notification_id = "0"
+        self.last_status_id = "0"
+        
+        # Status tracking
+        self.status = {
+            "scraper_state": "stopped",
+            "rate_limited_until": None,
+            "current_job": None,
+            "jobs_completed": 0,
+            "jobs_failed": 0,
+            "events_processed": 0,
+            "events_failed": 0,
+            "last_error": None,
+            "last_status_update": time.time()
+        }
+        
+        # Thread stop event
+        self.stop_event = threading.Event()
+    
+    def start(self):
+        """Start all threads and begin processing"""
+        if self.running:
+            logger.warning("Scraper is already running")
+            return False
+            
+        self.running = True
+        self.paused = False
+        self.stop_event.clear()
+        
+        # Start processing threads
+        self.start_event_processing_thread()
+        self.start_scraper_thread()
+        self.start_monitor_thread()
+        self.start_log_processor_thread()
+        
+        # Populate queue initially
+        self.populate_queue()
+        
+        # Set status
+        self.status["scraper_state"] = "running"
+        
+        logger.info("Scraper rotation started successfully")
+        self.queue.publish_notification("Scraper rotation started", {
+            "max_threads": self.max_threads,
+            "clubs_per_session": self.clubs_per_session
+        })
+        
+        return True
+    
+    def stop(self):
+        """Stop all threads and processing"""
+        if not self.running:
+            logger.warning("Scraper is not running")
+            return False
+        
+        self.running = False
+        self.stop_event.set()
+        
+        # Wait for threads to terminate
+        threads = [
+            (self.scraper_thread, "scraper"),
+            (self.event_thread, "event"),
+            (self.monitor_thread, "monitor"),
+            (self.log_processor_thread, "log processor")
+        ]
+        
+        for thread, name in threads:
+            if thread and thread.is_alive():
+                logger.info(f"Waiting for {name} thread to terminate...")
+                thread.join(timeout=5.0)
+                if thread.is_alive():
+                    logger.warning(f"{name.capitalize()} thread did not terminate gracefully")
+        
+        # Update status
+        self.status["scraper_state"] = "stopped"
+        
+        logger.info("Scraper rotation stopped")
+        self.queue.publish_notification("Scraper rotation stopped", {
+            "jobs_completed": self.status["jobs_completed"],
+            "jobs_failed": self.status["jobs_failed"],
+            "events_processed": self.status["events_processed"],
+            "events_failed": self.status["events_failed"]
+        })
+        
+        return True
+    
+    def pause(self):
+        """Pause processing but keep threads running"""
+        if not self.running:
+            logger.warning("Scraper is not running, cannot pause")
+            return False
+            
+        if self.paused:
+            logger.warning("Scraper is already paused")
+            return False
+            
+        self.paused = True
+        self.status["scraper_state"] = "paused"
+        
+        logger.info("Scraper rotation paused")
+        self.queue.publish_notification("Scraper rotation paused", {})
+        
+        return True
+    
+    def resume(self):
+        """Resume processing after pause"""
+        if not self.running:
+            logger.warning("Scraper is not running, cannot resume")
+            return False
+            
+        if not self.paused:
+            logger.warning("Scraper is not paused, cannot resume")
+            return False
+            
+        self.paused = False
+        self.status["scraper_state"] = "running"
+        
+        logger.info("Scraper rotation resumed")
+        self.queue.publish_notification("Scraper rotation resumed", {})
+        
+        return True
+        
+    # ---------- Thread initialization methods ----------
+    
+    def start_scraper_thread(self):
+        """Start the scraper thread that processes club scraping jobs"""
+        self.scraper_thread = threading.Thread(
+            target=self.scraper_worker,
+            name="scraper_worker",
+            daemon=True
+        )
+        self.scraper_thread.start()
+        logger.info("Started scraper worker thread")
     
     def start_event_processing_thread(self):
-        """Start a separate thread for processing events"""
+        """Start the event processing thread"""
         self.event_thread = threading.Thread(
             target=self.event_processing_worker,
+            name="event_worker",
             daemon=True
         )
         self.event_thread.start()
         logger.info("Started event processing thread")
-
-    def event_processing_worker(self):
-        """Worker function that runs in a separate thread to process events"""
-        while True:
+    
+    def start_monitor_thread(self):
+        """Start the monitoring thread that checks for stalled jobs and handles streams"""
+        self.monitor_thread = threading.Thread(
+            target=self.monitor_worker,
+            name="monitor_worker",
+            daemon=True
+        )
+        self.monitor_thread.start()
+        logger.info("Started monitor thread")
+    
+    def start_log_processor_thread(self):
+        """Start the log processor thread"""
+        self.log_processor_thread = threading.Thread(
+            target=self.log_processor_worker,
+            name="log_processor",
+            daemon=True
+        )
+        self.log_processor_thread.start()
+        logger.info("Started log processor thread")
+        
+    # ---------- Worker thread functions ----------
+    
+    def scraper_worker(self):
+        """Worker function that runs in a thread to process scraper jobs"""
+        logger.info("Scraper worker started")
+        self.queue.publish_notification("Scraper worker started", {})
+        
+        while self.running and not self.stop_event.is_set():
             try:
-                # Get the next club from the event processing queue
-                job = self.queue.get_next_event_job()
+                # Check if we're paused
+                if self.paused:
+                    time.sleep(5)
+                    continue
+                
+                # Check if we're rate limited
+                if self.rate_limited and time.time() < self.rate_limit_end_time:
+                    remaining = int(self.rate_limit_end_time - time.time())
+                    logger.info(f"Rate limited. Sleeping for {remaining} more seconds.")
+                    time.sleep(min(remaining, 60))  # Sleep, but check periodically for stop signals
+                    continue
+                elif self.rate_limited:
+                    # Rate limit period has expired
+                    self.rate_limited = False
+                    self.status["rate_limited_until"] = None
+                    logger.info("Rate limit period ended. Resuming normal operation.")
+                    self.queue.publish_notification("Rate limit ended", {})
+                
+                # Requeue stalled jobs
+                self.queue.requeue_stalled_jobs(QueueType.SCRAPER)
+                
+                # Get the next job
+                job = self.queue.get_next_job(QueueType.SCRAPER)
+                
                 if not job:
-                    # No job available, sleep and try again
+                    # No jobs available, check if we should populate
+                    queue_status = self.queue.get_queue_status(QueueType.SCRAPER)
+                    total_jobs = queue_status.get("queue_count", 0) + queue_status.get("processing_count", 0)
+                    
+                    if total_jobs == 0:
+                        logger.info("Queue empty. Repopulating...")
+                        self.populate_queue()
+                        
+                    # Sleep a bit to avoid CPU spinning
                     time.sleep(10)
                     continue
+                
+                # Update status
+                if isinstance(job, str):
+                    try:
+                        job = json.loads(job)
+                    except Exception as e:
+                        logger.error(f"Job in event queue is a raw string and failed to parse JSON: {e} | job={job}")
+                        self.queue.mark_job_failed(QueueType.EVENT, job, error="Invalid job format")
+                        continue  # skip this bad job
+
+                if not isinstance(job, dict):
+                    logger.error(f"Invalid event job: expected dict but got {type(job)}")
+                    self.queue.mark_job_failed(QueueType.EVENT, job, error="Invalid job format")
+                    continue  # skip this bad job
+
+                # Now safe
+                instagram_handle = job.get('instagram_handle')
+
+                self.status["current_job"] = instagram_handle
+                
+                # Process the job
+                try:
+                    logger.info(f"Processing club {instagram_handle}...")
                     
-                instagram_handle = job['instagram_handle']
+                    # Create and login to scraper
+                    scraper = InstagramScraper(
+                        os.getenv("INSTAGRAM_USERNAME"),
+                        os.getenv("INSTAGRAM_PASSWORD")
+                    )
+                    scraper.login()
+                    
+                    # Perform scraping with retries
+                    scraper = scrape_with_retries(scraper, instagram_handle)
+                    
+                    # Update last scraped time in database
+                    self.update_club_last_scraped(instagram_handle)
+                    
+                    # Enqueue for event processing
+                    self.queue.enqueue_job(QueueType.EVENT, {'instagram_handle': instagram_handle})
+                    
+                    # Mark as complete
+                    self.queue.mark_job_complete(QueueType.SCRAPER, instagram_handle)
+                    
+                    # Update statistics
+                    self.status["jobs_completed"] += 1
+                    self.status["current_job"] = None
+                    
+                    # Check for rate limiting
+                    rate_limit_level = self.check_recent_rate_limits()
+                    
+                    if rate_limit_level == 2:
+                        # Severe rate limiting
+                        cooldown_hours = 12
+                        logger.warning(f"🚨 Severe rate limits detected! Cooling down for {cooldown_hours} hours...")
+                        self.set_rate_limit(cooldown_hours * 3600)
+                        continue
+                    elif rate_limit_level == 1:
+                        # Mild rate limiting
+                        cooldown_hours = 6
+                        logger.warning(f"⚠️ Mild rate limits detected. Cooling down for {cooldown_hours} hours...")
+                        self.set_rate_limit(cooldown_hours * 3600)
+                        continue
+                    
+                    # Random delay to avoid detection
+                    delay = random.uniform(2, 5)
+                    time.sleep(delay)
+                    
+                except RateLimitDetected as rl:
+                    logger.error(f"🚨 [RATE LIMIT DETECTED] Cooling down scraper for 12 hours... {rl}")
+                    self.queue.requeue_job(instagram_handle)
+                    self.set_rate_limit(12 * 3600)
+                    
+                except Exception as e:
+                    logger.error(f"Error scraping {instagram_handle}: {e}")
+                    self.queue.mark_job_failed(QueueType.SCRAPER, instagram_handle, error=str(e))
+                    self.status["jobs_failed"] += 1
+                    self.status["last_error"] = str(e)
+                
+            except Exception as e:
+                logger.error(f"Error in scraper worker: {e}")
+                time.sleep(30)  # Sleep before retrying
+                
+        logger.info("Scraper worker stopped")
+    
+    def event_processing_worker(self):
+        """Worker function that runs in a thread to process event jobs"""
+        logger.info("Event worker started")
+        self.queue.publish_notification("Event worker started", {})
+        
+        while self.running and not self.stop_event.is_set():
+            try:
+                # Check if we're paused
+                if self.paused:
+                    time.sleep(5)
+                    continue
+                
+                # Requeue stalled event jobs
+                self.queue.requeue_stalled_jobs(QueueType.EVENT)
+                
+                # Get the next job
+                job = self.queue.get_next_job(QueueType.EVENT)
+                
+                if not job:
+                    # No jobs available, sleep for a bit
+                    time.sleep(10)
+                    continue
+                
+                instagram_handle = job.get('instagram_handle')
                 
                 try:
                     logger.info(f"Processing events for {instagram_handle}")
@@ -79,15 +378,224 @@ class ScraperRotation:
                     calendar.create_calendar_file(instagram_handle)
                     
                     # Mark job as complete
-                    self.queue.mark_event_complete(instagram_handle)
+                    self.queue.mark_job_complete(QueueType.EVENT, instagram_handle)
+                    self.status["events_processed"] += 1
                     
                 except Exception as e:
                     logger.error(f"Error processing events for {instagram_handle}: {e}")
-                    self.queue.mark_event_failed(instagram_handle, error=str(e))
+                    self.queue.mark_job_failed(QueueType.EVENT, instagram_handle, error=str(e))
+                    self.status["events_failed"] += 1
                     
             except Exception as e:
                 logger.error(f"Error in event processing worker: {e}")
                 time.sleep(30)  # Sleep before retrying
+                
+        logger.info("Event worker stopped")
+    
+    def monitor_worker(self):
+        """Worker that monitors queues, checks for stalled jobs, and processes streams"""
+        logger.info("Monitor worker started")
+        self.queue.publish_notification("Monitor worker started", {})
+        
+        # Set up scheduled tasks
+        self.setup_scheduled_tasks()
+        
+        while self.running and not self.stop_event.is_set():
+            try:
+                # Run pending scheduled tasks
+                schedule.run_pending()
+                
+                # Process stream updates
+                if not self.paused:
+                    self.process_streams()
+                
+                # Update status
+                self.update_status()
+                
+                # Sleep for a bit
+                time.sleep(5)
+                
+            except Exception as e:
+                logger.error(f"Error in monitor worker: {e}")
+                time.sleep(30)  # Sleep before retrying
+                
+        logger.info("Monitor worker stopped")
+    
+    def log_processor_worker(self):
+        """Worker that processes logs from the log queue"""
+        logger.info("Log processor worker started")
+        
+        while self.running and not self.stop_event.is_set():
+            try:
+                # Process logs from the queue
+                processed_count = self.queue.process_log_queue()
+                
+                if processed_count > 0:
+                    logger.debug(f"Processed {processed_count} log entries")
+                
+                # Sleep for a bit
+                time.sleep(5)
+                
+            except Exception as e:
+                logger.error(f"Error in log processor worker: {e}")
+                time.sleep(30)  # Sleep before retrying
+                
+        logger.info("Log processor worker stopped")
+    
+    # ---------- Helper methods ----------
+    
+    def populate_queue(self):
+        """Get clubs from database and add to queue"""
+        logger.info("Starting to populate queue...")
+        
+        try:
+            clubs_to_scrape = self.get_clubs_to_scrape()
+            added_count = 0
+            
+            for username in clubs_to_scrape:
+                if self.queue.enqueue_job(QueueType.SCRAPER, {'instagram_handle': username}):
+                    added_count += 1
+            
+            logger.info(f"Finished populating queue with {added_count} clubs")
+            self.queue.publish_notification("Queue populated", {
+                "count": added_count,
+                "source": "auto"
+            })
+            
+            return added_count
+        except Exception as e:
+            logger.error(f"Error populating queue: {e}")
+            return 0
+    
+    def set_rate_limit(self, duration_seconds):
+        """Set rate limit for a specific duration"""
+        self.rate_limited = True
+        self.rate_limit_end_time = time.time() + duration_seconds
+        end_time = datetime.datetime.fromtimestamp(self.rate_limit_end_time).strftime("%Y-%m-%d %H:%M:%S")
+        
+        self.status["rate_limited_until"] = end_time
+        
+        logger.warning(f"Rate limit set until {end_time} ({duration_seconds // 3600} hours)")
+        self.queue.publish_notification("Rate limit activated", {
+            "duration_hours": duration_seconds // 3600,
+            "end_time": end_time
+        })
+    
+    def process_streams(self):
+        """Process notification and status streams from Redis"""
+        try:
+            # Process notifications (10 at a time)
+            notifications = self.queue.read_notifications(self.last_notification_id, count=10)
+            
+            for notification in notifications:
+                self.last_notification_id = notification["id"]
+                
+                # Process notification based on type
+                payload = notification.get("payload", {})
+                notification_type = payload.get("data", {}).get("type")
+                
+                # Handle specific notification types
+                if notification_type == "command" and not self.paused:
+                    command = payload.get("data", {}).get("command")
+                    self.handle_command(command, payload.get("data", {}))
+            
+            # Process status updates (10 at a time)
+            status_updates = self.queue.read_status_updates(self.last_status_id, count=10)
+            
+            for update in status_updates:
+                self.last_status_id = update["id"]
+                
+                # Process status update
+                # (This could be extended with specific status handling)
+            
+        except Exception as e:
+            logger.error(f"Error processing streams: {e}")
+    
+    def handle_command(self, command, data):
+        """Handle commands received via the notification stream"""
+        logger.info(f"Received command: {command}")
+        
+        try:
+            if command == "stop":
+                self.stop()
+            elif command == "pause":
+                self.pause()
+            elif command == "resume":
+                self.resume()
+            elif command == "populate_queue":
+                self.populate_queue()
+            elif command == "flush_queue":
+                queue_type_str = data.get("queue_type", "scraper")
+                queue_type = getattr(QueueType, queue_type_str.upper(), QueueType.SCRAPER)
+                count = self.queue.flush_queue(queue_type)
+                logger.info(f"Flushed {count} jobs from {queue_type.value} queue")
+            elif command == "add_club":
+                instagram_handle = data.get("instagram_handle")
+                priority = data.get("priority", 0)
+                if instagram_handle:
+                    result = self.queue.enqueue_job(
+                        QueueType.SCRAPER,
+                        {'instagram_handle': instagram_handle},
+                        priority=priority
+                    )
+                    if result:
+                        logger.info(f"Added club {instagram_handle} to queue with priority {priority}")
+                    else:
+                        logger.error(f"Failed to add club {instagram_handle} to queue")
+            elif command == "trigger_clean":
+                self.trigger_cleanup()
+            else:
+                logger.warning(f"Unknown command: {command}")
+        
+        except Exception as e:
+            logger.error(f"Error handling command {command}: {e}")
+    
+    def update_status(self):
+        """Update status information"""
+        try:
+            # Only update every 30 seconds to avoid too much overhead
+            if time.time() - self.status["last_status_update"] < 30:
+                return
+            
+            # Get queue stats
+            scraper_stats = self.queue.get_queue_status(QueueType.SCRAPER)
+            event_stats = self.queue.get_queue_status(QueueType.EVENT)
+            
+            status = {
+                "scraper_state": "rate_limited" if self.rate_limited else 
+                                "paused" if self.paused else 
+                                "running" if self.running else "stopped",
+                "rate_limited_until": self.status["rate_limited_until"],
+                "current_job": self.status["current_job"],
+                "jobs_completed": self.status["jobs_completed"],
+                "jobs_failed": self.status["jobs_failed"],
+                "events_processed": self.status["events_processed"],
+                "events_failed": self.status["events_failed"],
+                "last_error": self.status["last_error"],
+                "last_status_update": time.time(),
+                "scraper_queue": scraper_stats,
+                "event_queue": event_stats
+            }
+            
+            # Update local status
+            self.status = status
+            
+            # Publish status update (every ~5 minutes)
+            if time.time() % 300 < 30:
+                self.queue.publish_status("status_update", status)
+            
+        except Exception as e:
+            logger.error(f"Error updating status: {e}")
+    
+    def setup_scheduled_tasks(self):
+        """Set up scheduled maintenance tasks"""
+        # Requeue stalled jobs every 30 minutes
+        schedule.every(30).minutes.do(self.queue.requeue_stalled_jobs, QueueType.SCRAPER)
+        schedule.every(30).minutes.do(self.queue.requeue_stalled_jobs, QueueType.EVENT)
+        
+        # Refresh club search vector every 12 hours
+        schedule.every(12).hours.do(self.refresh_club_search_vector)
+    
     def check_recent_rate_limits(self, window_minutes=30) -> int:
         """
         Checks for recent rate limits and returns an intensity level:
@@ -102,7 +610,7 @@ class ScraperRotation:
             now = datetime.datetime.now()
             count = 0
             for line in reversed(lines):
-                if "Possible rate limit detected" in line:
+                if "Possible rate limit detected" in line or "RATE LIMIT DETECTED" in line:
                     timestamp_str = line.split(' - ')[0]
                     try:
                         timestamp = datetime.datetime.fromisoformat(timestamp_str)
@@ -123,67 +631,7 @@ class ScraperRotation:
         except Exception as e:
             logger.error(f"Error checking for rate limits: {e}")
             return 0
-
-                
-    def process_queue(self):
-        """Process clubs from the queue."""
-        logger.info("Starting to process queue...")
-
-        while True:
-            # Requeue stuck jobs
-            self.queue.requeue_stalled()
-            self.queue.requeue_stalled_event_jobs()
-
-            job = self.queue.get_next_club()
-
-            if not job:
-                logger.info("Queue empty. Sleeping 6 hours before retrying...")
-                time.sleep(6 * 60 * 60)  # Sleep for 6 hours
-                logger.info("Waking up and repopulating queue...")
-                self.populate_queue()
-                continue
-
-            instagram_handle = job['instagram_handle']
-            logger.info(f"Processing club {instagram_handle}...")
-
-            try:
-                scraper = InstagramScraper(
-                    os.getenv("INSTAGRAM_USERNAME"), 
-                    os.getenv("INSTAGRAM_PASSWORD")
-                )
-                scraper.login()
-
-                scraper = scrape_with_retries(scraper, instagram_handle)
-
-                self.update_club_last_scraped(instagram_handle)
-                self.queue.enqueue_event_job(instagram_handle)
-                self.queue.mark_complete(instagram_handle)
-
-                delay = random.uniform(2, 5)
-                time.sleep(delay)
-
-                rate_limit_level = self.check_recent_rate_limits()
-
-                if rate_limit_level == 2:
-                    logger.warning("🚨 Severe rate limits detected! Cooling down for 12 hours...")
-                    time.sleep(12 * 60 * 60)
-                    continue
-                elif rate_limit_level == 1:
-                    logger.warning("⚠️ Mild rate limits detected. Cooling down for 6 hours...")
-                    time.sleep(6 * 60 * 60)
-                    continue
-
-            except RateLimitDetected as rl:
-                logger.error(f"🚨 [RATE LIMIT DETECTED] Cooling down scraper for 12 hours... {rl}")
-                self.queue.requeue_job(instagram_handle)
-                time.sleep(12 * 60 * 60)
-
-            except Exception as e:
-                logger.error(f"Error scraping {instagram_handle}: {e}")
-                self.queue.mark_failed(instagram_handle, error=str(e))
-
-                        
-            
+    
     def get_clubs_to_scrape(self) -> List[str]:
         """
         Get a list of Instagram handles to scrape, prioritizing:
@@ -222,7 +670,6 @@ class ScraperRotation:
         except Exception as e:
             logger.error(f"Error selecting clubs to scrape: {e}")
             return []
-
     
     def update_club_last_scraped(self, instagram_handle: str):
         """Update the last_scraped timestamp for a club"""
@@ -235,230 +682,49 @@ class ScraperRotation:
         except Exception as e:
             logger.error(f"Error updating last_scraped for {instagram_handle}: {e}")
     
-    def scrape_club_batch(self, usernames: List[str]):
-        """Scrape a batch of clubs with a single scraper instance"""
-        if not usernames:
-            return []
-            
-        successful_scrapes = []
+    def refresh_club_search_vector(self):
+        """Refresh the search vector for clubs in the database"""
         try:
-            # Initialize scraper
-            scraper = InstagramScraper(
-                os.getenv("INSTAGRAM_USERNAME"), 
-                os.getenv("INSTAGRAM_PASSWORD")
-            )
-            scraper.login()
-            
-            # Process each club
-            logger.info(f"Processing batch of {len(usernames)} clubs...")
-            for username in usernames:
-                try:
-                    logger.info(f"Scraping {username}...")
-                    scraper = scrape_sequence([username])
-                    
-                    # Update last_scraped timestamp in database
-                    self.update_club_last_scraped(username)
-                    successful_scrapes.append(username)
-                    
-                    # Random delay between scrapes to avoid detection
-                    delay = random.uniform(2, 5)
-                    time.sleep(delay)
-                    
-                except Exception as e:
-                    logger.error(f"Error scraping {username}: {e}")
-                    continue
-            
-            # Clean up
-            logger.info(f"Successfully scraped {username}")
-            
-            scraper._driver_quit()
-            
-        except Exception as e:
-            logger.error(f"Batch error: {e}")
-        
-        return successful_scrapes
-    
-    def run_scraping_session(self):
-        """Run a complete scraping session with batched processing"""
-        start_time = datetime.datetime.now()
-        logger.info(f"Starting scraping session at {start_time}")
-        
-        
-        try:
-            # Get clubs to scrape
-            clubs_to_scrape = self.get_clubs_to_scrape()
-            if not clubs_to_scrape:
-                logger.info("No clubs to scrape at this time")
-                return
-                
-            # Divide clubs into batches for parallel processing
-            batch_size = len(clubs_to_scrape) // self.max_threads
-            if batch_size == 0:
-                batch_size = 1
-                
-            batches = [clubs_to_scrape[i:i + batch_size] for i in range(0, len(clubs_to_scrape), batch_size)]
-            logger.info(f"Divided {len(clubs_to_scrape)} clubs into {len(batches)} batches")
-            
-            # Process batches
-            successful_scrapes = []
-            
-            if self.max_threads > 1:
-                # Parallel processing with ThreadPoolExecutor
-                with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
-                    futures = [executor.submit(self.scrape_club_batch, batch) for batch in batches]
-                    
-                    for future in futures:
-                        successful_scrapes.extend(future.result())
-            else:
-                # Sequential processing
-                for batch in batches:
-                    successful_scrapes.extend(self.scrape_club_batch(batch))
-            
-            # Process events for successful scrapes
-            self.process_events(successful_scrapes)
-
-
-            
-        except Exception as e:
-            logger.error(f"Session error: {e}")
-        finally:
-            end_time = datetime.datetime.now()
-            duration = end_time - start_time
-            logger.info(f"Scraping session completed in {duration}. Sleeping until next session.")
             self.db.supabase.rpc('refresh_club_search_vector').execute()
+            logger.info("Refreshed club search vector")
+            return True
+        except Exception as e:
+            logger.error(f"Error refreshing club search vector: {e}")
+            return False
+    
+    def trigger_cleanup(self):
+        """Trigger database cleanup operations"""
+        try:
+            # Clean up orphaned records
+            self.db.supabase.rpc('cleanup_orphaned_records').execute()
+            logger.info("Cleaned up orphaned records")
+            
+            # Refresh materialized views if needed
 
-    
-    def process_events(self, usernames: List[str]):
-        """Process events for the successfully scraped clubs"""
-        try:
-            # Create the event parser
-            parser = EventParser()
-            calendar = CalendarConnection()
+            # Publish notification
+            self.queue.publish_notification("Database cleanup completed", {
+                "timestamp": time.time()
+            })
             
-            for username in usernames:
-                try:
-                    logger.info(f"Parsing posts for {username}")
-                    parser.parse_all_posts(username)
-                    
-                    # Generate calendar files
-                    logger.info(f"Generating calendar for {username}")
-                    calendar.create_calendar_file(username)
-                    
-                except Exception as e:
-                    logger.error(f"Error processing events for {username}: {e}")
+            return True
         except Exception as e:
-            logger.error(f"Error in process_events: {e}")
-    
-    def calculate_next_scrape(self, instagram_handle: str) -> datetime.datetime:
-        """
-        Calculate the next scheduled scrape time for a club based on activity level
-        
-        This is a more advanced feature that can be used later to optimize scraping schedule
-        """
-        try:
-            # Get the club info
-            club = self.db.get_club_by_instagram(instagram_handle)
-            if not club:
-                return datetime.datetime.now() + datetime.timedelta(hours=self.cooldown_hours)
-                
-            # Get the posts count and last post date
-            post_count = club.get("post_count", 0)
-            followers = club.get("followers", 0)
-            
-            # Calculate the base scrape frequency in hours
-            # More followers and posts = scrape more frequently
-            base_frequency = self.cooldown_hours
-            
-            # Adjust for follower count (popular clubs get scraped more often)
-            if followers > 1000:
-                base_frequency *= 0.7  # 30% reduction in time between scrapes
-            elif followers > 500:
-                base_frequency *= 0.85  # 15% reduction
-                
-            # Adjust for post frequency
-            if post_count > 100:
-                base_frequency *= 0.8  # 20% reduction for active clubs
-                
-            # Calculate the next scrape time
-            last_scraped = club.get("last_scraped")
-            if last_scraped:
-                # Convert string to datetime if needed
-                if isinstance(last_scraped, str):
-                    last_scraped = datetime.datetime.fromisoformat(last_scraped.replace('Z', '+00:00'))
-                
-                next_scrape = last_scraped + datetime.timedelta(hours=base_frequency)
-            else:
-                next_scrape = datetime.datetime.now()
-                
-            return next_scrape
-            
-        except Exception as e:
-            logger.error(f"Error calculating next scrape for {instagram_handle}: {e}")
-            # Default to cooldown period
-            return datetime.datetime.now() + datetime.timedelta(hours=self.cooldown_hours)
-    
-    def schedule_scraping(self):
-        """Schedule regular scraping sessions"""
-        # Run initial session immediately
-        self.run_scraping_session()
-        
-        # Schedule future sessions
-        schedule.every(self.session_cooldown_hours).hours.do(self.run_scraping_session)
-        
-        # Keep the scheduler running
-        while True:
-            schedule.run_pending()
-            time.sleep(60)  # Check every minute
+            logger.error(f"Error during database cleanup: {e}")
+            return False
     
     def run(self):
-        """Main method to run the scraper rotation"""
-        # Start the event processing thread
-        self.start_event_processing_thread()
+        """Main method to run the scraper rotation - legacy compatibility"""
+        self.start()
         
-        while True:
-            try:
-                # Populate the queue with fresh clubs
-                self.populate_queue()
-                
-                # Process the queue
-                self.process_queue()
-                
-            except Exception as e:
-                logger.error(f"Error in main loop: {e}")
-                time.sleep(60)  # Sleep before retrying
-
+        # Keep main thread alive
+        try:
+            while self.running:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Keyboard interrupt received, stopping...")
+            self.stop()
+        
+        logger.info("Scraper rotation terminated")
+        
 
 if __name__ == "__main__":
-    rotation = ScraperRotation()
-
-    if os.environ.get("DYNO"):
-        dyno_type = os.environ.get("DYNO_TYPE", "").lower()
-        if "performance" in dyno_type:
-            rotation.max_threads = 4
-        elif "standard-2x" in dyno_type:
-            rotation.max_threads = 2
-        else:
-            rotation.max_threads = 1
-
-    rotation.start_event_processing_thread()
-    rotation.populate_queue()
-    
-    # Start the initial scraping session
-    rotation.run_scraping_session()
-    
-    # Now set up scheduled scraping every few hours
-    schedule.every(rotation.session_cooldown_hours).hours.do(rotation.run_scraping_session)
-
-    # Main loop
-    while True:
-        try:
-            # Keep checking for jobs
-            rotation.process_queue()
-
-            # Also run any scheduled jobs
-            schedule.run_pending()
-
-            time.sleep(60)  # Sleep a bit between checks
-        except Exception as e:
-            logger.error(f"Error in main scheduler loop: {e}")
-            time.sleep(60)
+    ScraperRotation().run()

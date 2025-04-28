@@ -59,16 +59,11 @@ class InstagramScraper:
                 
     
     def _create_driver(self, chrome_options):
-        from selenium.webdriver.chrome.service import Service
-
-        # 🔥 Set Chrome binary location
-        if os.environ.get('DYNO'):
-            chrome_options.binary_location = os.getenv('GOOGLE_CHROME_BIN')
-        
-        # 🔥 Set Chromedriver path
-        service = Service(executable_path=os.getenv('CHROMEDRIVER_PATH'))
-        
+        # Initialize WebDriver
+        #For heroku: '/app/.chrome-for-testing/chromedriver-linux64/chromedriver'
+        service = Service()
         driver = webdriver.Chrome(service=service, options=chrome_options)
+        
         return driver
     
     def __enter__(self):
@@ -144,6 +139,15 @@ class InstagramScraper:
         except WebDriverException as e:
             logger.error(f"Error during login: {e}", exc_info=True)
             self._driver_quit()
+    def _parse_count(self, count_str):
+        count_str = count_str.replace(',', '').upper()
+        if 'K' in count_str:
+            return int(float(count_str.replace('K', '')) * 1000)
+        elif 'M' in count_str:
+            return int(float(count_str.replace('M', '')) * 1_000_000)
+        else:
+            return int(count_str)
+
 
     def store_club_data(self, club_username: str) -> bool:
         """
@@ -204,12 +208,13 @@ class InstagramScraper:
         """Main method to scrape post information."""
         description = ""
         date = ""
+        img_src = None  # <-- default
 
         try:
             self._driver.get(post_url)
             self._wait.until(EC.presence_of_element_located((By.XPATH,
-                                                             "//h1[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu')]")))
-            
+                                                            "//h1[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu')]")))
+
             post_source = self._driver.page_source
             post_soup = BeautifulSoup(post_source, 'html.parser')
 
@@ -218,31 +223,26 @@ class InstagramScraper:
             description = h1_element.text if h1_element else ""
             logger.info(f"description found!: {description}") if description else logger.info(f"no description found!")
 
-
-
             # looks for post time
             post_time = post_soup.find('time', class_="_a9ze _a9zf")
-            date = post_time['datetime']
-            img_src = 0
+            date = post_time['datetime'] if post_time else ""
             logger.info(f"date found!: {date}") if date else logger.info(f"no date found!")
 
-            
             # look for post pic
             img_tag = post_soup.find('img', class_="x5yr21d xu96u03 x10l6tqk x13vifvy x87ps6o xh8yej3")
 
-            if not img_tag:
+            if img_tag:
+                img_src = img_tag.get('src', 'http://www.w3.org/2000/svg')
+            else:
                 logger.warning("Image source missing, possible rate limit.")
                 raise RateLimitDetected("Instagram rate limit suspected: no image found.")
 
-            img_src = img_tag.get('src', 'http://www.w3.org/2000/svg')
-            
-            
         except WebDriverException as e:
             logger.error(f"Error fetching post info: {str(e)}")
-            
 
         return description, date, img_src
-    
+
+        
     
 
     def save_post_info(self, club_username: str):
@@ -476,12 +476,9 @@ class InstagramScraper:
         # Extract follower, following, and post counts
 
         counts = parts[0].split(', ')
-        followers_count = counts[0].split(' ')[0].replace(',', '')
-        logger.info("obtained follower count...")
-        following_count = counts[1].split(' ')[0].replace(',', '')
-        logger.info("obtained following count...")
-        posts_count = counts[2].split(' ')[0].replace(',', '')
-        logger.info("obtained post count...")
+        followers_count = self._parse_count(counts[0].split(' ')[0])
+        following_count = self._parse_count(counts[1].split(' ')[0])
+        posts_count = self._parse_count(counts[2].split(' ')[0])
 
         # The rest of the string is the description
         club_description = parts[1:]
@@ -728,7 +725,6 @@ if __name__ == "__main__":
 
         dotenv.load_dotenv()
         starttime = time.time()
-        multi_threaded_scrape(['_openjam_'], 1)
         
     
 
