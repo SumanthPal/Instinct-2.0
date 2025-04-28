@@ -183,9 +183,8 @@ async def approve_pending_club(pending_id: str, request: Request):
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    supabase_user = await db.get_user_from_token(auth_header)  
-    if not supabase_user:
-        raise HTTPException(status_code=401, detail="Invalid Supabase token")
+    if auth_header != f"Bearer {db.SUPABASE_KEY}":
+        raise HTTPException(status_code=401, detail="Invalid service token")
 
     # 2. Fetch pending club
     try:
