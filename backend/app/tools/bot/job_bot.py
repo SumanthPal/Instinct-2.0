@@ -45,7 +45,7 @@ job_bot = commands.Bot(command_prefix=JOB_BOT_PREFIX, intents=intents)
 db = SupabaseQueries()
 
 # Redis connection (shared resource)
-redis_url = os.getenv('REDIS_UL', 'redis://localhost:6379')
+redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
 redis_conn = redis.from_url(redis_url)
 
 # Redis queue key names
