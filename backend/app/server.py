@@ -235,7 +235,7 @@ async def approve_pending_club(pending_id: str, request: Request):
                     category_id = cat_response.data[0]["id"]
                     
                     # Insert association
-                    db.supabase.table("club_categories").insert({
+                    db.supabase.table("clubs_categories").insert({
                         "club_id": new_club_id,
                         "category_id": category_id
                     }).execute()

@@ -39,28 +39,51 @@ const About = () => {
 
 
         {/* Our Team Section */}
-        <div className="mb-16">
-          <h2 className="text-5xl font-bold mb-6 text-gray-900 dark:text-dark-text">Our Team</h2>
-          <div className="flex justify-center gap-16">
-            <div className="flex flex-col items-center">
-              <img src="/sumanth.jpg" alt="Sumanth Pallamreddy" className="w-24 h-24 rounded-full object-cover object-center transform transition-all duration-300 hover:scale-110" />
-              <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-dark-text">Sumanth Pallamreddy</p>
-              <p className="text-lg text-gray-700 dark:text-dark-subtext">Founder & Developer</p>
-              {/* Social Links */}
-              <div className="mt-4 flex space-x-6">
-                <a href="https://www.linkedin.com/in/sumanth-p-88271b239" target="_blank" rel="noopener noreferrer">
-                  <FaLinkedin className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-blue-700 dark:hover:text-blue-500" />
-                </a>
-                <a href="https://github.com/SumanthPal" target="_blank" rel="noopener noreferrer">
-                  <FaGithub className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-gray-700 dark:hover:text-gray-200" />
-                </a>
-                <a href="https://x.com/lifeofsumpal_" target="_blank" rel="noopener noreferrer">
-                  <FaXTwitter className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-gray-700 dark:hover:text-gray-200" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div className="mb-24">
+  <h2 className="text-5xl font-bold mb-12 text-center text-gray-900 dark:text-dark-text">Our Team</h2>
+
+  {/* Founder Section */}
+  <div className="flex flex-col items-center mb-24">
+    <img src="/sumanth.jpg" alt="Sumanth Pallamreddy" className="w-32 h-32 rounded-full object-cover object-center transform transition-all duration-300 hover:scale-110" />
+    <p className="mt-6 text-2xl font-semibold text-gray-900 dark:text-dark-text">Sumanth Pallamreddy</p>
+    <p className="text-lg text-gray-700 dark:text-dark-subtext">Founder | Developer | Engineer</p>
+
+    {/* Social Links */}
+    <div className="mt-4 flex space-x-6">
+      <a href="https://www.linkedin.com/in/sumanth-p-88271b239" target="_blank" rel="noopener noreferrer">
+        <FaLinkedin className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-blue-700 dark:hover:text-blue-500" />
+      </a>
+      <a href="https://github.com/SumanthPal" target="_blank" rel="noopener noreferrer">
+        <FaGithub className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-gray-700 dark:hover:text-gray-200" />
+      </a>
+      <a href="https://x.com/lifeofsumpal_" target="_blank" rel="noopener noreferrer">
+        <FaXTwitter className="w-6 h-6 text-gray-900 dark:text-dark-text hover:text-gray-700 dark:hover:text-gray-200" />
+      </a>
+    </div>
+  </div>
+
+  {/* DevOps & Operations Section */}
+  <div>
+    <h3 className="text-4xl font-bold mb-12 text-center text-gray-900 dark:text-dark-text">DevOps & Operations</h3>
+
+    <div className="flex flex-wrap justify-center gap-16">
+      {/* Bot 1 */}
+      <div className="flex flex-col items-center">
+        <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-dark-text">Queuetie</p>
+        <p className="text-center text-lg text-gray-700 dark:text-dark-subtext">Task Orchestrator<br />and Queue Manager</p>
+      </div>
+
+      {/* Bot 2 */}
+      <div className="flex flex-col items-center">
+        <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-dark-text">Fixie Bixie</p>
+        <p className="text-center text-lg text-gray-700 dark:text-dark-subtext">Moderation Workflow<br />and Infrastructure Monitoring Bot</p>
+      </div>
+    </div>
+  </div>
+  </div>
+
+
+  
 
         {/* Technical Details Section */}
         <div className="mb-24">

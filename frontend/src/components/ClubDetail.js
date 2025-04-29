@@ -300,14 +300,15 @@ export default function ClubDetail({ clubData, initialClubPosts, initialClubEven
                         className="relative w-full h-48 sm:h-64 lg:h-80 cursor-pointer"
                         onClick={() => handleImageClick(post.image_url)}
                       >
-                        <Image
-                          src={post.image_url}
-                          alt="Post Image"
-                          fill
-                          className="rounded-lg object-cover"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          loading="lazy"
-                        />
+                       <Image
+  src={post.image_url}
+  alt="Post Image"
+  fill
+  className="rounded-lg object-cover"
+  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+  loading="lazy"
+
+/>
                       </div>
                     ) : (
                       <div className="w-full h-48 sm:h-64 lg:h-80 bg-gray-300 dark:bg-[#4D4855] flex items-center justify-center rounded-lg">

@@ -85,18 +85,22 @@ def is_admin():
     async def predicate(ctx):
         # Check if user has admin role
         if ctx.guild is None:
-            await ctx.send("srry idek u")
+            await ctx.send("uhhh srry these cmds dont work here 😖 pls try in a server!")
             return False
         
         admin_role = ctx.guild.get_role(AUX_BOT_ADMIN_ROLE_ID)
         if admin_role is None:
-            await ctx.send("umm this is awkward... ur not given permission")
+            await ctx.send("hmmm i don't think u have the ~special~ pass 🚫✨ can't let u run thattt 😅")
             return False
         
-        return admin_role in ctx.author.roles
+        if admin_role not in ctx.author.roles:
+            await ctx.send("u gotta be a lil more official lil bro for this onee 🫣 admin onlyyy")
+            return False
+        
+        return True  # allowed!
     
     return commands.check(predicate)
-# security_checks.py or just at top of bot file
+
 
 
 @aux_bot.event
@@ -924,137 +928,9 @@ async def help_cmd(ctx):
     
     await ctx.send(embed=embed)
 
-class QueuePaginationView(View):
-    def __init__(self, jobs: list, ctx, queue_type, items_per_page: int = 10):
-        super().__init__(timeout=120)
-        self.jobs = jobs
-        self.ctx = ctx
-        self.queue_type = queue_type
-        self.page = 0
-        self.items_per_page = items_per_page
-        self.selected_jobs = []  # To store selected jobs temporarily
-        
-        # Add select menu separately so we can conditionally include it
-        self.has_select = len(jobs) > 0
-        if self.has_select:
-            self.setup_select_menu()
-
-    def setup_select_menu(self):
-        start_idx = self.page * self.items_per_page
-        end_idx = start_idx + self.items_per_page
-        page_jobs = self.jobs[start_idx:end_idx]
-        
-        # Create a new select menu
-        select = Select(
-            placeholder="Select clubs to delete ❌",
-            min_values=1,
-            max_values=min(len(page_jobs), 10)
-        )
-        
-        # Set the options
-        select.options = [
-            discord.SelectOption(label=f"@{handle}", value=handle) for handle in page_jobs
-        ]
-        
-        # Set the callback
-        select.callback = self.select_callback
-        
-        # Add to view
-        self.add_item(select)
-        self.select = select
-    
-    async def select_callback(self, interaction: discord.Interaction):
-        self.selected_jobs = self.select.values
-        await interaction.response.send_message(
-            f"selected for deletion: {', '.join(self.selected_jobs)}", ephemeral=True
-        )
-
-    def create_embed(self):
-        start_idx = self.page * self.items_per_page
-        end_idx = start_idx + self.items_per_page
-        page_jobs = self.jobs[start_idx:end_idx]
-
-        embed = discord.Embed(
-            title=f"📚 {self.queue_type.capitalize()} Queue - Page {self.page + 1}",
-            color=0xF8C8D8,
-            description="\n".join(
-                [f"{i+1+start_idx}. @{handle}" for i, handle in enumerate(page_jobs)]
-            )
-        )
-        embed.set_footer(text=f"Total Jobs: {len(self.jobs)}")
-        return embed
-
-    @discord.ui.button(label="⬅️ Prev", style=discord.ButtonStyle.secondary)
-    async def previous_page(self, interaction: discord.Interaction, button: Button):
-        if self.page > 0:
-            self.page -= 1
-            
-            # Update the view for the new page if we have a select menu
-            if self.has_select:
-                # Remove old select menu
-                for item in self.children:
-                    if isinstance(item, Select):
-                        self.remove_item(item)
-                
-                # Create new select menu for the current page
-                self.setup_select_menu()
-            
-            await interaction.response.edit_message(embed=self.create_embed(), view=self)
-
-    @discord.ui.button(label="➡️ Next", style=discord.ButtonStyle.secondary)
-    async def next_page(self, interaction: discord.Interaction, button: Button):
-        if (self.page + 1) * self.items_per_page < len(self.jobs):
-            self.page += 1
-            
-            # Update the view for the new page if we have a select menu
-            if self.has_select:
-                # Remove old select menu
-                for item in self.children:
-                    if isinstance(item, Select):
-                        self.remove_item(item)
-                
-                # Create new select menu for the current page
-                self.setup_select_menu()
-            
-            await interaction.response.edit_message(embed=self.create_embed(), view=self)
-
-    @discord.ui.button(label="🗑️ Delete Selected", style=discord.ButtonStyle.danger)
-    async def delete_selected(self, interaction: discord.Interaction, button: Button):
-        if not self.selected_jobs:
-            await interaction.response.send_message("no clubs selected yet! 😭", ephemeral=True)
-            return
-
-        queue_key = QUEUE_KEYS[self.queue_type]["queue"]
-
-        removed = 0
-        for job in self.jobs:
-            if job in self.selected_jobs:
-                try:
-                    # Find the matching raw json job
-                    all_jobs = redis_conn.zrange(queue_key, 0, -1)
-                    for j in all_jobs:
-                        j_data = json.loads(j)
-                        if j_data.get('instagram_handle') == job:
-                            redis_conn.zrem(queue_key, j)
-                            removed += 1
-                            break
-                except Exception as e:
-                    logger.error(f"error removing job: {e}")
-
-        await interaction.response.edit_message(
-            content=f"✅ removed {removed} jobs from {self.queue_type} queue!",
-            embed=None,
-            view=None
-        )
-
-    async def on_timeout(self):
-        for item in self.children:
-            item.disabled = True
-
-
 @aux_bot.command(name="queueactive")
-async def queue_active_cmd(ctx, queue_type: str = "scraper"):
-    """Paginated queue viewer"""
+async def queue_active_cmd(ctx, queue_type: str = "scraper", limit: int = 10):
+    """Show active queue jobs (no pagination)."""
     try:
         if queue_type not in ["scraper", "event"]:
             await ctx.send("only `scraper` or `event` queue is allowed!! 🛠️✨")
@@ -1074,17 +950,59 @@ async def queue_active_cmd(ctx, queue_type: str = "scraper"):
                 job_data = json.loads(job)
                 instagram_handle = job_data.get('instagram_handle', 'unknown')
                 parsed_jobs.append(instagram_handle)
-            except:
+            except Exception:
                 parsed_jobs.append("(invalid job)")
-        
-        # Setup pagination view
-        view = QueuePaginationView(parsed_jobs, ctx, queue_type)
-        
-        await ctx.send(embed=view.create_embed(), view=view)
+
+        # Limit results
+        parsed_jobs = parsed_jobs[:limit]
+
+        # Make the list for display
+        job_list_text = "\n".join(
+            [f"`{i+1}.` @{handle}" for i, handle in enumerate(parsed_jobs)]
+        )
+
+        embed = discord.Embed(
+            title=f"📚 {queue_type.capitalize()} Queue (Top {limit})",
+            description=job_list_text,
+            color=0xF8C8D8
+        )
+        embed.set_footer(text=f"Total in Queue: {len(jobs)}")
+
+        await ctx.send(embed=embed)
 
     except Exception as e:
-        logger.error(f"pagination failed: {e}")
+        logger.error(f"queueactive failed: {e}")
         await ctx.send("something broke 🥲")
+
+@aux_bot.command(name="deletequeue")
+async def delete_queue_cmd(ctx, queue_type: str, index: int):
+    """Delete a club from the queue by its index number."""
+    try:
+        if queue_type not in ["scraper", "event"]:
+            await ctx.send("only `scraper` or `event` queue allowed! 🛠️")
+            return
+
+        queue_key = QUEUE_KEYS[queue_type]["queue"]
+        jobs = redis_conn.zrange(queue_key, 0, -1)
+
+        if not jobs:
+            await ctx.send(f"no jobs in {queue_type} queue rn!")
+            return
+
+        if index < 1 or index > len(jobs):
+            await ctx.send(f"invalid index! choose 1-{len(jobs)} ❌")
+            return
+
+        job_to_delete = jobs[index - 1]
+
+        redis_conn.zrem(queue_key, job_to_delete)
+
+        await ctx.send(f"✅ deleted job #{index} from {queue_type} queue!")
+
+    except Exception as e:
+        logger.error(f"deletequeue failed: {e}")
+        await ctx.send("something broke 🥲")
+
 
 # Run the bot
 if __name__ == "__main__":

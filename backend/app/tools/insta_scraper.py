@@ -266,9 +266,16 @@ class InstagramScraper:
                 post_id = post_data["id"]
                 
                 # NEW: Double-check if post was marked as scrapped by another process
-                if self.db.check_if_post_is_scrapped(post_id):
+                pr = self.db.check_if_post_is_photo_reloaded(post_id)
+                
+                if self.db.check_if_post_is_scrapped(post_id) and pr:
                     logger.info(f"Post {post_id} already scrapped, skipping...")
                     continue
+                
+                if not pr:
+                    logger.info("photo reloade for {club_username} necessary and scrapping")                    
+                    
+                    
                     
                 try:
                     # Scrape post information

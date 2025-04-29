@@ -500,6 +500,21 @@ class SupabaseQueries:
             return response.data[0]["scrapped"]
         return False
 
+    def check_if_post_is_photo_reloaded(self, post_id: str) -> bool:
+        """Check if a post has already been scrapped"""
+        response = (
+            self.supabase
+            .table("posts")
+            .select("photo_reload")
+            .eq("id", post_id)
+            .limit(1)
+            .execute()
+        )
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]["photo_reload"]
+        return False
+    
     async def get_user_from_token(self, token: str):
         # Remove "Bearer " if present
         token = token.replace("Bearer ", "")

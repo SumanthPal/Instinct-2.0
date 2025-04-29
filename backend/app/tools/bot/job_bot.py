@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from discord import ButtonStyle
 from discord.ui import Button, View
 from typing import Dict, List, Optional
+import asyncio
 
 # Path setup
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -1009,6 +1010,320 @@ async def last_errors_cmd(ctx, count: int = 10):
         logger.error(f"uhhh issue in lasterrors cmd: {e}")
         await ctx.send(f"💔 i tripped trying to fetch the errors: `{e}`")
 
+@job_bot.command(name="prettylog")
+@is_admin()
+async def pretty_log_cmd(ctx, count: int = 20):
+    """Show nicely formatted recent logs from Redis"""
+    try:
+        # Validate count
+        if count <= 0 or count > 100:
+            await ctx.send("🤨 please pick a number between 1 and 100, bestie!")
+            return
+        
+        log_entries = redis_conn.lrange('logs:entries', 0, count - 1)
+        
+        if not log_entries:
+            await ctx.send("📝 no logs found right now! system's quiet 💤")
+            return
+        
+        # Format logs nicely
+        formatted_logs = []
+        for entry in log_entries:
+            try:
+                log_data = json.loads(entry.decode('utf-8'))
+                timestamp = log_data.get('timestamp', 'Unknown time')
+                level = log_data.get('level', 'INFO')
+                message = log_data.get('message', 'No message')
+                
+                # Format by log level with emojis
+                if level == "ERROR":
+                    prefix = "🚨"
+                elif level == "WARNING":
+                    prefix = "⚠️"
+                elif level == "INFO":
+                    prefix = "ℹ️"
+                else:
+                    prefix = "📝"
+                
+                # Add to formatted logs
+                formatted_logs.append(f"{prefix} **{timestamp.split('T')[1].split('.')[0]}** - {message}")
+            except Exception as e:
+                logger.error(f"Error parsing log entry: {e}")
+                continue
+        
+        # Split into chunks if too many logs
+        log_chunks = [formatted_logs[i:i+10] for i in range(0, len(formatted_logs), 10)]
+        
+        for i, chunk in enumerate(log_chunks):
+            embed = discord.Embed(
+                title=f"✨ Pretty Logs ({i+1}/{len(log_chunks)})",
+                description="\n".join(chunk),
+                color=0x7289DA
+            )
+            await ctx.send(embed=embed)
+            
+    except Exception as e:
+        logger.error(f"Error in prettylog command: {e}")
+        await ctx.send(f"💔 couldn't fetch pretty logs because: `{e}`")
+
+@job_bot.command(name="scrapeinfo")
+async def scrape_info_cmd(ctx, hours: int = 1):
+    """Show scraping statistics for the last N hours"""
+    try:
+        # Validate hours
+        if hours <= 0 or hours > 48:
+            await ctx.send("⏰ please choose between 1 and 48 hours, hun!")
+            return
+        
+        # Get logs from Redis
+        log_entries = redis_conn.lrange('logs:entries', 0, -1)
+        
+        # Set time threshold
+        now = datetime.datetime.now()
+        time_threshold = now - datetime.timedelta(hours=hours)
+        
+        # Initialize counters
+        stats = {
+            "total_clubs_processed": 0,
+            "successful_scrapes": 0,
+            "failed_scrapes": 0,
+            "rate_limits": 0,
+            "processed_clubs": set(),
+            "errors": []
+        }
+        
+        # Process logs
+        for entry in log_entries:
+            try:
+                log_data = json.loads(entry.decode('utf-8'))
+                timestamp = log_data.get('timestamp')
+                message = log_data.get('message', '')
+                level = log_data.get('level', '')
+                
+                # Parse timestamp
+                log_time = datetime.datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                
+                # Skip if older than threshold
+                if log_time < time_threshold:
+                    continue
+                    
+                # Count club processing
+                if "Processing club" in message:
+                    club = message.split("Processing club ")[1].strip().rstrip('.')
+                    stats["processed_clubs"].add(club)
+                    stats["total_clubs_processed"] += 1
+                
+                # Count successful scrapes
+                if "Successfully scraped" in message:
+                    stats["successful_scrapes"] += 1
+                    
+                # Count failures
+                if level == "ERROR" and "club" in message.lower():
+                    stats["failed_scrapes"] += 1
+                    # Store error details (limited to 5)
+                    if len(stats["errors"]) < 5:
+                        stats["errors"].append(message[:100] + "..." if len(message) > 100 else message)
+                
+                # Count rate limits
+                if "rate limit" in message.lower():
+                    stats["rate_limits"] += 1
+                    
+            except Exception:
+                continue
+                
+        # Create embed
+        embed = discord.Embed(
+            title=f"📊 Scraping Stats (Last {hours} hours)",
+            description=f"Here's what's been happening with the scraper in the last {hours} hour(s):",
+            color=0x57F287 if stats["rate_limits"] == 0 else 0xED4245,
+            timestamp=now
+        )
+        
+        embed.add_field(
+            name="🔍 Scraping Activity",
+            value=(
+                f"➔ Total clubs processed: **{stats['total_clubs_processed']}**\n"
+                f"➔ Unique clubs: **{len(stats['processed_clubs'])}**\n"
+                f"➔ Successful scrapes: **{stats['successful_scrapes']}**\n"
+                f"➔ Failed scrapes: **{stats['failed_scrapes']}**\n"
+                f"➔ Rate limits encountered: **{stats['rate_limits']}**"
+            ),
+            inline=False
+        )
+        
+        if stats["processed_clubs"]:
+            # Show some of the clubs (max 10)
+            club_list = list(stats["processed_clubs"])
+            displayed_clubs = club_list[:10]
+            club_text = ", ".join([f"`{club}`" for club in displayed_clubs])
+            
+            if len(club_list) > 10:
+                club_text += f" and {len(club_list) - 10} more..."
+                
+            embed.add_field(
+                name="🏫 Clubs Processed",
+                value=club_text,
+                inline=False
+            )
+            
+        if stats["errors"]:
+            embed.add_field(
+                name="❌ Recent Errors",
+                value="\n".join([f"• {error}" for error in stats["errors"]]),
+                inline=False
+            )
+            
+        await ctx.send(embed=embed)
+            
+    except Exception as e:
+        logger.error(f"Error in scrapeinfo command: {e}")
+        await ctx.send(f"😵‍💫 couldn't get scraping stats because: `{e}`")
+
+# Global state for notification silencing
+notification_state = {
+    "silenced": False,
+    "silenced_until": None,
+    "silenced_by": None
+}
+
+@job_bot.command(name="unsilence")
+@is_admin()
+async def unsilence_cmd(ctx):
+    """Turn notifications back on"""
+    global notification_state
+    
+    try:
+        if not notification_state["silenced"]:
+            await ctx.send("🔊 notifications are already on, bestie!")
+            return
+            
+        # Update silencing state
+        notification_state = {
+            "silenced": False,
+            "silenced_until": None,
+            "silenced_by": None
+        }
+        
+        await ctx.send("🔊 i'm back and louder than ever! notifications turned back ON ✨")
+        
+    except Exception as e:
+        logger.error(f"Error in unsilence command: {e}")
+        await ctx.send(f"😵‍💫 couldn't restore notifications because: `{e}`")
+
+async def auto_unsilence(minutes):
+    """Background task to automatically unsilence after duration"""
+    global notification_state
+    
+    await asyncio.sleep(minutes * 60)  # Convert to seconds
+    
+    # Check if still silenced by the same command
+    if notification_state["silenced"]:
+        # Reset silencing state
+        notification_state = {
+            "silenced": False,
+            "silenced_until": None,
+            "silenced_by": None
+        }
+        
+        # Send notification that silencing is over
+        channel = job_bot.get_channel(JOB_BOT_CHANNEL_ID)
+        if channel:
+            await channel.send("🔊 silence time is OVER! i'm back to my chatty self again ✨")
+            
+@job_bot.command(name="silence")
+@is_admin()
+async def silence_cmd(ctx, duration_minutes: int = 30):
+    """Silence notifications temporarily during scraping"""
+    global notification_state
+    
+    try:
+        # Validate duration
+        if duration_minutes <= 0 or duration_minutes > 120:
+            await ctx.send("⏱️ duration must be between 1 and 120 minutes, please!")
+            return
+        
+        # Calculate end time
+        end_time = datetime.datetime.now() + datetime.timedelta(minutes=duration_minutes)
+        
+        # Update silencing state
+        notification_state = {
+            "silenced": True,
+            "silenced_until": end_time,
+            "silenced_by": ctx.author.name
+        }
+        
+        # Create embed
+        embed = discord.Embed(
+            title="🔕 Notifications Silenced",
+            description=f"I'll be super quiet for the next {duration_minutes} minutes!",
+            color=0x9B59B6,
+            timestamp=datetime.datetime.now()
+        )
+        
+        embed.add_field(
+            name="Details",
+            value=(
+                f"➔ Silenced by: **{ctx.author.name}**\n"
+                f"➔ Silent until: **{end_time.strftime('%H:%M:%S')}**\n"
+                f"➔ Use `!unsilence` to unmute me early!"
+            ),
+            inline=False
+        )
+        
+        embed.set_footer(text="scraping in peace... 💤✨")
+        
+        await ctx.send(embed=embed)
+        
+        # Start a background task to automatically unsilence
+        job_bot.loop.create_task(auto_unsilence(duration_minutes))
+        
+    except Exception as e:
+        logger.error(f"Error in silence command: {e}")
+        await ctx.send(f"💔 couldn't silence notifications: `{e}`")
+# Modify the send_notification and send_error functions to respect silencing
+async def send_notification(embed=None, message=None, file=None):
+    """Send a notification to the main notification channel, respecting silence mode."""
+    # Check if notifications are silenced
+    if notification_state["silenced"]:
+        # Log that a notification was suppressed
+        logger.info(f"Notification suppressed during silence period: {message if message else 'embed notification'}")
+        return
+        
+    channel = job_bot.get_channel(JOB_BOT_CHANNEL_ID)
+    if channel:
+        if embed:
+            await channel.send(embed=embed)
+        elif message:
+            if file:
+                await channel.send(content=message, file=file)
+            else:
+                await channel.send(content=message)
+
+async def send_error(embed=None, message=None, file=None):
+    """Send an error message to the error channel, respecting silence mode for non-critical errors."""
+    # For errors, we'll still send CRITICAL errors even during silence
+    is_critical = False
+    if embed and "CRITICAL" in embed.title:
+        is_critical = True
+    if message and "CRITICAL" in message:
+        is_critical = True
+        
+    # Check if notifications are silenced and this isn't critical
+    if notification_state["silenced"] and not is_critical:
+        # Log that an error notification was suppressed
+        logger.info(f"Error notification suppressed during silence period: {message if message else 'embed error'}")
+        return
+        
+    channel = job_bot.get_channel(JOB_BOT_ERROR_CHANNEL_ID)
+    if channel:
+        if embed:
+            await channel.send(embed=embed)
+        elif message:
+            if file:
+                await channel.send(content=message, file=file)
+            else:
+                await channel.send(content=message)
+
 @job_bot.command(name="systemstatus")
 async def system_status_cmd(ctx):
     """Check system health and send a status embed (girlboss edition 💅)"""
@@ -1257,6 +1572,26 @@ async def help_cmd(ctx):
         embed.add_field(
             name="!massbury[queue_type]",
             value="🧹 delete all jobs in the graveyard (rip but necessary sometimes 💔)",
+            inline=False
+        )
+        embed.add_field(
+        name="!prettylog [count]",
+        value="📝 show logs in a cute, readable format (default: 20)",
+        inline=False
+    )
+        embed.add_field(
+            name="!scrapeinfo [hours]",
+            value="📊 get stats about recent scraping activity (default: last hour)",
+            inline=False
+        )
+        embed.add_field(
+            name="!silence [minutes]",
+            value="🔕 shush notifications during scraping (default: 30 min)",
+            inline=False
+        )
+        embed.add_field(
+            name="!unsilence",
+            value="🔊 turn notifications back on before time's up",
             inline=False
         )
 
