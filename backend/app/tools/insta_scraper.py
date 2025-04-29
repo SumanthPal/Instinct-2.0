@@ -354,8 +354,9 @@ class InstagramScraper:
                     
                     # Check if post already exists
                     existing_post = self.db.get_post_by_instagram_id(instagram_post_id)
+                    existing_img_opt = self.db.get_unscrapped_posts_by_club_id(instagram_post_id)
                     
-                    if existing_post:
+                    if existing_post and existing_img_opt:
                         logger.info(f"Post {instagram_post_id} already exists in database")
                         continue
                     
