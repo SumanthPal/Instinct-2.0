@@ -84,7 +84,6 @@ class ScraperRotation:
         self.start_log_processor_thread()
         
         # Populate queue initially
-        self.populate_queue()
         
         # Set status
         self.status["scraper_state"] = "running"

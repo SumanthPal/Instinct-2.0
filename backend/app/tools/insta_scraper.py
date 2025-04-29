@@ -273,7 +273,7 @@ class InstagramScraper:
                     continue
                 
                 if not pr:
-                    logger.info("photo reloade for {club_username} necessary and scrapping")                    
+                    logger.info("photo reload for {club_username} necessary and scrapping")                    
                     
                     
                     
