@@ -4,7 +4,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**.cdninstagram.com',  // Correct wildcard
+        hostname: '*.cdninstagram.com',  // Correct wildcard
       },
     ],
   },

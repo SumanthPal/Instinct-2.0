@@ -273,7 +273,7 @@ class InstagramScraper:
                     continue
                 
                 if not pr:
-                    logger.info("photo reload for {club_username} necessary and scrapping")                    
+                    logger.info(f"photo reload for {club_username} necessary and scrapping")                    
                     
                     
                     
@@ -347,40 +347,43 @@ class InstagramScraper:
     def _store_post_links(self, club_id: str, club_username: str, post_links: list):
         """Store post links in the database with minimal information"""
         try:
+            stored = 0
             for post_url in post_links:
                 try:
-                    # Extract Instagram post ID from URL
                     instagram_post_id = post_url.split('/')[-2]
-                    
+
                     # Check if post already exists
                     existing_post = self.db.get_post_by_instagram_id(instagram_post_id)
-                    existing_img_opt = self.db.get_unscrapped_posts_by_club_id(instagram_post_id)
                     
-                    if existing_post and existing_img_opt:
-                        logger.info(f"Post {instagram_post_id} already exists in database")
-                        continue
-                    
-                    # Create a minimal post entry with just the URL and ID
+                    if existing_post:
+                        post_id = existing_post.get("id")
+                        # Check if this post still needs to be reloaded
+                        if not self.db.check_if_post_is_photo_reloaded(post_id):
+                            logger.info(f"Post {instagram_post_id} already exists and doesn't need photo reload.")
+                            continue  # Skip storing again
+
+                    # Create or reinsert minimal post entry
                     post_data = {
                         "club_id": club_id,
                         "determinant": instagram_post_id,
-                        "post_id": instagram_post_id,
                         "post_url": post_url,
                         "created_at": datetime.datetime.now().isoformat(),
-                        "scrapped": False  # Flag to indicate content hasn't been processed yet
+                        "scrapped": False,
+                        "photo_reload": False  # Assume it's fresh
                     }
-                    
-                    # Insert the post
+
                     self.db.insert_post_link(post_data)
-                    logger.info(f"Post link {instagram_post_id} stored in database")
-                    
+                    stored += 1
+                    logger.info(f"Post link {instagram_post_id} stored or refreshed in database")
+
                 except Exception as e:
                     logger.error(f"Error storing post link {post_url}: {str(e)}")
                     continue
-                    
-            logger.info(f"Stored {len(post_links)} post links for {club_username}")
+
+            logger.info(f"Stored {stored} new post links for {club_username}")
         except Exception as e:
             logger.error(f"Error in _store_post_links: {str(e)}")
+
 
     def check_instagram_handle(self, club_username) -> bool:
         try:

@@ -1003,7 +1003,268 @@ async def delete_queue_cmd(ctx, queue_type: str, index: int):
         logger.error(f"deletequeue failed: {e}")
         await ctx.send("something broke 🥲")
 
+@aux_bot.command(name="clubinsights")
+async def club_insights_cmd(ctx, instagram_handle: str):
+    """Show detailed insights about a specific club ✨📊"""
+    try:
+        # Get club data from database
+        club_data = db.get_club_by_instagram(instagram_handle)
+        logger.info(club_data)
+        
+        if not club_data:
+            await ctx.send(f"hmm can't find `{instagram_handle}` in the database... 🔍 did u spell it right?")
+            return
+        
+        # Create embed
+        embed = discord.Embed(
+            title=f"✨ Club Insights: @{instagram_handle}",
+            description=f"Here's everything I know about this club!",
+            color=0xE1306C,  # Instagram pink color
+            timestamp=datetime.datetime.now()
+        )
+        
+        # Get categories for the club
+        categories = []
+        try:
+            # Get categories from clubs_categories table
+            categories_query = db.supabase.from_('clubs_categories').select(
+                'categories(name)'
+            ).eq('club_id', club_data.get('id')).execute()
+            
+            if categories_query.data:
+                categories = [cat['categories']['name'] for cat in categories_query.data]
+        except Exception as e:
+            logger.warning(f"Couldn't fetch categories: {e}")
+        
+        # Club details with description
+        description = club_data.get('description', 'No description available')
+        if description and len(description) > 100:
+            description = description[:97] + "..."
+            
+        embed.add_field(
+            name="📝 Club Details",
+            value=(
+                f"Name: **{club_data.get('name', 'Unknown')}**\n"
+                f"Instagram: [@{instagram_handle}](https://instagram.com/{instagram_handle})\n"
+                f"Categories: `{', '.join(categories) if categories else 'None'}`\n"
+                f"Description: {description}\n"
+                f"Last Scraped: {club_data.get('last_scraped', 'Never')}"
+            ),
+            inline=False
+        )
+        
+        # Get post statistics
+        post_count = 0
+        newest_post_date = "Never"
+        oldest_post_date = "Never"
+        
+        try:
+            # Count total posts
+            posts_query = db.supabase.from_('posts').select(
+                'id', 
+                count='exact'
+            ).eq('club_id', club_data.get('id')).execute()
+            
+            post_count = posts_query.count if hasattr(posts_query, 'count') else 0
+            
+            # Get newest post date
+            newest_post_query = db.supabase.from_('posts').select(
+                'posted'
+            ).eq('club_id', club_data.get('id')).order('posted', desc=True).limit(1).execute()
+            
+            if newest_post_query.data and newest_post_query.data[0].get('posted'):
+                newest_post_date = newest_post_query.data[0].get('posted')
+                
+            # Get oldest post date
+            oldest_post_query = db.supabase.from_('posts').select(
+                'posted'
+            ).eq('club_id', club_data.get('id')).order('posted', desc=False).limit(1).execute()
+            
+            if oldest_post_query.data and oldest_post_query.data[0].get('posted'):
+                oldest_post_date = oldest_post_query.data[0].get('posted')
+                
+        except Exception as e:
+            logger.warning(f"Couldn't fetch post statistics: {e}")
+        
+        # Basic social media stats
+        follower_count = club_data.get('followers', 0)
+        following_count = club_data.get('following', 0)
+        
+        # Activity score - simple metric based on post frequency
+        activity_score = "Low"
+        try:
+            if post_count > 0 and newest_post_date != "Never" and oldest_post_date != "Never":
+                # Convert dates to datetime objects
+                newest = datetime.datetime.fromisoformat(str(newest_post_date).replace('Z', '+00:00'))
+                oldest = datetime.datetime.fromisoformat(str(oldest_post_date).replace('Z', '+00:00'))
+                
+                # Calculate days between first and last post
+                days_active = (newest - oldest).days
+                if days_active > 0:
+                    # Posts per month
+                    posts_per_month = (post_count / days_active) * 30
+                    
+                    if posts_per_month > 8:
+                        activity_score = "Very High 🔥"
+                    elif posts_per_month > 4:
+                        activity_score = "High ✨"
+                    elif posts_per_month > 2:
+                        activity_score = "Medium 📊"
+                    elif posts_per_month > 1:
+                        activity_score = "Low 📝"
+                    else:
+                        activity_score = "Very Low 💤"
+        except Exception as e:
+            logger.warning(f"Couldn't calculate activity score: {e}")
+        
+        embed.add_field(
+            name="📊 Analytics",
+            value=(
+                f"Followers: **{follower_count:,}**\n"
+                f"Following: **{following_count:,}**\n"
+                f"Posts: **{post_count:,}**\n"
+                f"Activity Level: **{activity_score}**\n"
+                f"Newest Post: {newest_post_date if newest_post_date != 'Never' else 'None'}"
+            ),
+            inline=False
+        )
+        
+        # Get upcoming events
+        upcoming_events = []
+        now = datetime.datetime.now()
+        try:
+            events_query = db.supabase.from_('events').select(
+                'name, date'
+            ).eq('club_id', club_data.get('id')).gte('date', now.isoformat()).order('date', desc=False).limit(3).execute()
+            
+            if events_query.data:
+                upcoming_events = events_query.data
+        except Exception as e:
+            logger.warning(f"Couldn't fetch upcoming events: {e}")
+        
+        if upcoming_events:
+            events_lines = [
+                f"• {event.get('name', 'Unknown Event')}: {event.get('date', 'Unknown Date')}"
+                for event in upcoming_events
+            ]
 
+            events_text = ""
+            for line in events_lines:
+                # Only add if adding this line doesn't exceed 1024
+                if len(events_text) + len(line) + 1 < 1024:
+                    events_text += line + "\n"
+                else:
+                    events_text += "• ...and more events.\n"
+                    break
+
+            embed.add_field(
+                name="📅 Upcoming Events",
+                value=events_text.strip(),
+                inline=False
+            )
+        
+        # Get club links if available
+        club_links = club_data.get('club_links', [])
+        if club_links:
+            links_text = ""
+            for link_obj in club_links:
+                if isinstance(link_obj, dict):
+                    url = link_obj.get('url', '')
+                    label = link_obj.get('label', url)
+                    
+                    # Create the link string and check if adding it would exceed the limit
+                    link_str = f"• [{label}]({url})\n"
+                    if len(links_text) + len(link_str) < 1020:  # Leave a little buffer
+                        links_text += link_str
+                    else:
+                        links_text += "• ...and more links.\n"
+                        break
+            
+            if links_text:
+                embed.add_field(
+                    name="🔗 Links",
+                    value=links_text,
+                    inline=False
+                )
+        
+        # Queue Status
+        # For queue check, we need to check for the job object that contains this handle
+        in_queue = False
+        in_processing = False
+        in_failed = False
+        
+        try:
+            # Check if in queue
+            queue_jobs = redis_conn.zrange(QUEUE_KEYS["scraper"]["queue"], 0, -1)
+            for job_json in queue_jobs:
+                try:
+                    # Handle byte strings
+                    if isinstance(job_json, bytes):
+                        job_json = job_json.decode('utf-8')
+                    job = json.loads(job_json)
+                    if job.get('instagram_handle') == instagram_handle:
+                        in_queue = True
+                        break
+                except Exception as e:
+                    logger.debug(f"Error parsing queue job: {e}")
+                    continue
+                    
+            # Check if in processing
+            processing_jobs = redis_conn.hgetall(QUEUE_KEYS["scraper"]["processing"])
+            for _, job_json in processing_jobs.items():
+                try:
+                    # Handle byte strings
+                    if isinstance(job_json, bytes):
+                        job_json = job_json.decode('utf-8')
+                    job = json.loads(job_json)
+                    if job.get('instagram_handle') == instagram_handle:
+                        in_processing = True
+                        break
+                except Exception as e:
+                    logger.debug(f"Error parsing processing job: {e}")
+                    continue
+                    
+            # Check if in failed
+            failed_jobs = redis_conn.hgetall(QUEUE_KEYS["scraper"]["failed"])
+            for _, job_json in failed_jobs.items():
+                try:
+                    # Handle byte strings
+                    if isinstance(job_json, bytes):
+                        job_json = job_json.decode('utf-8')
+                    job = json.loads(job_json)
+                    if job.get('instagram_handle') == instagram_handle:
+                        in_failed = True
+                        break
+                except Exception as e:
+                    logger.debug(f"Error parsing failed job: {e}")
+                    continue
+        except Exception as e:
+            logger.warning(f"Error checking queue status: {e}")
+        
+        status = "Not in queue system"
+        if in_queue:
+            status = "In queue, waiting to be processed 🕒"
+        elif in_processing:
+            status = "Currently being scraped 🔄"
+        elif in_failed:
+            status = "Failed to process recently 💔"
+            
+        embed.add_field(
+            name="⚙️ Current Status",
+            value=status,
+            inline=False
+        )
+        
+        # Add profile pic as thumbnail if available
+        if club_data.get('profile_pic'):
+            embed.set_thumbnail(url=club_data.get('profile_pic'))
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in clubinsights command: {e}")
+        await ctx.send(f"omg i'm so sorry but I couldn't fetch insights rn 😭 ({str(e)})")
+        
 # Run the bot
 if __name__ == "__main__":
     aux_bot.run(AUX_BOT_TOKEN)

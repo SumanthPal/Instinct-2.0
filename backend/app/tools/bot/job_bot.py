@@ -1505,7 +1505,7 @@ async def cleanup_cmd(ctx):
         logger.error(f"Error in cleanup command: {e}")
         await ctx.send(f"❌ umm i made a boo-boo during cleanup 🥲 `{e}`")
    
-@job_bot.command(name="helpp")
+@job_bot.command(name="bitch")
 async def help_cmd(ctx):
         """Show everything this girlboss can do"""
         embed = discord.Embed(
