@@ -544,7 +544,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--headless",  # Run in headless mode for better speed
+            #"--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
@@ -566,6 +566,9 @@ class InstagramScraper:
             "--password-store=basic",
             "--use-mock-keychain",
             "--blink-settings=imagesEnabled=false",
+            "--disable-application-cache",
+            "--disable-cache",
+            "--aggressive-cache-discard",
 
         ]
         for arg in args:

@@ -402,10 +402,3 @@ class EventParser:
 
         return ' '.join(parts) or '0 minutes'
 
-
-
-if __name__ == "__main__":
-    # Example usage
-    parser = EventParser()
-    for i in ['dna_at_uci','kkap.uci','kesem.ucirvine','uci_bsu', 'hackatuci', 'maissuci', 'ucibjj','ucialumni', 'ctc.uci', 'ufa_uci','bscuci', 'campmeduci', 'uci.clubitalia', 'btsaatuci', 'ucibsb', 'bookclubatuci', 'climbinguci', 'calteachatuci', 'bgsn_uci', 'designatuci', 'dspuci', 'pds_uci', 'kkap.uci']:
-        parser.parse_all_posts(i)
