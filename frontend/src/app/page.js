@@ -55,12 +55,12 @@ const UCIBackground = () => {
   const intervalRef = useRef(null);
   
   const uciImages = [
-    "campus_1.jpg",
-    "campus_2.jpg",
-    "campus_3.jpg",
-    "campus_4.jpg",
-    "campus_5.jpg",
-    "campus_6.jpg",
+    "campus_1.jpeg",
+    "campus_2.jpeg",
+    "campus_3.jpeg",
+    "campus_4.jpeg",
+    "campus_5.jpeg",
+    "campus_6.jpeg",
   ];
   
   // Preload images for smoother transitions
