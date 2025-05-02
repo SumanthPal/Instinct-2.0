@@ -9,6 +9,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 export const metadata = {
   title: "Instinct for UCI",
   description: "Discover and connect with clubs at UC Irvine. Instinct helps UCI students find communities, events, and new opportunities — all in one place.",
+  metadataBase: new URL('https://instinct-2-0.vercel.app'),
   keywords: [
     "UCI", "UC Irvine", "UCI clubs", "UC Irvine clubs", "Instinct", 
     "college clubs", "campus events", "UCI student life", "UCI communities"
