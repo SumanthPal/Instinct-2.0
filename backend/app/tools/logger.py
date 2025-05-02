@@ -5,12 +5,14 @@ import sys
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 import redis
+import dotenv
 
 class RedisLogHandler(logging.Handler):
     """Simple Redis logging handler that pushes logs to a Redis list"""
     
     def __init__(self, max_entries=1000):
         super().__init__()
+        dotenv.load_dotenv()
         self.redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
         self.redis_conn = redis.from_url(self.redis_url)
         self.max_entries = max_entries

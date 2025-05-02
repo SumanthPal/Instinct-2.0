@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import datetime
+import dotenv
 from enum import Enum
 from typing import Dict, List, Optional, Any, Union
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -13,7 +14,117 @@ class QueueType(Enum):
     SCRAPER = "scraper"
     EVENT = "event"
     LOG = "log"
+    
+dotenv.load_dotenv()
 
+import psutil
+import platform
+import datetime
+
+# Add these imports at the top of your redis_queue.py file
+
+class SystemHealthMonitor:
+    """Utility class to gather system health metrics"""
+    
+    @staticmethod
+    def get_system_health():
+        """
+        Get comprehensive system health information
+        
+        Returns:
+            Dict: System health metrics including CPU, memory, disk, and network stats
+        """
+        try:
+            # CPU information
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            cpu_freq = psutil.cpu_freq()
+            cpu_count = psutil.cpu_count(logical=True)
+            cpu_stats = psutil.cpu_stats()
+            
+            # Memory information
+            virtual_memory = psutil.virtual_memory()
+            swap_memory = psutil.swap_memory()
+            
+            # Disk information
+            disk_usage = psutil.disk_usage('/')
+            disk_io = psutil.disk_io_counters()
+            
+            # Network information
+            net_io = psutil.net_io_counters()
+            
+            # Process information (for the current process)
+            current_process = psutil.Process()
+            process_memory = current_process.memory_info()
+            process_cpu = current_process.cpu_percent(interval=0.5)
+            process_threads = current_process.num_threads()
+            process_connections = len(current_process.connections())
+            
+            # System information
+            boot_time = datetime.datetime.fromtimestamp(psutil.boot_time()).strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Compile health data
+            health_data = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "system": {
+                    "platform": platform.platform(),
+                    "python_version": platform.python_version(),
+                    "boot_time": boot_time,
+                    "uptime_seconds": int(time.time() - psutil.boot_time())
+                },
+                "cpu": {
+                    "percent": cpu_percent,
+                    "frequency_mhz": cpu_freq.current if cpu_freq else None,
+                    "max_frequency_mhz": cpu_freq.max if cpu_freq and hasattr(cpu_freq, 'max') else None,
+                    "cores_logical": cpu_count,
+                    "cores_physical": psutil.cpu_count(logical=False),
+                    "ctx_switches": cpu_stats.ctx_switches,
+                    "interrupts": cpu_stats.interrupts
+                },
+                "memory": {
+                    "total_gb": round(virtual_memory.total / (1024**3), 2),
+                    "available_gb": round(virtual_memory.available / (1024**3), 2),
+                    "used_gb": round(virtual_memory.used / (1024**3), 2),
+                    "percent": virtual_memory.percent,
+                    "swap_total_gb": round(swap_memory.total / (1024**3), 2),
+                    "swap_used_gb": round(swap_memory.used / (1024**3), 2),
+                    "swap_percent": swap_memory.percent
+                },
+                "disk": {
+                    "total_gb": round(disk_usage.total / (1024**3), 2),
+                    "used_gb": round(disk_usage.used / (1024**3), 2),
+                    "free_gb": round(disk_usage.free / (1024**3), 2),
+                    "percent": disk_usage.percent,
+                    "read_count": disk_io.read_count if disk_io else 0,
+                    "write_count": disk_io.write_count if disk_io else 0,
+                    "read_bytes_gb": round(disk_io.read_bytes / (1024**3), 2) if disk_io else 0,
+                    "write_bytes_gb": round(disk_io.write_bytes / (1024**3), 2) if disk_io else 0
+                },
+                "network": {
+                    "bytes_sent_mb": round(net_io.bytes_sent / (1024**2), 2),
+                    "bytes_recv_mb": round(net_io.bytes_recv / (1024**2), 2),
+                    "packets_sent": net_io.packets_sent,
+                    "packets_recv": net_io.packets_recv,
+                    "errin": net_io.errin,
+                    "errout": net_io.errout
+                },
+                "process": {
+                    "memory_rss_mb": round(process_memory.rss / (1024**2), 2),
+                    "memory_vms_mb": round(process_memory.vms / (1024**2), 2),
+                    "cpu_percent": process_cpu,
+                    "threads": process_threads,
+                    "connections": process_connections,
+                    "open_files": len(current_process.open_files())
+                }
+            }
+            
+            return health_data
+            
+        except Exception as e:
+            logger.error(f"Error gathering system health metrics: {e}")
+            return {
+                "error": str(e),
+                "timestamp": datetime.datetime.now().isoformat()
+            }
 class RedisScraperQueue:
     def __init__(self):
         redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
@@ -31,6 +142,9 @@ class RedisScraperQueue:
     def _init_queue_keys(self):
         """Initialize all queue keys with proper prefixes"""
         # Queue key format: {type}:{purpose}
+        self.notification_stream = "notifications"
+        self.status_stream = "status"
+        self.health_stream = "system:health"
         self.keys = {
             QueueType.SCRAPER: {
                 "queue": "scraper:queue",
@@ -52,6 +166,7 @@ class RedisScraperQueue:
 
             }
         }
+         # New st
 
     # ---------- Generic Queue Methods ----------
     
@@ -741,3 +856,237 @@ class RedisScraperQueue:
     def get_stalled_event_jobs(self, timeout_seconds=1800):
         """Legacy method for getting stalled event jobs"""
         return self.get_stalled_jobs(QueueType.EVENT, timeout_seconds)
+    
+    def publish_health_metrics(self, health_data: Dict = None) -> bool:
+        """
+        Publish system health metrics to the health stream
+        
+        Args:
+            health_data: System health data dictionary. If None, will gather fresh data.
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Get health data if not provided
+            if health_data is None:
+                health_data = SystemHealthMonitor.get_system_health()
+            
+            # Add to stream with * to auto-generate ID
+            self.redis.xadd(self.health_stream, {"payload": json.dumps(health_data)})
+            logger.debug(f"Published system health metrics to {self.health_stream}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error publishing health metrics: {e}")
+            return False
+
+    def read_health_metrics(self, last_id: str = "0", count: int = 10) -> List[Dict]:
+        """
+        Read system health metrics from the health stream
+        
+        Args:
+            last_id: Last ID that was read (exclusive)
+            count: Maximum number of metrics to read
+            
+        Returns:
+            List[Dict]: List of health metrics entries
+        """
+        try:
+            results = self.redis.xread({self.health_stream: last_id}, count=count)
+            metrics = []
+            
+            if results:
+                for stream_name, messages in results:
+                    for msg_id, msg_data in messages:
+                        try:
+                            payload = json.loads(msg_data[b"payload"])
+                            metrics.append({
+                                "id": msg_id.decode(),
+                                "payload": payload
+                            })
+                        except Exception as e:
+                            logger.error(f"Error parsing health metric: {e}")
+            
+            return metrics
+            
+        except Exception as e:
+            logger.error(f"Error reading health metrics: {e}")
+            return []
+
+    def get_latest_health_metrics(self) -> Dict:
+        """
+        Get the most recent system health metrics
+        
+        Returns:
+            Dict: Latest health metrics or empty dict if none found
+        """
+        try:
+            # Get the last entry from the health stream
+            results = self.redis.xrevrange(self.health_stream, "+", "-", count=1)
+            
+            if results:
+                msg_id, msg_data = results[0]
+                payload = json.dumps(msg_data[b"payload"])
+                return {
+                    "id": msg_id.decode(),
+                    "payload": payload
+                }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting latest health metrics: {e}")
+            return {}
+
+    def start_health_monitoring(self, interval_seconds: int = 60) -> bool:
+        """
+        Start a background thread to periodically publish system health metrics
+        
+        Args:
+            interval_seconds: Time between health checks in seconds
+            
+        Returns:
+            bool: True if started successfully, False otherwise
+        """
+        try:
+            import threading
+            
+            # Define the monitoring function
+            def health_monitor_worker():
+                logger.info(f"Health monitoring started with {interval_seconds}s interval")
+                
+                while True:
+                    try:
+                        # Get and publish health metrics
+                        health_data = SystemHealthMonitor.get_system_health()
+                        self.publish_health_metrics(health_data)
+                        
+                        # Check for critical conditions
+                        self._check_health_alerts(health_data)
+                        
+                        # Sleep for the interval
+                        time.sleep(interval_seconds)
+                        
+                    except Exception as e:
+                        logger.error(f"Error in health monitor worker: {e}")
+                        time.sleep(60)  # Sleep for a minute before retrying
+            
+            # Start the thread
+            thread = threading.Thread(
+                target=health_monitor_worker,
+                name="health_monitor",
+                daemon=True
+            )
+            thread.start()
+            
+            # Publish notification about monitoring start
+            self.publish_notification(
+                "System health monitoring started",
+                {
+                    "interval_seconds": interval_seconds,
+                    "timestamp": time.time()
+                }
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error starting health monitoring: {e}")
+            return False
+
+    def _check_health_alerts(self, health_data: Dict) -> None:
+        """
+        Check health data for critical conditions and publish alerts
+        
+        Args:
+            health_data: System health metrics
+        """
+        try:
+            alerts = []
+            
+            # Check CPU usage
+            cpu_percent = health_data.get("cpu", {}).get("percent", 0)
+            if cpu_percent > 90:
+                alerts.append({
+                    "type": "critical",
+                    "component": "cpu",
+                    "message": f"CPU usage is critically high at {cpu_percent}%"
+                })
+            elif cpu_percent > 75:
+                alerts.append({
+                    "type": "warning",
+                    "component": "cpu",
+                    "message": f"CPU usage is high at {cpu_percent}%"
+                })
+            
+            # Check memory usage
+            memory_percent = health_data.get("memory", {}).get("percent", 0)
+            if memory_percent > 90:
+                alerts.append({
+                    "type": "critical",
+                    "component": "memory",
+                    "message": f"Memory usage is critically high at {memory_percent}%"
+                })
+            elif memory_percent > 80:
+                alerts.append({
+                    "type": "warning",
+                    "component": "memory",
+                    "message": f"Memory usage is high at {memory_percent}%"
+                })
+            
+            # Check disk usage
+            disk_percent = health_data.get("disk", {}).get("percent", 0)
+            if disk_percent > 95:
+                alerts.append({
+                    "type": "critical",
+                    "component": "disk",
+                    "message": f"Disk usage is critically high at {disk_percent}%"
+                })
+            elif disk_percent > 85:
+                alerts.append({
+                    "type": "warning",
+                    "component": "disk",
+                    "message": f"Disk usage is high at {disk_percent}%"
+                })
+            
+            # Check process memory usage (potential memory leak)
+            process_memory_mb = health_data.get("process", {}).get("memory_rss_mb", 0)
+            if process_memory_mb > 2000:  # 2GB
+                alerts.append({
+                    "type": "critical",
+                    "component": "process_memory",
+                    "message": f"Process memory usage is critically high at {process_memory_mb}MB"
+                })
+            elif process_memory_mb > 1000:  # 1GB
+                alerts.append({
+                    "type": "warning",
+                    "component": "process_memory",
+                    "message": f"Process memory usage is high at {process_memory_mb}MB"
+                })
+            
+            # Publish alerts to notification stream
+            for alert in alerts:
+                self.publish_notification(
+                    alert["message"],
+                    {
+                        "type": "health_alert",
+                        "alert_type": alert["type"],
+                        "component": alert["component"],
+                        "timestamp": time.time()
+                    }
+                )
+            
+            # If critical alerts, also add to status stream
+            critical_alerts = [a for a in alerts if a["type"] == "critical"]
+            if critical_alerts:
+                self.publish_status(
+                    "health_critical",
+                    {
+                        "alerts": critical_alerts,
+                        "timestamp": time.time()
+                    }
+                )
+                
+        except Exception as e:
+            logger.error(f"Error checking health alerts: {e}")

@@ -13,6 +13,11 @@ from discord.ui import Button, View
 from typing import Dict, List, Optional
 import asyncio
 
+import matplotlib.pyplot as plt
+import io
+from collections import deque
+import numpy as np
+
 # Path setup
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -35,7 +40,11 @@ JOB_BOT_ERROR_CHANNEL_ID = int(os.getenv('JOB_BOT_ERROR_CHANNEL_ID', '0'))
 JOB_BOT_ADMIN_ROLE_ID = int(os.getenv('JOB_BOT_ADMIN_ROLE_ID', '0'))
 OWNER_USER_ID = int(os.getenv("USER_ID"))  # 👈  Discord user ID
 ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
+# Add this to bot startup (on_ready event)
 
+
+# Add a new health stream name constant at the top with the other stream names
+HEALTH_STREAM = "system:health" 
 # Initialize bot with intents
 intents = discord.Intents.default()
 intents.message_content = True
@@ -46,7 +55,7 @@ job_bot = commands.Bot(command_prefix=JOB_BOT_PREFIX, intents=intents)
 db = SupabaseQueries()
 
 # Redis connection (shared resource)
-redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+redis_url = os.getenv('REDIS_URL')
 redis_conn = redis.from_url(redis_url)
 
 # Redis queue key names
@@ -468,6 +477,11 @@ async def on_ready():
     nightly_summary_check.start()
     clean_old_logs.start()
     requeue_stalled_task.start()
+    # Add this to bot startup (on_ready event)
+    monitor_system_health.start()
+    logger.info("System health monitoring started")
+
+# Add a new health stream name constant at the top with the other stream names
     
     # Send startup notification
     await send_notification(message=f"hiii reporting for duty 📝✨ {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nready to handle some jobs!! 🚀")
@@ -1602,6 +1616,501 @@ async def help_cmd(ctx):
 
 
 
+health_history = {
+    "timestamps": deque(maxlen=60),  # Keep the last 60 data points
+    "cpu_percent": deque(maxlen=60),
+    "memory_percent": deque(maxlen=60),
+    "disk_percent": deque(maxlen=60),
+    "process_memory_mb": deque(maxlen=60),
+    "last_health_id": "0"
+}
+
+# Create a new background task for reading health metrics
+@tasks.loop(seconds=30)
+async def monitor_system_health():
+    """Background task to monitor system health metrics from Redis stream"""
+    try:
+        # Read latest health metrics
+        health_metrics = read_health_metrics(health_history["last_health_id"], count=10)
+        
+        if not health_metrics:
+            return
+        
+        # Update last ID for next check
+        health_history["last_health_id"] = health_metrics[-1]["id"]
+        
+        # Process each health metric
+        for metric in health_metrics:
+            try:
+                data = metric["payload"]
+                
+                # Add to history
+                timestamp = datetime.datetime.fromisoformat(data.get("timestamp", "")).strftime("%H:%M:%S")
+                health_history["timestamps"].append(timestamp)
+                health_history["cpu_percent"].append(data.get("cpu", {}).get("percent", 0))
+                health_history["memory_percent"].append(data.get("memory", {}).get("percent", 0))
+                health_history["disk_percent"].append(data.get("disk", {}).get("percent", 0))
+                health_history["process_memory_mb"].append(data.get("process", {}).get("memory_rss_mb", 0))
+                
+                # Check for critical alerts and send notifications if needed
+                process_alerts(data)
+                
+            except Exception as e:
+                logger.error(f"Error processing health metric: {e}")
+                
+    except Exception as e:
+        logger.error(f"Error monitoring system health: {e}")
+
+def process_alerts(health_data):
+    """Process health data and send alerts for critical conditions"""
+    try:
+        # Check for critical CPU usage
+        cpu_percent = health_data.get("cpu", {}).get("percent", 0)
+        if cpu_percent > 90:
+            asyncio.create_task(send_error(
+                message=f"🚨 **CRITICAL CPU ALERT** 🚨\nCPU usage at {cpu_percent}% - system performance critical!"
+            ))
+        
+        # Check for critical memory usage
+        memory_percent = health_data.get("memory", {}).get("percent", 0)
+        if memory_percent > 90:
+            asyncio.create_task(send_error(
+                message=f"🚨 **CRITICAL MEMORY ALERT** 🚨\nMemory usage at {memory_percent}% - system at risk of OOM!"
+            ))
+        
+        # Check for process memory growth (potential memory leak)
+        process_memory_mb = health_data.get("process", {}).get("memory_rss_mb", 0)
+        if process_memory_mb > 2000:  # 2GB
+            asyncio.create_task(send_error(
+                message=f"🚨 **PROCESS MEMORY ALERT** 🚨\nScraper process using {process_memory_mb}MB - possible memory leak!"
+            ))
+            
+    except Exception as e:
+        logger.error(f"Error processing health alerts: {e}")
+
+def read_health_metrics(last_id="0", count=10):
+    """Read system health metrics from Redis stream"""
+    try:
+        results = redis_conn.xread({HEALTH_STREAM: last_id}, count=count)
+        metrics = []
+        
+        if results:
+            for stream_name, messages in results:
+                for msg_id, msg_data in messages:
+                    try:
+                        payload = json.loads(msg_data[b"payload"])
+                        metrics.append({
+                            "id": msg_id.decode(),
+                            "payload": payload
+                        })
+                    except Exception as e:
+                        logger.error(f"Error parsing health metric: {e}")
+        
+        return metrics
+        
+    except Exception as e:
+        logger.error(f"Error reading health metrics: {e}")
+        return []
+
+
+
+@job_bot.command(name="systemhealth")
+async def system_health_cmd(ctx):
+    """Display detailed system health information 📊🔍"""
+    try:
+        # Get the latest health data
+        health_metrics = read_health_metrics("0", count=1)
+        
+        if not health_metrics:
+            await ctx.send("💔 no system health data available right now... check back later!")
+            return
+        
+        health_data = health_metrics[0]["payload"]
+        
+        # Create the embed
+        embed = discord.Embed(
+            title="💻 System Health Report 📊",
+            description="full diagnostic scan of the system 🔬",
+            color=0x3498DB,  # Blue
+            timestamp=datetime.datetime.now()
+        )
+        
+        # CPU information
+        cpu = health_data.get("cpu", {})
+        cpu_percent = cpu.get("percent", 0)
+        cpu_color = "🟢" if cpu_percent < 70 else "🟡" if cpu_percent < 90 else "🔴"
+        
+        embed.add_field(
+            name=f"{cpu_color} CPU Status",
+            value=(
+                f"➔ Usage: **{cpu_percent}%**\n"
+                f"➔ Frequency: **{cpu.get('frequency_mhz', 0)} MHz**\n"
+                f"➔ Cores: **{cpu.get('cores_logical', 0)}** logical, **{cpu.get('cores_physical', 0)}** physical\n"
+                f"➔ Context Switches: **{cpu.get('ctx_switches', 0):,}**"
+            ),
+            inline=False
+        )
+        
+        # Memory information
+        memory = health_data.get("memory", {})
+        memory_percent = memory.get("percent", 0)
+        memory_color = "🟢" if memory_percent < 70 else "🟡" if memory_percent < 90 else "🔴"
+        
+        embed.add_field(
+            name=f"{memory_color} Memory Status",
+            value=(
+                f"➔ Usage: **{memory_percent}%**\n"
+                f"➔ Total: **{memory.get('total_gb', 0)} GB**\n"
+                f"➔ Available: **{memory.get('available_gb', 0)} GB**\n"
+                f"➔ Swap Usage: **{memory.get('swap_percent', 0)}%** of **{memory.get('swap_total_gb', 0)} GB**"
+            ),
+            inline=False
+        )
+        
+        # Disk information
+        disk = health_data.get("disk", {})
+        disk_percent = disk.get("percent", 0)
+        disk_color = "🟢" if disk_percent < 75 else "🟡" if disk_percent < 90 else "🔴"
+        
+        embed.add_field(
+            name=f"{disk_color} Disk Status",
+            value=(
+                f"➔ Usage: **{disk_percent}%**\n"
+                f"➔ Total: **{disk.get('total_gb', 0)} GB**\n"
+                f"➔ Free: **{disk.get('free_gb', 0)} GB**\n"
+                f"➔ I/O: **{disk.get('read_count', 0):,}** reads, **{disk.get('write_count', 0):,}** writes"
+            ),
+            inline=False
+        )
+        
+        # Process information
+        process = health_data.get("process", {})
+        process_memory_mb = process.get("memory_rss_mb", 0)
+        process_color = "🟢" if process_memory_mb < 500 else "🟡" if process_memory_mb < 1000 else "🔴"
+        
+        embed.add_field(
+            name=f"{process_color} Scraper Process",
+            value=(
+                f"➔ Memory: **{process_memory_mb} MB**\n"
+                f"➔ CPU Usage: **{process.get('cpu_percent', 0)}%**\n"
+                f"➔ Threads: **{process.get('threads', 0)}**\n"
+                f"➔ Open Files: **{process.get('open_files', 0)}**\n"
+                f"➔ Connections: **{process.get('connections', 0)}**"
+            ),
+            inline=False
+        )
+        
+        # System information
+        system = health_data.get("system", {})
+        
+        embed.add_field(
+            name="🖥️ System Info",
+            value=(
+                f"➔ Platform: **{system.get('platform', 'Unknown')}**\n"
+                f"➔ Python: **{system.get('python_version', 'Unknown')}**\n"
+                f"➔ Uptime: **{system.get('uptime_seconds', 0) // 86400}d {(system.get('uptime_seconds', 0) % 86400) // 3600}h {((system.get('uptime_seconds', 0) % 86400) % 3600) // 60}m**\n"
+                f"➔ Boot Time: **{system.get('boot_time', 'Unknown')}**"
+            ),
+            inline=False
+        )
+        
+        # Network information
+        network = health_data.get("network", {})
+        
+        embed.add_field(
+            name="🌐 Network Activity",
+            value=(
+                f"➔ Sent: **{network.get('bytes_sent_mb', 0)} MB**\n"
+                f"➔ Received: **{network.get('bytes_recv_mb', 0)} MB**\n"
+                f"➔ Packets: **{network.get('packets_sent', 0):,}** sent, **{network.get('packets_recv', 0):,}** received\n"
+                f"➔ Errors: **{network.get('errin', 0)}** in, **{network.get('errout', 0)}** out"
+            ),
+            inline=False
+        )
+        
+        embed.set_footer(text="i'm keeping an eye on everything 👀 she's either thriving or strugglinggg")
+        
+        # Create and attach a graph image
+        if len(health_history["timestamps"]) > 1:
+            graph_file = await create_health_graph()
+            await ctx.send(embed=embed, file=graph_file)
+        else:
+            await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in systemhealth command: {e}")
+        await ctx.send(f"😵‍💫 couldn't get system health info: `{e}`")
+
+async def create_health_graph():
+    """Create a graph of historical health metrics"""
+    try:
+        plt.figure(figsize=(10, 6))
+        
+        # Only plot if we have data
+        if len(health_history["timestamps"]) > 1:
+            x = list(range(len(health_history["timestamps"])))
+            labels = list(health_history["timestamps"])
+            
+            # Plot CPU, memory and disk percentages
+            plt.plot(x, list(health_history["cpu_percent"]), 'r-', label='CPU %')
+            plt.plot(x, list(health_history["memory_percent"]), 'b-', label='Memory %')
+            plt.plot(x, list(health_history["disk_percent"]), 'g-', label='Disk %')
+            
+            # Add a second y-axis for process memory
+            ax2 = plt.twinx()
+            ax2.plot(x, list(health_history["process_memory_mb"]), 'm-', label='Process Memory (MB)')
+            ax2.set_ylabel('Process Memory (MB)')
+            
+            # Set labels
+            plt.xlabel('Time')
+            plt.ylabel('Usage %')
+            plt.title('System Resource Usage History')
+            
+            # Set x-axis labels (showing fewer for readability)
+            if len(x) > 10:
+                step = len(x) // 10
+                plt.xticks(x[::step], labels[::step], rotation=45)
+            else:
+                plt.xticks(x, labels, rotation=45)
+                
+            # Add legends
+            lines1, labels1 = plt.gca().get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            plt.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+            
+            # Add grid for readability
+            plt.grid(True, linestyle='--', alpha=0.7)
+            
+            # Adjust layout
+            plt.tight_layout()
+            
+            # Save to a bytes buffer
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            
+            # Create discord file
+            file = discord.File(buf, filename="health_graph.png")
+            plt.close()
+            
+            return file
+        else:
+            # Not enough data points yet
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error creating health graph: {e}")
+        return None
+
+@job_bot.command(name="memgraph")
+async def memory_graph_cmd(ctx, minutes: int = 30):
+    """Generate a detailed memory usage graph 📊💭"""
+    try:
+        # Validate minutes
+        if minutes <= 0 or minutes > 180:
+            await ctx.send("⏰ please choose between 1 and 180 minutes, bestie!")
+            return
+            
+        # Check if we have enough data
+        if len(health_history["timestamps"]) < 2:
+            await ctx.send("💔 not enough data points yet... check back in a few minutes!")
+            return
+            
+        # Get the data limited to the requested time range
+        data_limit = min(len(health_history["timestamps"]), int(minutes * 60 / 30))  # 30 second intervals
+        
+        timestamps = list(health_history["timestamps"])[-data_limit:]
+        memory_percent = list(health_history["memory_percent"])[-data_limit:]
+        process_memory = list(health_history["process_memory_mb"])[-data_limit:]
+        
+        # Create the graph
+        plt.figure(figsize=(12, 7))
+        
+        # Plot memory percentage
+        ax1 = plt.subplot(2, 1, 1)
+        ax1.plot(timestamps, memory_percent, 'b-', marker='o', markersize=3, label='System Memory %')
+        ax1.set_ylabel('Memory Usage %')
+        ax1.set_title(f'Memory Usage History (Last {minutes} minutes)')
+        ax1.grid(True, linestyle='--', alpha=0.7)
+        ax1.legend(loc='upper left')
+        
+        # Plot process memory
+        ax2 = plt.subplot(2, 1, 2)
+        ax2.plot(timestamps, process_memory, 'm-', marker='o', markersize=3, label='Process Memory (MB)')
+        ax2.set_ylabel('Process Memory (MB)')
+        ax2.set_xlabel('Time')
+        ax2.grid(True, linestyle='--', alpha=0.7)
+        ax2.legend(loc='upper left')
+        
+        # Rotate timestamps for readability
+        for ax in [ax1, ax2]:
+            if len(timestamps) > 10:
+                step = len(timestamps) // 10
+                ax.set_xticks(range(0, len(timestamps), step))
+                ax.set_xticklabels([timestamps[i] for i in range(0, len(timestamps), step)], rotation=45)
+            else:
+                ax.set_xticks(range(len(timestamps)))
+                ax.set_xticklabels(timestamps, rotation=45)
+        
+        # Adjust layout
+        plt.tight_layout()
+        
+        # Save to a bytes buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        
+        # Create discord file
+        file = discord.File(buf, filename="memory_graph.png")
+        plt.close()
+        
+        # Send the graph
+        await ctx.send(
+            f"📊 **Memory Usage Graph** 📊\nShowing data for the last **{minutes} minutes**",
+            file=file
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating memory graph: {e}")
+        await ctx.send(f"💔 couldn't generate the memory graph: `{e}`")
+
+@job_bot.command(name="cpugraph")
+async def cpu_graph_cmd(ctx, minutes: int = 30):
+    """Generate a detailed CPU usage graph 📈⚙️"""
+    try:
+        # Validate minutes
+        if minutes <= 0 or minutes > 180:
+            await ctx.send("⏰ please choose between 1 and 180 minutes, bestie!")
+            return
+            
+        # Check if we have enough data
+        if len(health_history["timestamps"]) < 2:
+            await ctx.send("💔 not enough data points yet... check back in a few minutes!")
+            return
+            
+        # Get the data limited to the requested time range
+        data_limit = min(len(health_history["timestamps"]), int(minutes * 60 / 30))  # 30 second intervals
+        
+        timestamps = list(health_history["timestamps"])[-data_limit:]
+        cpu_percent = list(health_history["cpu_percent"])[-data_limit:]
+        
+        # Create the graph
+        plt.figure(figsize=(12, 6))
+        
+        # Plot CPU usage with gradient color based on intensity
+        plt.plot(timestamps, cpu_percent, 'r-', marker='o', markersize=3, label='CPU Usage %')
+        
+        # Add threshold lines
+        plt.axhline(y=70, color='y', linestyle='--', alpha=0.7, label='Warning Threshold (70%)')
+        plt.axhline(y=90, color='r', linestyle='--', alpha=0.7, label='Critical Threshold (90%)')
+        
+        # Fill the area under the curve
+        plt.fill_between(timestamps, cpu_percent, alpha=0.2, color='r')
+        
+        # Set labels and title
+        plt.ylabel('CPU Usage %')
+        plt.xlabel('Time')
+        plt.title(f'CPU Usage History (Last {minutes} minutes)')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        plt.legend(loc='upper left')
+        
+        # Rotate timestamps for readability
+        if len(timestamps) > 10:
+            step = len(timestamps) // 10
+            plt.xticks(range(0, len(timestamps), step), [timestamps[i] for i in range(0, len(timestamps), step)], rotation=45)
+        else:
+            plt.xticks(range(len(timestamps)), timestamps, rotation=45)
+        
+        # Adjust layout
+        plt.tight_layout()
+        
+        # Save to a bytes buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        
+        # Create discord file
+        file = discord.File(buf, filename="cpu_graph.png")
+        plt.close()
+        
+        # Send the graph
+        await ctx.send(
+            f"📈 **CPU Usage Graph** 📈\nShowing data for the last **{minutes} minutes**",
+            file=file
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating CPU graph: {e}")
+        await ctx.send(f"💔 couldn't generate the CPU graph: `{e}`")
+
+@job_bot.command(name="quickhealth")
+async def quick_health_cmd(ctx):
+    """Show a quick summary of system health 🔍✨"""
+    try:
+        # Get the latest health data
+        health_metrics = read_health_metrics("0", count=1)
+        
+        if not health_metrics:
+            await ctx.send("💔 no system health data available rn... check back later!")
+            return
+        
+        health_data = health_metrics[0]["payload"]
+        
+        # Extract key metrics
+        cpu_percent = health_data.get("cpu", {}).get("percent", 0)
+        memory_percent = health_data.get("memory", {}).get("percent", 0)
+        disk_percent = health_data.get("disk", {}).get("percent", 0)
+        process_memory_mb = health_data.get("process", {}).get("memory_rss_mb", 0)
+        
+        # Determine status emojis
+        cpu_emoji = "🟢" if cpu_percent < 70 else "🟡" if cpu_percent < 90 else "🔴"
+        memory_emoji = "🟢" if memory_percent < 70 else "🟡" if memory_percent < 90 else "🔴"
+        disk_emoji = "🟢" if disk_percent < 75 else "🟡" if disk_percent < 90 else "🔴"
+        process_emoji = "🟢" if process_memory_mb < 500 else "🟡" if process_memory_mb < 1000 else "🔴"
+        
+        # Determine overall status
+        if "🔴" in [cpu_emoji, memory_emoji, disk_emoji, process_emoji]:
+            overall_status = "🔴 **CRITICAL**"
+            color = 0xED4245  # Red
+        elif "🟡" in [cpu_emoji, memory_emoji, disk_emoji, process_emoji]:
+            overall_status = "🟡 **WARNING**"
+            color = 0xFEE75C  # Yellow
+        else:
+            overall_status = "🟢 **HEALTHY**"
+            color = 0x57F287  # Green
+        
+        # Create embed
+        embed = discord.Embed(
+            title="🩺 System Health Checkup",
+            description=f"Quick health status: {overall_status}",
+            color=color,
+            timestamp=datetime.datetime.now()
+        )
+        
+        embed.add_field(
+            name="Key Metrics",
+            value=(
+                f"{cpu_emoji} CPU: **{cpu_percent}%**\n"
+                f"{memory_emoji} Memory: **{memory_percent}%**\n"
+                f"{disk_emoji} Disk: **{disk_percent}%**\n"
+                f"{process_emoji} Process Memory: **{process_memory_mb} MB**"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="Last Update",
+            value=f"⏰ {datetime.datetime.fromisoformat(health_data.get('timestamp', '')).strftime('%H:%M:%S')}",
+            inline=False
+        )
+        
+        embed.set_footer(text="use !systemhealth for detailed report or !cpugraph / !memgraph for trends")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in quickhealth command: {e}")
+        await ctx.send(f"💔 couldn't get quick health info: `{e}`")
 # Run the bot
 if __name__ == "__main__":
     job_bot.run(JOB_BOT_TOKEN)

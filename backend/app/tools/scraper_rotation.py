@@ -19,7 +19,9 @@ from db.queries import SupabaseQueries
 from tools.insta_scraper import InstagramScraper, scrape_with_retries, scrape_sequence, RateLimitDetected
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
-from tools.redis_queue import RedisScraperQueue, QueueType
+from tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
+import redis
+
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
@@ -82,8 +84,7 @@ class ScraperRotation:
         self.start_scraper_thread()
         self.start_monitor_thread()
         self.start_log_processor_thread()
-        
-        # Populate queue initially
+        self.start_health_monitoring()
         
         # Set status
         self.status["scraper_state"] = "running"
@@ -245,16 +246,9 @@ class ScraperRotation:
                 job = self.queue.get_next_job(QueueType.SCRAPER)
                 
                 if not job:
-                    # No jobs available, check if we should populate
-                    queue_status = self.queue.get_queue_status(QueueType.SCRAPER)
-                    total_jobs = queue_status.get("queue_count", 0) + queue_status.get("processing_count", 0)
-                    
-                    if total_jobs == 0:
-                        logger.info("Queue empty. Sleeping...")
-                        time.sleep(60)
-
-                        
-                    # Sleep a bit to avoid CPU spinning
+                    # No jobs available, just sleep and check again later
+                    # REMOVED auto-populate logic
+                    logger.info("Queue empty. Waiting for jobs...")
                     time.sleep(10)
                     continue
                 
@@ -340,7 +334,6 @@ class ScraperRotation:
                 time.sleep(30)  # Sleep before retrying
                 
         logger.info("Scraper worker stopped")
-    
     def event_processing_worker(self):
         """Worker function that runs in a thread to process event jobs"""
         logger.info("Event worker started")
@@ -590,8 +583,8 @@ class ScraperRotation:
     def setup_scheduled_tasks(self):
         """Set up scheduled maintenance tasks"""
         # Requeue stalled jobs every 30 minutes
-        schedule.every(30).minutes.do(self.queue.requeue_stalled_jobs, QueueType.SCRAPER)
-        schedule.every(30).minutes.do(self.queue.requeue_stalled_jobs, QueueType.EVENT)
+        #schedule.every(30).minutes.do(self.queue.requeue_stalled_jobs, QueueType.SCRAPER)
+        #schedule.every(30).minutes.do(self.queue.requeue_stalled_jobs, QueueType.EVENT)
         
         # Refresh club search vector every 12 hours
         schedule.every(12).hours.do(self.refresh_club_search_vector)
@@ -724,7 +717,269 @@ class ScraperRotation:
             self.stop()
         
         logger.info("Scraper rotation terminated")
+
+    def _init_queue_keys(self):
+        """Initialize all queue keys with proper prefixes"""
+        # Queue key format: {type}:{purpose}
+        self.keys = {
+            QueueType.SCRAPER: {
+                "queue": "scraper:queue",
+                "processing": "scraper:processing",
+                "failed": "scraper:failed",
+                "rate_limit": "scraper:rate_limit",
+                "completed": "scraper:completed"
+            },
+            QueueType.EVENT: {
+                "queue": "event:queue",
+                "processing": "event:processing",
+                "failed": "event:failed",
+                "completed": "event:completed"
+            },
+            QueueType.LOG: {
+                "queue": "log:queue",
+                "history": "log:history",
+                "processing": "log:processing"
+            }
+        }
         
+        # Stream names for event-driven architecture
+        self.notification_stream = "notifications"
+        self.status_stream = "status"
+        self.health_stream = "system:health"  # New stream for system health data
+
+    def publish_health_metrics(self, health_data: Dict = None) -> bool:
+        """
+        Publish system health metrics to the health stream
+        
+        Args:
+            health_data: System health data dictionary. If None, will gather fresh data.
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Get health data if not provided
+            if health_data is None:
+                health_data = SystemHealthMonitor.get_system_health()
+            
+            # Add to stream with * to auto-generate ID
+            self.redis.xadd(self.health_stream, {"payload": json.dumps(health_data)})
+            logger.debug(f"Published system health metrics to {self.health_stream}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error publishing health metrics: {e}")
+            return False
+
+    def read_health_metrics(self, last_id: str = "0", count: int = 10) -> List[Dict]:
+        """
+        Read system health metrics from the health stream
+        
+        Args:
+            last_id: Last ID that was read (exclusive)
+            count: Maximum number of metrics to read
+            
+        Returns:
+            List[Dict]: List of health metrics entries
+        """
+        try:
+            results = self.redis.xread({self.health_stream: last_id}, count=count)
+            metrics = []
+            
+            if results:
+                for stream_name, messages in results:
+                    for msg_id, msg_data in messages:
+                        try:
+                            payload = json.loads(msg_data[b"payload"])
+                            metrics.append({
+                                "id": msg_id.decode(),
+                                "payload": payload
+                            })
+                        except Exception as e:
+                            logger.error(f"Error parsing health metric: {e}")
+            
+            return metrics
+            
+        except Exception as e:
+            logger.error(f"Error reading health metrics: {e}")
+            return []
+
+    def get_latest_health_metrics(self) -> Dict:
+        """
+        Get the most recent system health metrics
+        
+        Returns:
+            Dict: Latest health metrics or empty dict if none found
+        """
+        try:
+            # Get the last entry from the health stream
+            results = self.redis.xrevrange(self.health_stream, "+", "-", count=1)
+            
+            if results:
+                msg_id, msg_data = results[0]
+                payload = json.dumps(msg_data[b"payload"])
+                return {
+                    "id": msg_id.decode(),
+                    "payload": payload
+                }
+            
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting latest health metrics: {e}")
+            return {}
+
+    def start_health_monitoring(self, interval_seconds: int = 60) -> bool:
+        """
+        Start a background thread to periodically publish system health metrics
+        
+        Args:
+            interval_seconds: Time between health checks in seconds
+            
+        Returns:
+            bool: True if started successfully, False otherwise
+        """
+        try:
+            import threading
+            
+            # Define the monitoring function
+            def health_monitor_worker():
+                logger.info(f"Health monitoring started with {interval_seconds}s interval")
+                
+                while True:
+                    try:
+                        # Get and publish health metrics
+                        health_data = SystemHealthMonitor.get_system_health()
+                        self.queue.publish_health_metrics(health_data)
+                        
+                        # Check for critical conditions
+                        self._check_health_alerts(health_data)
+                        
+                        # Sleep for the interval
+                        time.sleep(interval_seconds)
+                        
+                    except Exception as e:
+                        logger.error(f"Error in health monitor worker: {e}")
+                        time.sleep(60)  # Sleep for a minute before retrying
+            
+            # Start the thread
+            thread = threading.Thread(
+                target=health_monitor_worker,
+                name="health_monitor",
+                daemon=True
+            )
+            thread.start()
+            
+            # Publish notification about monitoring start
+            self.queue.publish_notification(
+                "System health monitoring started",
+                {
+                    "interval_seconds": interval_seconds,
+                    "timestamp": time.time()
+                }
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error starting health monitoring: {e}")
+            return False
+
+    def _check_health_alerts(self, health_data: Dict) -> None:
+        """
+        Check health data for critical conditions and publish alerts
+        
+        Args:
+            health_data: System health metrics
+        """
+        try:
+            alerts = []
+            
+            # Check CPU usage
+            cpu_percent = health_data.get("cpu", {}).get("percent", 0)
+            if cpu_percent > 90:
+                alerts.append({
+                    "type": "critical",
+                    "component": "cpu",
+                    "message": f"CPU usage is critically high at {cpu_percent}%"
+                })
+            elif cpu_percent > 75:
+                alerts.append({
+                    "type": "warning",
+                    "component": "cpu",
+                    "message": f"CPU usage is high at {cpu_percent}%"
+                })
+            
+            # Check memory usage
+            memory_percent = health_data.get("memory", {}).get("percent", 0)
+            if memory_percent > 90:
+                alerts.append({
+                    "type": "critical",
+                    "component": "memory",
+                    "message": f"Memory usage is critically high at {memory_percent}%"
+                })
+            elif memory_percent > 80:
+                alerts.append({
+                    "type": "warning",
+                    "component": "memory",
+                    "message": f"Memory usage is high at {memory_percent}%"
+                })
+            
+            # Check disk usage
+            disk_percent = health_data.get("disk", {}).get("percent", 0)
+            if disk_percent > 95:
+                alerts.append({
+                    "type": "critical",
+                    "component": "disk",
+                    "message": f"Disk usage is critically high at {disk_percent}%"
+                })
+            elif disk_percent > 85:
+                alerts.append({
+                    "type": "warning",
+                    "component": "disk",
+                    "message": f"Disk usage is high at {disk_percent}%"
+                })
+            
+            # Check process memory usage (potential memory leak)
+            process_memory_mb = health_data.get("process", {}).get("memory_rss_mb", 0)
+            if process_memory_mb > 2000:  # 2GB
+                alerts.append({
+                    "type": "critical",
+                    "component": "process_memory",
+                    "message": f"Process memory usage is critically high at {process_memory_mb}MB"
+                })
+            elif process_memory_mb > 1000:  # 1GB
+                alerts.append({
+                    "type": "warning",
+                    "component": "process_memory",
+                    "message": f"Process memory usage is high at {process_memory_mb}MB"
+                })
+            
+            # Publish alerts to notification stream
+            for alert in alerts:
+                self.queue.publish_notification(
+                    alert["message"],
+                    {
+                        "type": "health_alert",
+                        "alert_type": alert["type"],
+                        "component": alert["component"],
+                        "timestamp": time.time()
+                    }
+                )
+            
+            # If critical alerts, also add to status stream
+            critical_alerts = [a for a in alerts if a["type"] == "critical"]
+            if critical_alerts:
+                self.queue.publish_status(
+                    "health_critical",
+                    {
+                        "alerts": critical_alerts,
+                        "timestamp": time.time()
+                    }
+                )
+                
+        except Exception as e:
+            logger.error(f"Error checking health alerts: {e}")
 
 if __name__ == "__main__":
     ScraperRotation().run()
