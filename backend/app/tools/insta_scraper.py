@@ -544,7 +544,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            #"--headless",  # Run in headless mode for better speed
+            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
