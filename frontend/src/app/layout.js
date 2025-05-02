@@ -18,9 +18,9 @@ export const metadata = {
   creator: "Sumanth Pallamreddy",
   viewport: "width=device-width, initial-scale=1",
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
   openGraph: {
     title: "Instinct for UC Irvine",
@@ -29,11 +29,11 @@ export const metadata = {
     siteName: "Instinct for UCI",
     images: [
       {
-        url: "/logo.svg", // Removed absolute URL to let metadataBase handle it
+        url: "/logo.png", // Removed absolute URL to let metadataBase handle it
         width: 1200,
         height: 630,
         alt: "Instinct for UCI Clubs and Events",
-        type: "image/svg+xml", // Changed to SVG type
+        type: "image/png", // Changed to SVG type
       },
     ],
     locale: "en_US",
@@ -45,7 +45,7 @@ export const metadata = {
     creator: "@lifeofsumpal_",
     title: "Instinct for UC Irvine",
     description: "Find your community. Explore UCI clubs and events.",
-    images: ["/logo.svg"], // Removed absolute URL
+    images: ["/logo.png"], // Removed absolute URL
   },
 };
 
