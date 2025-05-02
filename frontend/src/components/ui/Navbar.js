@@ -74,6 +74,9 @@ export default function Navbar() {
             <Link href="/clubs" className={navLinkClass('/clubs')}>
               Clubs
             </Link>
+            <Link href="/news" className={navLinkClass('/news')}>
+              News
+            </Link>
             <Link href="/dashboard" className={navLinkClass('/dashboard')}>
               Dashboard
             </Link>
@@ -152,6 +155,9 @@ export default function Navbar() {
             </Link>
             <Link href="/clubs" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 text-2xl font-semibold text-gray-800 dark:text-white bg-white/60 dark:bg-dark-profile-card/80 rounded-xl hover:bg-lavender/30 dark:hover:bg-dark-gradient-start transition">
               Clubs
+            </Link>
+            <Link href="/news" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 text-2xl font-semibold text-gray-800 dark:text-white bg-white/60 dark:bg-dark-profile-card/80 rounded-xl hover:bg-lavender/30 dark:hover:bg-dark-gradient-start transition">
+              News
             </Link>
             <Link href="/dashboard" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 text-2xl font-semibold text-gray-800 dark:text-white bg-white/60 dark:bg-dark-profile-card/80 rounded-xl hover:bg-lavender/30 dark:hover:bg-dark-gradient-start transition">
               Dashboard
