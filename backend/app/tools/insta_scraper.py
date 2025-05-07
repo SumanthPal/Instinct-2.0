@@ -157,6 +157,8 @@ class InstagramScraper:
         try:
             club_username = club_username[1:] if club_username.startswith('@') else club_username
             club_info = self.get_club_info(club_username)
+        
+            
             
             self.save_club_info(club_info)
             self.save_post_info(club_username)
@@ -265,21 +267,19 @@ class InstagramScraper:
                 post_url = post_data["post_url"]
                 post_id = post_data["id"]
                 
-                # NEW: Double-check if post was marked as scrapped by another process
-                pr = self.db.check_if_post_is_photo_reloaded(post_id)
-                
-                if self.db.check_if_post_is_scrapped(post_id) and pr:
+               
+                if self.db.check_if_post_is_scrapped(post_id):
                     logger.info(f"Post {post_id} already scrapped, skipping...")
                     continue
                 
-                if not pr:
-                    logger.info(f"photo reload for {club_username} necessary and scrapping")                    
-                    
+                   
                     
                     
                 try:
                     # Scrape post information
                     description, date, post_pic = self.get_post_info(post_url)
+                                        
+                    
                     
                     # Update post in database
                     update_data = {
@@ -331,6 +331,12 @@ class InstagramScraper:
 
             club_id = self.db.upsert_club(club_info[0])
             logger.info('inserted data')
+            
+            club_pfp_url = club_info[0]["Profile Picture"]
+            pfp_path = f"pfps/{instagram_handle}.jpg"
+            storage_path = self.db.download_and_upload_img(club_pfp_url, pfp_path)
+            
+            club_info[0]["profile_image_path"] = storage_path
             
              
             # Store post links in the database

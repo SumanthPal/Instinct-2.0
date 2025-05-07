@@ -23,19 +23,19 @@ const RSS_FEEDS = {
     'Society & Community': 'https://news.uci.edu/category/society-and-community/feed/'
   },
   schools: {
-    'Arts': 'https://news.uci.edu/category/schools/arts/feed/',
-    'Biological Sciences': 'https://news.uci.edu/category/schools/biological-sciences/feed/',
-    'Business': 'https://news.uci.edu/category/schools/business/feed/',
-    'Education': 'https://news.uci.edu/category/schools/education/feed/',
-    'Engineering': 'https://news.uci.edu/category/schools/engineering/feed/',
-    'Health Sciences': 'https://news.uci.edu/category/schools/health-sciences/feed/',
-    'Humanities': 'https://news.uci.edu/category/schools/humanities/feed/',
-    'Information & Computer Sciences': 'https://news.uci.edu/category/schools/information-computer-sciences/feed/',
-    'Law': 'https://news.uci.edu/category/schools/law/feed/',
-    'Medicine': 'https://news.uci.edu/category/schools/medicine/feed/',
-    'Physical Sciences': 'https://news.uci.edu/category/schools/physical-sciences/feed/',
-    'Social Ecology': 'https://news.uci.edu/category/schools/social-ecology/feed/',
-    'Social Sciences': 'https://news.uci.edu/category/schools/social-sciences/feed/'
+    'Arts': 'https://news.uci.edu/category/arts/feed/',
+    'Biological Sciences': 'https://news.uci.edu/category/biological-sciences/feed/',
+    'Business': 'https://news.uci.edu/category/business/feed/',
+    'Education': 'https://news.uci.edu/category/education/feed/',
+    'Engineering': 'https://news.uci.edu/category/engineering/feed/',
+    'Health Sciences': 'https://news.uci.edu/category/health-sciences/feed/',
+    'Humanities': 'https://news.uci.edu/category/humanities/feed/',
+    'Information & Computer Sciences': 'https://news.uci.edu/category/ics/feed/',
+    'Law': 'https://news.uci.edu/category/law/feed/',
+    'Medicine': 'https://news.uci.edu/category/medicine/feed/',
+    'Physical Sciences': 'https://news.uci.edu/category/physical-sciences/feed/',
+    'Social Ecology': 'https://news.uci.edu/category/social-ecology/feed/',
+    'Social Sciences': 'https://news.uci.edu/category/social-sciences/feed/'
   }
 };
 

@@ -5,6 +5,8 @@ from typing import Dict, List, Optional, Any, Tuple
 import uuid
 from pathlib import Path
 import sys
+import requests
+from io import BytesIO
 import httpx
 
 
@@ -23,6 +25,7 @@ class SupabaseQueries:
         self.supabase = supabase
         self.SUPABASE_URL = os.getenv("SUPABASE_URL")
         self.SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+        self.BUCKET_NAME = os.getenv("BUCKET_NAME")
 
         
     def get_category_id(self, category_name: str) -> Optional[str]:
@@ -79,8 +82,8 @@ class SupabaseQueries:
             "updated_at": datetime.now().isoformat(),
             "followers": club_info.get("Followers", 0),
             "following": club_info.get("Following", 0),
-            "club_links": club_info.get("Club Links", [])
-            
+            "club_links": club_info.get("Club Links", []),
+            "profile_image_path": club_info.get("profile_image_path", None)
         }
         
         # Check if club exists
@@ -555,7 +558,28 @@ class SupabaseQueries:
         except Exception as e:
             print(f"Error in get_posts_by_club_id: {e}")
             return []
+        
+    def download_and_upload_img(self, image_url: str, storage_path: str):
+        response = requests.get(image_url)
+        if response.status_code != 200:
+            logger.error("Error in fetching image.")
+            raise Exception(f"Failed to download image: {response.status_code}")
+        
+        image_bytes = BytesIO(response.content)
+        
+        upload_response = self.supabase.storage.from_(self.BUCKET_NAME).upload(
+            storage_path,
+            image_bytes.read(),
+            {
+                "content-type": response.headers.get("Content-Type", "image/jpeg")
+            }
+        )
 
+        if upload_response.get("error"):
+            logger.error("Unable to upload to Supabase.")
+            raise Exception(f"Upload error: {upload_response['error']['message']}")
+
+        return storage_path 
         
     
     

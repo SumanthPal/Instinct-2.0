@@ -9,6 +9,7 @@ import { FaStar, FaRegStar } from 'react-icons/fa';
 import { useAuth } from '@/context/auth-context';
 import { likesService } from '@/lib/like-service';
 import { useToast } from './ui/toast'; // Import the hook, not the function
+import { VscVerifiedFilled } from "react-icons/vsc";
 
 export default function ClubCard({ club }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -267,9 +268,10 @@ export default function ClubCard({ club }) {
                 )}
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-base">
-                  {club.name}
-                </h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-base flex items-center gap-1">
+  {club.name}
+  {/* <VscVerifiedFilled className="text-purple-700" /> */}
+</h3>
                 <p className="text-sm text-gray-500 dark:text-dark-base">
                   @{club.instagram}
                 </p>
