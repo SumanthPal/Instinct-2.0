@@ -77,7 +77,10 @@ automation_state = {
     "check_pending_interval_minutes": 30,  # How often to check pending clubs
     "requeue_stalled_interval_minutes": 60,  # How often to check for stalled jobs
     "max_queue_size": 40,  # Maximum number of clubs to have in queue
-    "auto_cleanup_days": 7  # Days between automatic cleanup
+    "auto_cleanup_days": 7,  # Days between automatic cleanup
+    "last_population_time": 0,  # Timestamp of last population
+    "min_population_interval_hours": 2,  # Minimum hours between populations
+    "clubs_per_population": 15,  # Maximum clubs to add per population cycle
 }
 
 # Check if user has admin role
@@ -388,6 +391,13 @@ async def auto_populate_queue():
     current_hour = datetime.datetime.now().hour
     if current_hour % automation_state["populate_interval_hours"] != 0:
         return
+    
+    # Check if minimum interval has passed since last population
+    current_time = time.time()
+    min_interval_seconds = automation_state["min_population_interval_hours"] * 3600
+    if current_time - automation_state.get("last_population_time", 0) < min_interval_seconds:
+        logger.info(f"Not enough time passed since last population. Skipping.")
+        return
         
     try:
         # Check current queue size
@@ -395,13 +405,22 @@ async def auto_populate_queue():
         current_queue_size = queue_stats.get("scraper", {}).get("queue_count", 0)
         current_processing = queue_stats.get("scraper", {}).get("processing_count", 0)
         
+        # Set a minimum threshold - only populate if queue is below 40% capacity
+        min_threshold = int(automation_state["max_queue_size"] * 0.4)
+        
         # Only populate if queue is getting low
-        if current_queue_size + current_processing >= automation_state["max_queue_size"]:
-            logger.info(f"Queue already has {current_queue_size} items. Skipping auto-populate.")
+        if current_queue_size + current_processing >= min_threshold:
+            logger.info(f"Queue still has {current_queue_size} items, above threshold. Skipping auto-populate.")
             return
             
         # Calculate how many more clubs to add
-        to_add = automation_state["max_queue_size"] - (current_queue_size + current_processing)
+        to_add = min(
+            automation_state["max_queue_size"] - (current_queue_size + current_processing),
+            automation_state["clubs_per_population"]  # Limit per population cycle
+        )
+        
+        # Update last population time
+        automation_state["last_population_time"] = current_time
         
         # Trigger population
         publish_notification(
@@ -420,7 +439,7 @@ async def auto_populate_queue():
         # Send notification to channel
         channel = aux_bot.get_channel(AUX_BOT_CHANNEL_ID)
         if channel:
-            await channel.send(f"yaaay i auto-populated the queue with {to_add} cuties 🎀✨")
+            await channel.send(f"yaaay i'm adding up to {to_add} clubs to the queue 🎀✨")
     except Exception as e:
         logger.error(f"Error in auto_populate_queue: {e}")
 

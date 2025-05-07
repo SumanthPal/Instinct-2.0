@@ -72,6 +72,103 @@ class InstagramScraper:
     def __exit__(self, exc_type, exc_value, traceback):
         self._driver_quit()
     
+    def detect_rate_limit(self):
+        """
+        Check for signs of Instagram rate limiting
+        
+        Returns:
+            bool: True if rate limited, False otherwise
+        """
+        try:
+            current_url = self._driver.current_url
+            page_source = self._driver.page_source.lower()
+            
+            # Check for "page not found" text on redirects
+            not_found_indicators = [
+                "sorry, this page isn't available",
+                "sorry, this page could not be loaded",
+                "page not found",
+                "couldn't find this page",
+                "please wait a few minutes before you try again",
+                "try again later"
+            ]
+            
+            for indicator in not_found_indicators:
+                if indicator in page_source:
+                    logger.warning(f"Rate limit detected: '{indicator}' text found")
+                    return True
+            
+            # Check for redirect URLs that indicate rate limiting
+            rate_limit_redirects = [
+                "/challenge/",
+                "instagram.com/login",
+                "instagram.com/accounts/login",
+                "instagram.com/accounts/suspended"
+            ]
+            
+            for redirect in rate_limit_redirects:
+                if redirect in current_url:
+                    logger.warning(f"Rate limit detected: Redirected to {current_url}")
+                    return True
+            
+            # Check for missing key elements on post pages
+            if "/p/" in current_url:
+                # Try to find the post image - will be missing if rate limited
+                img_element = self._driver.find_elements(By.XPATH, "//img[contains(@class, 'x5yr21d xu96u03 x10l6tqk x13vifvy x87ps6o xh8yej3')]")
+                if not img_element:
+                    logger.warning("Rate limit detected: Missing post image on post page")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking for rate limit: {e}")
+            return False
+    
+    def safe_get_page(self, url, retry_count=1):
+        """
+        Safely access a page with rate limit detection
+        
+        Args:
+            url: URL to access
+            retry_count: Number of retries on failure
+            
+        Returns:
+            bool: True if successful, False if failed
+            
+        Raises:
+            RateLimitDetected: If rate limit is detected
+        """
+        try:
+            # Add random delay to avoid detection patterns
+            delay = random.uniform(1, 3)
+            time.sleep(delay)
+            
+            # Navigate to the URL
+            self._driver.get(url)
+            
+            # Wait for page to load and possibly redirect
+            time.sleep(2)
+            
+            # Check if we've been rate limited
+            if self.detect_rate_limit():
+                raise RateLimitDetected(f"Rate limit detected when accessing {url}")
+                
+            return True
+            
+        except RateLimitDetected:
+            # Re-raise RateLimitDetected for caller to handle
+            raise
+            
+        except Exception as e:
+            if retry_count > 0:
+                logger.warning(f"Error accessing {url}: {e}. Retrying...")
+                time.sleep(2)
+                return self.safe_get_page(url, retry_count - 1)
+            else:
+                logger.error(f"Failed to access {url} after retries: {e}")
+                return False
+            
     def swap_cookies(self):
         """Switch to the next cookie/account when rate limited."""
         self.current_cookie_index = (self.current_cookie_index + 1) % len(self.cookies_list)
@@ -176,10 +273,10 @@ class InstagramScraper:
         try:
 
             profile_url = f"https://www.instagram.com/{club_username}/"
-            self._driver.get(profile_url)
-            # if not self.check_instagram_handle(club_username):
-            #     raise Exception("Invalid Instagram handle.")
+            if not self.safe_get_page(profile_url):
+                raise Exception(f"Failed to access profile for {club_username}")
             
+            #handles all scraping for links. this is dynamic, hence why its in selenium
             self._handle_instagram_more_button()
             club_links = self._handle_instagram_links_button()
 
@@ -214,6 +311,9 @@ class InstagramScraper:
 
         try:
             self._driver.get(post_url)
+            if not self.safe_get_page(post_url):
+                raise Exception(f"Failed to access post {post_url}")
+            
             self._wait.until(EC.presence_of_element_located((By.XPATH,
                                                             "//h1[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu')]")))
 
@@ -668,30 +768,56 @@ def _chunk_list(lst, n):
 
     return chunks
 
-def scrape_with_retries(scraper, username, max_retries=3, delay=5):
+def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
     for attempt in range(max_retries):
         try:
             username = username[1:] if username.startswith('@') else username
+            logger.info(f"Attempt {attempt+1}/{max_retries} for {username}")
+            
+            # Implement progressive backoff delay
+            delay = base_delay * (2 ** attempt)  # Exponential backoff
+            
+            # Add jitter to avoid synchronized retries when multithreading
+            jitter = random.uniform(0.5, 1.5)
+            actual_delay = delay * jitter
+            
+            # If not first attempt, add delay before retrying
+            if attempt > 0:
+                logger.info(f"Waiting {actual_delay:.2f} seconds before retry...")
+                time.sleep(actual_delay)
+            
+            # Try scraping
             scraper.store_club_data(username)
             logger.info(f"Scraping of {username} complete.")
-            scraper._driver_quit()
             return scraper
+            
         except RateLimitDetected as rate_limit_exc:
-            logger.warning(f"Rate limit detected during scrape of {username}: {rate_limit_exc}")
+            logger.warning(f"Rate limit detected during attempt {attempt+1} for {username}: {rate_limit_exc}")
+            
+            # Swap cookies
             scraper.swap_cookies()
-            time.sleep(5)  # Short pause after swapping
-            continue
+            
+            # On last attempt, restart the driver completely
+            if attempt == max_retries - 1:
+                logger.warning(f"Final attempt failed for {username}. Restarting driver...")
+                scraper._driver_quit()
+                scraper = InstagramScraper(os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD"))
+                scraper.login()
+                return scraper
+                
         except Exception as e:
-            logger.warning(f"Attempt {attempt + 1} failed for {username}: {e}")
-            if attempt < max_retries - 1:
-                time.sleep(delay)
-            else:
-                logger.error(f"Giving up after repeated failures for {username}. Restarting driver.")
+            logger.error(f"Attempt {attempt+1} failed for {username} with error: {str(e)}")
+            
+            # On last attempt, restart the driver
+            if attempt == max_retries - 1:
+                logger.warning(f"Multiple failures for {username}. Restarting driver...")
                 scraper._driver_quit()
                 scraper = InstagramScraper(os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD"))
                 scraper.login()
                 return scraper
     
+    # If we've exhausted all retries
+    return scraper
 
 def scrape_sequence(username_list: list[str]) -> None:
     scraper = None

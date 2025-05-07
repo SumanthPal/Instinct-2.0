@@ -218,6 +218,8 @@ class ScraperRotation:
         """Worker function that runs in a thread to process scraper jobs"""
         logger.info("Scraper worker started")
         self.queue.publish_notification("Scraper worker started", {})
+        last_check = 0
+
         
         while self.running and not self.stop_event.is_set():
             try:
@@ -237,19 +239,19 @@ class ScraperRotation:
                     self.rate_limited = False
                     self.status["rate_limited_until"] = None
                     logger.info("Rate limit period ended. Resuming normal operation.")
-                    self.queue.publish_notification("Rate limit ended", {})
-                
+                    
                 # Requeue stalled jobs
-                self.queue.requeue_stalled_jobs(QueueType.SCRAPER)
+                if time.time() - last_check > 1800:  # 30 minutes
+                    last_check = time.time()
+                    self.queue.requeue_stalled_jobs(QueueType.SCRAPER)
                 
                 # Get the next job
-                job = self.queue.get_next_job(QueueType.SCRAPER)
+                job = self.queue.listen_to_scraper_queue(blocking_timeout=5)
+
                 
                 if not job:
-                    # No jobs available, just sleep and check again later
-                    # REMOVED auto-populate logic
-                    logger.info("Queue empty. Waiting for jobs...")
-                    time.sleep(10)
+                # No jobs available, just sleep briefly
+                    time.sleep(1)
                     continue
                 
                 # Update status
@@ -473,6 +475,8 @@ class ScraperRotation:
             "duration_hours": duration_seconds // 3600,
             "end_time": end_time
         })
+        
+    
     
     def process_streams(self):
         """Process notification and status streams from Redis"""

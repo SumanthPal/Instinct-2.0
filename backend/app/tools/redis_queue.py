@@ -142,9 +142,9 @@ class RedisScraperQueue:
     def _init_queue_keys(self):
         """Initialize all queue keys with proper prefixes"""
         # Queue key format: {type}:{purpose}
-        self.notification_stream = "notifications"
-        self.status_stream = "status"
         self.health_stream = "system:health"
+        self.status_stream = "status"
+
         self.keys = {
             QueueType.SCRAPER: {
                 "queue": "scraper:queue",
@@ -172,11 +172,11 @@ class RedisScraperQueue:
     
     def enqueue_job(self, queue_type: QueueType, job_data: Dict, priority: int = 0) -> bool:
         """
-        Generic method to enqueue a job to any queue
+        Enqueue a job with efficient Redis pipelining
         
         Args:
             queue_type: The type of queue (SCRAPER, EVENT, LOG)
-            job_data: The job data to enqueue (must include at least instagram_handle)
+            job_data: The job data to enqueue
             priority: Lower number = higher priority
             
         Returns:
@@ -190,28 +190,30 @@ class RedisScraperQueue:
                 'attempts': job_data.get('attempts', 0)
             }
             
-            # Ensure job has instagram_handle
+            # Ensure job has instagram_handle for non-log queues
             if 'instagram_handle' not in job and queue_type != QueueType.LOG:
                 logger.error(f"Cannot enqueue job without instagram_handle: {job}")
                 return False
                 
-            queue_key = self.keys[queue_type]["queue"]
-            self.redis.zadd(queue_key, {json.dumps(job): priority})
+            queue_key = self.queue_keys[queue_type]["queue"]
             
-            # Send notification about new job
-            self.publish_notification(f"New job added to {queue_type.value} queue", {
-                "type": "job_added",
-                "queue": queue_type.value,
-                "instagram_handle": job.get('instagram_handle', 'N/A'),
-                "timestamp": time.time()
-            })
-            
-            logger.info(f"Enqueued job to {queue_type.value} queue: {job.get('instagram_handle', 'log')} with priority {priority}")
+            # Use pipeline for better performance
+            with self.redis.pipeline() as pipe:
+                pipe.zadd(queue_key, {json.dumps(job): priority})
+                
+                # For logs, maintain a reasonable history length
+                if queue_type == QueueType.LOG:
+                    pipe.zremrangebyrank(queue_key, 0, -1001)  # Keep max 1000 entries
+                    
+                pipe.execute()
+                
+            logger.info(f"Enqueued job to {queue_type.value} queue: {job.get('instagram_handle', 'log job')} (priority {priority})")
             return True
             
         except Exception as e:
             logger.error(f"Error enqueueing job to {queue_type.value} queue: {e}")
             return False
+
     
     def get_next_job(self, queue_type: QueueType) -> Optional[Dict]:
         """
@@ -789,6 +791,60 @@ class RedisScraperQueue:
             'attempts': 0
         }
         return self.enqueue_job(QueueType.SCRAPER, job, priority)
+    
+    def listen_to_scraper_queue(self, blocking_timeout=5):
+        """
+        Listen directly to the scraper queue for jobs using BZPOPMIN
+        
+        Args:
+            blocking_timeout: Time to block while waiting for new jobs
+            
+        Returns:
+            Dict: Job data or None if no job is available
+        """
+        try:
+            queue_key = self.queue_keys[QueueType.SCRAPER]["queue"]
+            result = self.redis.bzpopmin(queue_key, timeout=blocking_timeout)
+            
+            if not result:
+                return None
+                
+            _, job_json, _ = result
+            
+            # Parse job data
+            if isinstance(job_json, bytes):
+                job_json = job_json.decode('utf-8')
+                
+            try:
+                job = json.loads(job_json)
+                
+                # Mark as processing
+                job['processing_started'] = time.time()
+                job['attempts'] = job.get('attempts', 0) + 1
+                
+                self.redis.hset(
+                    self.queue_keys[QueueType.SCRAPER]["processing"],
+                    job['instagram_handle'],
+                    json.dumps(job)
+                )
+                
+                # Record for rate limiting
+                if 'instagram_handle' in job:
+                    self.redis.zadd(
+                        self.queue_keys[QueueType.SCRAPER]["rate_limit"],
+                        {job['instagram_handle']: time.time()}
+                    )
+                
+                logger.info(f"Started processing job: {job['instagram_handle']}. Attempt: {job['attempts']}")
+                return job
+                
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse job JSON from queue: {job_json}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error listening to scraper queue: {e}")
+            return None
     
     def get_next_club(self):
         """Legacy method for getting the next club from the scraper queue"""
