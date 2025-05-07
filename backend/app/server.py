@@ -334,17 +334,17 @@ async def list_clubs(
 async def get_club_data(instagram_handle: str):
     """Get detailed information about a specific club."""
     try:
-        # Check if club exists
         club = db.get_club_by_instagram(instagram_handle)
         if not club:
             raise HTTPException(status_code=404, detail=f"Club with Instagram handle '{instagram_handle}' not found")
         
         if club.get("profile_image_path"):
-            public_url = supabase.storage.from_("instinct-assets")\
-                .get_public_url(club["profile_image_path"]).get("publicURL")
-            club["profile_image_url"] = public_url  # Inject into response
-        # Return club data
+            public_url = supabase.storage.from_("images")\
+                .get_public_url(club["profile_image_path"])
+            club["profile_image_url"] = public_url
+
         return club
+
     except HTTPException as http_e:
         raise http_e
     except Exception as e:
@@ -376,9 +376,9 @@ async def get_club_posts(
         
         for post in posts:
             if post.get("image_path"):
-                public_url = supabase.storage.from_("instinct-assets")\
-                    .get_public_url(post["image_path"]).get("publicURL")
-                post["image_url"] = public_url  
+                public_url = supabase.storage.from_("images").get_public_url(post["image_path"])
+                post["image_url"] = public_url
+
 
         return {
             "count": len(posts),

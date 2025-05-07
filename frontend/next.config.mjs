@@ -7,6 +7,7 @@ const nextConfig = {
         hostname: '*.cdninstagram.com',  // Correct wildcard
       },
     ],
+    domains: ['levelicytjtkbdvbflzv.supabase.co'],
   },
 };
 

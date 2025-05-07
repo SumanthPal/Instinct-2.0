@@ -278,6 +278,9 @@ class InstagramScraper:
                 try:
                     # Scrape post information
                     description, date, post_pic = self.get_post_info(post_url)
+                    instagram_storage_path = f"posts/{club_username}/{post_id}"
+                    
+                    uploaded_path = self.db.download_and_upload_img(post_pic, instagram_storage_path)
                                         
                     
                     
@@ -287,6 +290,7 @@ class InstagramScraper:
                         "posted": date,
                         "image_url": post_pic,
                         "scrapped": True,
+                        "image_path": uploaded_path,
                     }
                     
                     self.db.update_post_by_id(post_id, update_data)
@@ -329,7 +333,6 @@ class InstagramScraper:
             instagram_handle = club_info[0]["Instagram Handle"]
             
 
-            club_id = self.db.upsert_club(club_info[0])
             logger.info('inserted data')
             
             club_pfp_url = club_info[0]["Profile Picture"]
@@ -338,7 +341,8 @@ class InstagramScraper:
             
             club_info[0]["profile_image_path"] = storage_path
             
-             
+            club_id = self.db.upsert_club(club_info[0])
+ 
             # Store post links in the database
             logger.info(club_info)
             if club_info[0]['Recent Posts'] and club_id:
@@ -359,23 +363,13 @@ class InstagramScraper:
                     instagram_post_id = post_url.split('/')[-2]
 
                     # Check if post already exists
-                    existing_post = self.db.get_post_by_instagram_id(instagram_post_id)
                     
-                    if existing_post:
-                        post_id = existing_post.get("id")
-                        # Check if this post still needs to be reloaded
-                        if not self.db.check_if_post_is_photo_reloaded(post_id):
-                            logger.info(f"Post {instagram_post_id} already exists and doesn't need photo reload.")
-                            continue  # Skip storing again
-
-                    # Create or reinsert minimal post entry
                     post_data = {
                         "club_id": club_id,
                         "determinant": instagram_post_id,
                         "post_url": post_url,
                         "created_at": datetime.datetime.now().isoformat(),
                         "scrapped": False,
-                        "photo_reload": False  # Assume it's fresh
                     }
 
                     self.db.insert_post_link(post_data)

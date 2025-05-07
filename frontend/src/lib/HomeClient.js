@@ -78,7 +78,6 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     setSelectedCategories(categories);
   
     if (categories.length === 0) {
-      // 🔥 No categories selected → Reset
       if (searchInput.trim() === "") {
         const data = await fetchClubManifest(1, 20);
         setClubs(data.results);
@@ -282,7 +281,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
               <ClubCard
                 key={club.id}
                 club={{
-                  profilePicture: club.profile_pic,
+                  profilePicture: club.profile_image_url ? club.profile_image_path : club.profile_pic,
                   name: club.name,
                   description: club.description,
                   instagram: club.instagram_handle,

@@ -1,4 +1,5 @@
 import os
+from PIL import Image
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
@@ -565,21 +566,26 @@ class SupabaseQueries:
             logger.error("Error in fetching image.")
             raise Exception(f"Failed to download image: {response.status_code}")
         
-        image_bytes = BytesIO(response.content)
+        try:
+            img = Image.open(BytesIO(response.content))
+        except Exception as e:
+            logger.error("Failed to load image into Pillow")
+            raise e
+        
+        compressed_io = BytesIO()
+        img.convert("RGB").save(compressed_io, format="JPEG", quality=85)
+        compressed_io.seek(0)
         
         upload_response = self.supabase.storage.from_(self.BUCKET_NAME).upload(
             storage_path,
-            image_bytes.read(),
+            compressed_io.read(),
             {
-                "content-type": response.headers.get("Content-Type", "image/jpeg")
+                "content-type": "image/jpeg"
             }
         )
-
-        if upload_response.get("error"):
-            logger.error("Unable to upload to Supabase.")
-            raise Exception(f"Upload error: {upload_response['error']['message']}")
-
-        return storage_path 
         
+        return storage_path
+
+              
     
     
