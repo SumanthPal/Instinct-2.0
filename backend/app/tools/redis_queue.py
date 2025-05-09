@@ -145,7 +145,7 @@ class RedisScraperQueue:
         self.health_stream = "system:health"
         self.status_stream = "status"
 
-        self.keys = {
+        self.queue_keys = {
             QueueType.SCRAPER: {
                 "queue": "scraper:queue",
                 "processing": "scraper:processing",
@@ -226,14 +226,14 @@ class RedisScraperQueue:
             Optional[Dict]: The job data or None if queue is empty
         """
         try:
-            queue_key = self.keys[queue_type]["queue"]
-            processing_key = self.keys[queue_type]["processing"]
+            queue_key = self.queue_keys[queue_type]["queue"]
+            processing_key = self.queue_keys[queue_type]["processing"]
             
             # Rate limiting check for scraper jobs
             if queue_type == QueueType.SCRAPER:
                 current_time = time.time()
                 recent_requests = self.redis.zrangebyscore(
-                    self.keys[QueueType.SCRAPER]["rate_limit"], 
+                    self.queue_keys[QueueType.SCRAPER]["rate_limit"], 
                     current_time - 3600, 
                     current_time
                 )
@@ -270,7 +270,7 @@ class RedisScraperQueue:
             # Rate limiting for scraper jobs
             if queue_type == QueueType.SCRAPER and 'instagram_handle' in job:
                 self.redis.zadd(
-                    self.keys[QueueType.SCRAPER]["rate_limit"], 
+                    self.queue_keys[QueueType.SCRAPER]["rate_limit"], 
                     {job['instagram_handle']: time.time()}
                 )
             
@@ -315,8 +315,8 @@ class RedisScraperQueue:
             bool: True if successful, False otherwise
         """
         try:
-            processing_key = self.keys[queue_type]["processing"]
-            completed_key = self.keys[queue_type].get("completed")
+            processing_key = self.queue_keys[queue_type]["processing"]
+            completed_key = self.queue_keys[queue_type].get("completed")
             
             # Get the job from processing
             job_json = self.redis.hget(processing_key, job_id)
@@ -361,8 +361,8 @@ class RedisScraperQueue:
             bool: True if successful, False otherwise
         """
         try:
-            processing_key = self.keys[queue_type]["processing"]
-            failed_key = self.keys[queue_type]["failed"]
+            processing_key = self.queue_keys[queue_type]["processing"]
+            failed_key = self.queue_keys[queue_type]["failed"]
             
             # Get the job from processing
             job_json = self.redis.hget(processing_key, job_id)
@@ -430,7 +430,7 @@ class RedisScraperQueue:
             
             for job in stalled_jobs:
                 job_id = job.get('instagram_handle', job.get('id', 'unknown'))
-                processing_key = self.keys[queue_type]["processing"]
+                processing_key = self.queue_keys[queue_type]["processing"]
                 
                 # Remove from processing
                 self.redis.hdel(processing_key, job_id)
@@ -468,7 +468,7 @@ class RedisScraperQueue:
             List[Dict]: List of stalled jobs
         """
         try:
-            processing_key = self.keys[queue_type]["processing"]
+            processing_key = self.queue_keys[queue_type]["processing"]
             current_time = time.time()
             stalled_jobs = []
             
@@ -501,8 +501,8 @@ class RedisScraperQueue:
             int: Number of jobs removed
         """
         try:
-            queue_key = self.keys[queue_type]["queue"]
-            processing_key = self.keys[queue_type]["processing"]
+            queue_key = self.queue_keys[queue_type]["queue"]
+            processing_key = self.queue_keys[queue_type]["processing"]
             
             # Count jobs before flushing
             queue_count = self.redis.zcard(queue_key)
@@ -544,7 +544,7 @@ class RedisScraperQueue:
             stats = {}
             
             # Get counts for different queues
-            for purpose, key in self.keys[queue_type].items():
+            for purpose, key in self.queue_keys[queue_type].items():
                 if purpose == "queue":
                     stats[f"{purpose}_count"] = self.redis.zcard(key)
                 elif purpose in ["processing", "failed", "completed"]:
@@ -721,7 +721,7 @@ class RedisScraperQueue:
             List[Dict]: List of log entries
         """
         try:
-            log_history_key = self.keys[QueueType.LOG]["history"]
+            log_history_key = self.queue_keys[QueueType.LOG]["history"]
             
             # Get all logs
             all_logs = self.redis.lrange(log_history_key, 0, count - 1)
@@ -757,7 +757,7 @@ class RedisScraperQueue:
         """
         try:
             processed_count = 0
-            log_history_key = self.keys[QueueType.LOG]["history"]
+            log_history_key = self.queue_keys[QueueType.LOG]["history"]
             
             while True:
                 log_entry = self.get_next_job(QueueType.LOG)
@@ -861,14 +861,14 @@ class RedisScraperQueue:
     def requeue_job(self, instagram_handle):
         """Legacy method for requeuing a job"""
         try:
-            job_json = self.redis.hget(self.keys[QueueType.SCRAPER]["processing"], instagram_handle)
+            job_json = self.redis.hget(self.queue_keys[QueueType.SCRAPER]["processing"], instagram_handle)
             if not job_json:
                 logger.warning(f"Job {instagram_handle} not found in processing queue. Re-adding fresh.")
                 self.enqueue_club(instagram_handle, priority=-10)
                 return True
 
             job = json.loads(job_json)
-            self.redis.hdel(self.keys[QueueType.SCRAPER]["processing"], instagram_handle)
+            self.redis.hdel(self.queue_keys[QueueType.SCRAPER]["processing"], instagram_handle)
             self.enqueue_club(job['instagram_handle'], priority=-10)
             logger.info(f"Successfully requeued {instagram_handle} due to manual fallback.")
             return True
