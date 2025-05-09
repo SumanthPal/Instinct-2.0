@@ -592,22 +592,6 @@ def run_scraper_process():
 
 app.include_router(router)
 if __name__ == "__main__":
-
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
     
-    # Check if running on Heroku
-    is_heroku = 'DYNO' in os.environ
-    
-    if is_heroku:
-        # On Heroku, use a worker process instead (defined in Procfile)
-        # Run only the web server in this process
-        import uvicorn
-        uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
-    else:
-        
-        scraper_process = multiprocessing.Process(target=run_scraper_process)
-        scraper_process.daemon = True
-        scraper_process.start()
-        
-        #Run the FastAPI server
-        import uvicorn
-        uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
