@@ -27,16 +27,6 @@ class EventParser:
         self.name_similarity_threshold = 0.6  # Lower than original 0.7
         self.time_window_hours = 24  # Hours to consider for time proximity
 
-    def validate_username(self, username: str) -> bool:
-        """
-        Validates if the username exists in the database.
-        """
-        # Check if the club exists in the database using SupabaseQueries
-        club = self.db.get_club_by_instagram(username)
-        if not club:
-            raise ValueError(f"Club with Instagram handle '{username}' not found in the database.")
-        
-        return True
 
     def parse_post(self, post_id: "uuid") -> List[Dict]:
         """

@@ -379,7 +379,6 @@ async def get_club_posts(
                 public_url = supabase.storage.from_("images").get_public_url(post["image_path"])
                 post["image_url"] = public_url
 
-
         return {
             "count": len(posts),
             "results": posts

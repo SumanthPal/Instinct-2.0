@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  web_api:
+    build: .
+    command: python app/server.py
+    env_file: .env
+    ports:
+      - "8000:8000"
+    networks:
+      - instinct-net
+
+  scraper_rotation:
+    build: .
+    command: python app/tools/scraper_rotation.py
+    env_file: .env
+    networks:
+      - instinct-net
+
+  discord_bot:
+    build: .
+    command: python app/tools/discord_bot.py
+    env_file: .env
+    
+    networks:
+      - instinct-net
+
+
+networks:
+  instinct-net:
