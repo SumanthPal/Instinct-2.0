@@ -12,18 +12,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Chrome for Testing (fixed version like Heroku's buildpack)
 ENV CHROME_VERSION=122.0.6261.111
-RUN wget -q https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chrome-linux64.zip -O chrome.zip && \
-    unzip -q chrome.zip && \
-    mv chrome-linux64 /opt/chrome && \
-    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
-    rm chrome.zip
 
-# Install matching Chromedriver
-RUN wget -q https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chromedriver-linux64.zip -O chromedriver.zip && \
-    unzip -q chromedriver.zip && \
-    mv chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
+# Install Chrome
+RUN wget -q https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chrome-linux64.zip -O /tmp/chrome.zip && \
+    unzip -q /tmp/chrome.zip -d /opt && \
+    mv /opt/chrome-linux64 /opt/chrome && \
+    ln -s /opt/chrome/chrome /usr/bin/google-chrome && \
+    rm /tmp/chrome.zip
+
+# Install Chromedriver
+RUN wget -q https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/${CHROME_VERSION}/linux64/chromedriver-linux64.zip -O /tmp/chromedriver.zip && \
+    unzip -q /tmp/chromedriver.zip -d /opt && \
+    mv /opt/chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
     chmod +x /usr/bin/chromedriver && \
-    rm -rf chromedriver.zip chromedriver-linux64
+    rm -rf /tmp/chromedriver.zip /opt/chromedriver-linux64
 
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
@@ -32,7 +34,7 @@ ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 COPY requirements.txt ./
 
 # Install Python dependencies in a single layer
-RUN pip install --no-cache-dir -r requirements.txt supervisor
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
