@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  web:
+    image: instinctregistry.azurecr.io/backend-web:latest
+    command: python server.py
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - ENV=production
+    restart: unless-stopped
+  
+  scraper:
+    image: instinctregistry.azurecr.io/backend-scraper:latest
+    command: python tools/scraper_rotation.py
+    env_file: .env
+    environment:
+      - ENV=production
+    restart: unless-stopped
+  
+  discord:
+    image: instinctregistry.azurecr.io/backend-discord:latest
+    command: python tools/discord_bot.py
+    env_file: .env
+    environment:
+      - ENV=production
+    restart: unless-stopped

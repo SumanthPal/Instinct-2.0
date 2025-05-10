@@ -507,11 +507,13 @@ class ScraperRotation:
             
         except Exception as e:
             logger.error(f"Error processing streams: {e}")
-    
+        
     def handle_command(self, command, data):
         """Handle commands received via the notification stream"""
         logger.info(f"Received command: {command}")
-        
+        if data.get("source") == "system" and command == "populate_queue":
+            logger.warning("Ignoring automated queue population")
+            return
         try:
             if command == "stop":
                 self.stop()
@@ -519,8 +521,6 @@ class ScraperRotation:
                 self.pause()
             elif command == "resume":
                 self.resume()
-            elif command == "populate_queue":
-                self.populate_queue()
             elif command == "flush_queue":
                 queue_type_str = data.get("queue_type", "scraper")
                 queue_type = getattr(QueueType, queue_type_str.upper(), QueueType.SCRAPER)

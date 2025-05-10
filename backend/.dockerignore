@@ -1,0 +1,47 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bytecode + virtualenvs
+*.egg-info/
+*.egg
+.eggs/
+.env/
+.venv/
+venv/
+
+# Node-related (if ever used)
+node_modules/
+
+# Git and metadata
+.git/
+.gitignore
+
+# Local logs, data, and caches
+logs/
+*.log
+*.sqlite3
+*.db
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+coverage/
+*.prof
+*.out
+*.gcda
+*.gcno
+
+# Misc
+*.zip
+*.tar.gz

@@ -1,0 +1,9 @@
+cat > Dockerfile.diagnostic << 'EOF'
+FROM instinctregistry.azurecr.io/backend-web:latest
+# Override any existing entrypoint/cmd to just keep the container running
+ENTRYPOINT ["tail", "-f", "/dev/null"]
+EOF
+
+# Build and push the diagnostic image
+docker build -t instinctregistry.azurecr.io/backend-web:diagnostic -f Dockerfile.diagnostic .
+docker push instinctregistry.azurecr.io/backend-web:diagnostic

@@ -58,13 +58,20 @@ class InstagramScraper:
                 
                 
     
-    def _create_driver(self, chrome_options):
-        # Initialize WebDriver
-        #For heroku: '/app/.chrome-for-testing/chromedriver-linux64/chromedriver'
-        service = Service()
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        return driver
+    def _create_driver(self, chrome_options: Options):
+        # Try Docker paths first
+        chromedriver_path = "/usr/bin/chromedriver"
+        chrome_bin_path = "/usr/bin/chromium"
+
+        # If running locally (override with env or detect)
+        if not os.path.exists(chromedriver_path):
+            chromedriver_path = "/usr/local/bin/chromedriver"  # or wherever you installed it locally
+            chrome_bin_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"  # for Mac
+
+        chrome_options.binary_location = chrome_bin_path
+        service = Service(executable_path=chromedriver_path)
+
+        return webdriver.Chrome(service=service, options=chrome_options)
     
     def __enter__(self):
         return self

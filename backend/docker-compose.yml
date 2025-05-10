@@ -1,20 +1,37 @@
 version: "3.9"
+
 services:
-  instinct_app:
-    build: .
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    command: python app/server.py
     env_file: .env
     ports:
       - "8000:8000"
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 768M  # Increased slightly to handle multiple processes
-          cpus: '0.75'
     networks:
       - instinct-net
-    # Default command runs a supervisor that manages all three processes
-    command: python run_services.py
+    restart: unless-stopped
+
+  scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    command: python app/tools/scraper_rotation.py
+    env_file: .env
+    networks:
+      - instinct-net
+    restart: unless-stopped
+
+  discord:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    command: python app/tools/discord_bot.py
+    env_file: .env
+    networks:
+      - instinct-net
+    restart: unless-stopped
 
 networks:
   instinct-net:
