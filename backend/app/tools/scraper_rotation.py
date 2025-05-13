@@ -16,7 +16,7 @@ import json
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tools.logger import logger
 from db.queries import SupabaseQueries
-from tools.insta_scraper import InstagramScraper, scrape_with_retries, scrape_sequence, RateLimitDetected
+from tools.insta_scraper import InstagramScraper, scrape_sequence, RateLimitDetected
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
 from tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
@@ -277,15 +277,7 @@ class ScraperRotation:
                 try:
                     logger.info(f"Processing club {instagram_handle}...")
                     
-                    # Create and login to scraper
-                    scraper = InstagramScraper(
-                        os.getenv("INSTAGRAM_USERNAME"),
-                        os.getenv("INSTAGRAM_PASSWORD")
-                    )
-                    scraper.login()
-                    
-                    # Perform scraping with retries
-                    scraper = scrape_with_retries(scraper, instagram_handle)
+                    scrape_sequence([instagram_handle])
                     
                     # Update last scraped time in database
                     self.update_club_last_scraped(instagram_handle)

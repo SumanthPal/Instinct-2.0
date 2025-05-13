@@ -16,6 +16,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from pathlib import Path
+from webdriver_manager.chrome import ChromeDriverManager
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', )))
 from tools.logger import logger
 
@@ -58,19 +60,33 @@ class InstagramScraper:
                 
                 
     
-    def _create_driver(self, chrome_options: Options):
-        # Try Docker paths first
-        chromedriver_path = "/usr/bin/chromedriver"
-        chrome_bin_path = "/usr/bin/chromium"
-
-        # If running locally (override with env or detect)
-        if not os.path.exists(chromedriver_path):
-            chromedriver_path = "/usr/local/bin/chromedriver"  # or wherever you installed it locally
-            chrome_bin_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"  # for Mac
-
-        chrome_options.binary_location = chrome_bin_path
-        service = Service(executable_path=chromedriver_path)
-
+    def _create_driver(self, chrome_options: Options = None):
+        """Create and return a Chrome WebDriver instance.
+        
+        Args:
+            chrome_options: Optional Chrome options. If None, default options will be used.
+            
+        Returns:
+            A configured Chrome WebDriver instance.
+        """
+        if chrome_options is None:
+            chrome_options = Options()
+        
+        # Check if running in Docker or CI environment
+        if os.environ.get('DOCKER_ENV') or os.environ.get('CI'):
+            # Docker/CI configuration
+            chromedriver_path = "/usr/bin/chromedriver"
+            chrome_bin_path = "/usr/bin/chromium"
+            
+            if os.path.exists(chrome_bin_path):
+                chrome_options.binary_location = chrome_bin_path
+            
+            if os.path.exists(chromedriver_path):
+                service = Service(executable_path=chromedriver_path)
+                return webdriver.Chrome(service=service, options=chrome_options)
+        
+        # For local development, use webdriver_manager
+        service = Service(ChromeDriverManager().install())
         return webdriver.Chrome(service=service, options=chrome_options)
     
     def __enter__(self):
@@ -81,55 +97,63 @@ class InstagramScraper:
     
     def detect_rate_limit(self):
         """
-        Check for signs of Instagram rate limiting
+        Check for signs of Instagram rate limiting with optimized performance
         
         Returns:
             bool: True if rate limited, False otherwise
         """
         try:
             current_url = self._driver.current_url
-            page_source = self._driver.page_source.lower()
             
-            # Check for "page not found" text on redirects
-            not_found_indicators = [
-                "sorry, this page isn't available",
-                "sorry, this page could not be loaded",
-                "page not found",
-                "couldn't find this page",
-                "please wait a few minutes before you try again",
-                "try again later"
-            ]
+            # Fast URL-based checks first (these are much quicker than page parsing)
+            rate_limit_redirects = ["/challenge/", "/login", "/accounts/login", 
+                                "/accounts/suspended", "/checkpoint", "/confirm", "/unusual_activity"]
             
-            for indicator in not_found_indicators:
-                if indicator in page_source:
+            if any(redirect in current_url for redirect in rate_limit_redirects):
+                logger.warning(f"Rate limit detected: Redirected to {current_url}")
+                return True
+            
+            # Check response code if available (very fast)
+            try:
+                response_code = self._driver.execute_script("return window.performance.getEntries()[0].responseStatus")
+                if response_code in [429, 403]:
+                    logger.warning(f"Rate limit detected: Response code {response_code}")
+                    return True
+            except:
+                pass  # Skip if not available
+            
+            # Use a more efficient page content check (avoid full lowercase conversion)
+            page_source = self._driver.page_source  # Don't convert to lowercase yet
+            
+            # Check for common rate limit indicators (process in chunks for speed)
+            indicators = ["sorry, this page isn't available", "please wait", "try again later", 
+                        "captcha", "unusual activity", "page not found"]
+            
+            # Fast check - only convert lowercase what we need
+            for indicator in indicators:
+                if indicator in page_source.lower()[:2000]:  # Only check first part of page for speed
                     logger.warning(f"Rate limit detected: '{indicator}' text found")
                     return True
             
-            # Check for redirect URLs that indicate rate limiting
-            rate_limit_redirects = [
-                "/challenge/",
-                "instagram.com/login",
-                "instagram.com/accounts/login",
-                "instagram.com/accounts/suspended"
-            ]
-            
-            for redirect in rate_limit_redirects:
-                if redirect in current_url:
-                    logger.warning(f"Rate limit detected: Redirected to {current_url}")
+            # Use CSS selectors instead of XPath for faster element detection
+            if "/p/" in current_url:  # Post page
+                if not self._driver.find_elements(By.CSS_SELECTOR, "article img, div[role='presentation'] img"):
+                    logger.warning("Rate limit detected: Missing post content")
+                    return True
+            elif "/stories/" in current_url:  # Stories page
+                if not self._driver.find_elements(By.CSS_SELECTOR, "div[role='dialog'] img, div[role='presentation']"):
+                    logger.warning("Rate limit detected: Missing stories content")
                     return True
             
-            # Check for missing key elements on post pages
-            if "/p/" in current_url:
-                # Try to find the post image - will be missing if rate limited
-                img_element = self._driver.find_elements(By.XPATH, "//img[contains(@class, 'x5yr21d xu96u03 x10l6tqk x13vifvy x87ps6o xh8yej3')]")
-                if not img_element:
-                    logger.warning("Rate limit detected: Missing post image on post page")
-                    return True
-            
+            # Fast captcha check
+            if any(text in page_source.lower()[:3000] for text in ["captcha", "security check"]):
+                logger.warning("Rate limit detected: Captcha text found")
+                return True
+                
             return False
-            
+                
         except Exception as e:
-            logger.error(f"Error checking for rate limit: {e}")
+            logger.error(f"Error checking for rate limit: {str(e)[:100]}")  # Limit log size
             return False
     
     def safe_get_page(self, url, retry_count=1):
@@ -148,7 +172,7 @@ class InstagramScraper:
         """
         try:
             # Add random delay to avoid detection patterns
-            delay = random.uniform(1, 3)
+            delay = random.uniform(1.0, 1.5)
             time.sleep(delay)
             
             # Navigate to the URL

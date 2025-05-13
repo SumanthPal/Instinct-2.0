@@ -6,7 +6,7 @@ export RG="instinct"                         # resource group
 export LOCATION="westus"                    # your preferred Azure region
 export ACR="instinctregistry"               # must be globally unique
 export CA_ENV="instinctenv"                # Container Apps environment
-export IMAGE_PREFIX="$ACR.azurecr.io"       
+export IMAGE_PREFIX="instinctregistry.azurecr.io"       
 export ACR_PASSWORD="$(az acr credential show \
   --name instinctregistry \
   --resource-group instinct \
@@ -84,6 +84,16 @@ az containerapp secret set \
       REDIS_URL="$REDIS_URL" \
       OPENAI="$OPENAI" 
 
+az containerapp secret set \
+  --name discord \
+  --resource-group "$RG" \
+  --secrets \
+      SUPABASE_URL="$SUPABASE_URL" \
+      SUPABASE_KEY="$SUPABASE_KEY" \
+      REDIS_URL="$REDIS_URL" \
+      OPENAI="$OPENAI"
+       
+
 # 6. And finally bind those secrets as env‐vars
 az containerapp update \
   --name web \
@@ -149,7 +159,7 @@ az containerapp create \
   --image "$IMAGE_PREFIX/backend-discord:latest" \
   --registry-server "$IMAGE_PREFIX" \
   --registry-username "$ACR" \
-  --registry-password "$ACR_PASSWORD" \
+  --registry-password "$(az acr credential show --name $ACR --query 'passwords[0].value' -o tsv)" \
   --cpu 0.5 \
   --memory 1.0Gi \
   --min-replicas 1 \
