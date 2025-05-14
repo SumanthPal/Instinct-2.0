@@ -1,150 +1,118 @@
-import asyncio
-import openai
-from supabase import create_client
 import os
-from os import dotenv
+import time
+from openai import OpenAI
+from dotenv import load_dotenv
+from supabase import create_client, Client
 
-# Setup Supabase client
-dotenv.load_dotenv()
+# Load environment variables
+load_dotenv()
+
+# Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
-supabase = create_client(supabase_url, supabase_key)
+supabase: Client = create_client(supabase_url, supabase_key)
 
-# Setup OpenAI
-openai.api_key = "OPENAI"
+# Initialize OpenAI client
+api_key = os.getenv("OPENAI")
+client = OpenAI(api_key=api_key)
 
-async def generate_embedding(text):
-    """Generate an embedding using OpenAI's API."""
-    if not text:
+def get_embedding(text: str) -> list:
+    """Get embedding from OpenAI API."""
+    if not text or text.strip() == "":
         return None
-        
-    # Prepare text - normalize and truncate if needed
-    text = text.replace("\n", " ").strip()
-    # OpenAI has a token limit, so you might need to truncate
     
-    response = await openai.Embedding.acreate(
-        input=text,
-        model="text-embedding-ada-002"  # or your preferred model
-    )
-    return response['data'][0]['embedding']
-
-async def process_club_with_related_content(club_id):
-    """Generate and store embedding for a club including all related content."""
-    # Fetch the club
-    club_query = supabase.table("clubs").select("*").eq("id", club_id).execute()
-    
-    if not club_query.data:
-        print(f"Club {club_id} not found")
-        return False
-    
-    club = club_query.data[0]
-    
-    # Initialize text collection
-    text_components = []
-    
-    # Add core club information
-    if club.get('name'):
-        text_components.append(club['name'] + " " * 3)  # Give more weight to name
-    
-    if club.get('description'):
-        text_components.append(club['description'] + " " * 2)  # Give more weight to description
-    
-    # Add categories if available
-    if club.get('categories'):
-        category_names = [cat['name'] for cat in club['categories']]
-        text_components.append(' '.join(category_names))
-    
-    # Fetch related posts (based on your schema)
-    posts_query = supabase.table("posts").select("caption, determinant").eq("club_id", club_id).execute()
-    
-    if posts_query.data:
-        for post in posts_query.data:
-            post_text = []
-            if post.get('caption'):
-                post_text.append(post['caption'])
-            if post.get('determinant') and post['determinant'] != '':
-                post_text.append(post['determinant'])
-            
-            if post_text:
-                text_components.append(' '.join(post_text))
-    
-    # Fetch related events (based on your schema)
-    events_query = supabase.table("events").select("name, details, parsed").eq("club_id", club_id).execute()
-    
-    if events_query.data:
-        for event in events_query.data:
-            event_text = []
-            if event.get('name'):
-                event_text.append(event['name'])
-            if event.get('details'):
-                event_text.append(event['details'])
-            
-            # Handle the parsed JSONB field if it contains useful text
-            if event.get('parsed') and isinstance(event['parsed'], dict):
-                # Extract relevant fields from parsed JSON
-                if event['parsed'].get('description'):
-                    event_text.append(event['parsed']['description'])
-                if event['parsed'].get('location'):
-                    event_text.append(event['parsed']['location'])
-                # Add other relevant fields from parsed as needed
-            
-            if event_text:
-                text_components.append(' '.join(event_text))
-    
-    # Combine all text
-    combined_text = ' '.join(text_components).strip()
-    
-    if not combined_text:
-        print(f"No text to embed for club {club_id}")
-        return False
-    
-    # Preprocess text - remove excess whitespace
-    combined_text = ' '.join(combined_text.split())
-    
-    # Truncate if needed (OpenAI's embedding model has a token limit)
-    # A simple character-based truncation - you may need more sophisticated tokenization
-    if len(combined_text) > 8000:  # Approximate limit
-        combined_text = combined_text[:8000]
-    
-    # Generate embedding
     try:
-        embedding = await generate_embedding(combined_text)
-        
-        if embedding:
-            # Update club with embedding
-            response = supabase.table("clubs").update({
-                "embedding": embedding,
-                "needs_embedding_update": False,
-                "last_embedding_update": "now()"  # Update timestamp
-            }).eq("id", club_id).execute()
-            
-            print(f"Updated club {club_id} with enriched embedding")
-            return True
+        # Using text-embedding-3-small model (newer and more cost-effective)
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text
+        )
+        return response.data[0].embedding
     except Exception as e:
-        print(f"Error generating embedding for club {club_id}: {str(e)}")
-    
-    return False
-async def update_all_clubs():
-    """Fetch all clubs and update them with embeddings."""
-    # Get all clubs that don't have embeddings yet
-    response = supabase.table("clubs").select("*").is_("embedding", "null").execute()
-    clubs = response.data
-    
-    print(f"Found {len(clubs)} clubs without embeddings")
-    
-    # Process clubs in batches to avoid rate limits
-    batch_size = 20
-    for i in range(0, len(clubs), batch_size):
-        batch = clubs[i:i+batch_size]
-        tasks = [process_club(club) for club in batch]
-        results = await asyncio.gather(*tasks)
-        print(f"Processed batch {i//batch_size + 1}/{(len(clubs)-1)//batch_size + 1}")
-        
-        # Optional: add delay between batches if hitting rate limits
-        await asyncio.sleep(1)
-    
-    print("Finished updating all clubs with embeddings")
+        print(f"Error getting embedding: {e}")
+        return None
 
-# Run the script
+def update_club_embeddings(batch_size=50):
+    """Update embeddings for all clubs with needs_embedding_update=True."""
+    print("Starting embedding update process...")
+    
+    # Get clubs that need embedding updates
+    # We'll fetch the raw text used for the search_vector to ensure consistency
+   
+    response = supabase.rpc('get_clubs_for_embedding').execute()
+    # If you don't have an RPC function, you can use raw SQL:
+    # response = supabase.query(query).execute()
+    
+    clubs_to_update = response.data
+    total_clubs = len(clubs_to_update)
+    print(f"Found {total_clubs} clubs that need embedding updates")
+    
+    updated_count = 0
+    error_count = 0
+    
+    # Process in batches to avoid rate limits
+    for i in range(0, total_clubs, batch_size):
+        batch = clubs_to_update[i:i+batch_size]
+        
+        for club in batch:
+            club_id = club["id"]
+            
+            # Combine all text fields for the embedding
+            text_parts = []
+            
+            if club.get("name"):
+                text_parts.append(club["name"])
+            
+            if club.get("description"):
+                text_parts.append(club["description"])
+            
+            if club.get("instagram_handle"):
+                text_parts.append(club["instagram_handle"])
+            
+            # Add post captions
+            if club.get("post_texts"):
+                text_parts.append(club["post_texts"])
+            
+            # Add event details
+            if club.get("event_texts"):
+                text_parts.append(club["event_texts"])
+            
+            embedding_text = " ".join(text_parts)
+            
+            if not embedding_text:
+                print(f"No text to embed for club {club_id}")
+                continue
+            
+            # Get embedding
+            embedding = get_embedding(embedding_text)
+            
+            if embedding:
+                try:
+                    # Update club with embedding
+                    supabase.table("clubs") \
+                        .update({
+                            "embedding": embedding,
+                            "needs_embedding_update": False,
+                            "last_embedding_update": "now()"
+                        }) \
+                        .eq("id", club_id) \
+                        .execute()
+                    
+                    updated_count += 1
+                    print(f"Updated embedding for club {club_id} - {updated_count}/{total_clubs}")
+                except Exception as e:
+                    print(f"Error updating club {club_id}: {e}")
+                    error_count += 1
+            else:
+                print(f"Failed to get embedding for club {club_id}")
+                error_count += 1
+        
+        # Avoid rate limits
+        if i + batch_size < total_clubs:
+            print(f"Sleeping for 2 seconds to avoid rate limits...")
+            time.sleep(2)
+    
+    print(f"Embedding update complete. Updated: {updated_count}, Errors: {error_count}")
+
 if __name__ == "__main__":
-    asyncio.run(update_all_clubs())
+    update_club_embeddings()
