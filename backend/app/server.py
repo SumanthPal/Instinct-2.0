@@ -583,7 +583,68 @@ async def smart_search(
             content={"message": f"Error in smart search: {str(e)}"}
         )
 
-
+@router.get("/hybrid-search")
+async def hybrid_search(
+    q: str = Query(..., description="Search query"),
+    page: int = Query(1, description="Page number starting from 1"),
+    limit: int = Query(20, description="Number of clubs per page"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    semantic_weight: float = Query(0.5, description="Weight for semantic search (0-1)")
+):
+    """Hybrid search combining full-text and semantic search on clubs."""
+    try:
+        # Get embedding for semantic search
+        query_embedding = get_embedding(q)
+        
+        # If embedding fails, fall back to full-text search
+        if not query_embedding:
+            return await smart_search(q, page, limit, category)
+        
+        # Normalize weight (ensure it's between 0 and 1)
+        semantic_weight = max(0, min(1, semantic_weight))
+        fulltext_weight = 1 - semantic_weight
+        
+        # Prepare the search query using text_search for full-text and vector comparison for semantic
+        # Use a CTE (Common Table Expression) to handle the hybrid search logic
+        response = supabase.rpc(
+            'hybrid_search',
+            {
+                'query_text': q,
+                'query_embedding': query_embedding,
+                'match_threshold': 0.5, # Adjust as needed
+                'fulltext_weight': fulltext_weight,
+                'semantic_weight': semantic_weight
+            }
+        ).execute()
+        
+        matches = response.data if response.data else []
+        
+        # Filter by category if specified
+        if category:
+            matches = [
+                club for club in matches
+                if any(cat["name"] == category for cat in club.get("categories", []))
+            ]
+        
+        # Manually paginate results
+        total_matches = len(matches)
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_matches = matches[start:end]
+        
+        return {
+            "count": total_matches,
+            "results": paginated_matches,
+            "hasMore": end < total_matches,
+            "page": page,
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error in hybrid search: {str(e)}"}
+        )
 
 def run_scraper_process():
     from tools.scraper_rotation import ScraperRotation
