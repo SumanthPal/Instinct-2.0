@@ -106,4 +106,4 @@ selenium==4.31.0
 supabase==2.15.1
 uvicorn==0.34.2
 email-validator==2.2.0  # Use the latest compatible version
-
+webdriver-manager==4.0.2
