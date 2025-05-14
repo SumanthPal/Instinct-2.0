@@ -38,7 +38,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: Dockerfile.base
+        file: ./backend/Dockerfile.base
         push: true
         tags: |
           ${{ env.ACR_NAME }}/backend-web:latest
@@ -48,7 +48,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: Dockerfile.scraper
+        file: ./backend/Dockerfile.scraper
         push: true
         tags: |
           ${{ env.ACR_NAME }}/backend-scraper:latest
