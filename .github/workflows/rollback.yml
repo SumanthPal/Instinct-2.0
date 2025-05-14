@@ -60,6 +60,7 @@ jobs:
           SHA="$VERSION"
         fi
         echo "sha=$SHA" >> $GITHUB_OUTPUT
+        echo "short_sha=$(echo $SHA | cut -c1-8)" >> $GITHUB_OUTPUT
 
     - name: Rollback Container Apps
       run: |
@@ -93,17 +94,17 @@ jobs:
             --resource-group $RESOURCE_GROUP \
             --image $ACR_NAME/backend-discord:latest
         else
-          # For staging rollbacks, just make sure we can find the staging revision
+          # For staging rollbacks, look for a staging revision with the SHA
           for APP in ${{ steps.set-env.outputs.web_app }} ${{ steps.set-env.outputs.scraper_app }} ${{ steps.set-env.outputs.discord_app }}; do
             REVISION_NAME=$(az containerapp revision list \
               --name $APP \
               --resource-group $RESOURCE_GROUP \
-              --query "[?contains(name, 'staging-$SHA')].name" -o tsv)
+              --query "[?contains(name, 'stg-${{ steps.get-sha.outputs.short_sha }}')].name" -o tsv)
               
             if [ -n "$REVISION_NAME" ]; then
               echo "Found staging revision $REVISION_NAME for $APP"
             else
-              echo "Staging revision with SHA $SHA not found for app $APP"
+              echo "Staging revision with SHA ${{ steps.get-sha.outputs.short_sha }} not found for app $APP"
               exit 1
             fi
           done

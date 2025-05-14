@@ -56,10 +56,18 @@ jobs:
         if [[ "${{ inputs.version }}" == *"staging-"* ]]; then
           VERSION="${{ inputs.version }}"
           SHA=${VERSION#staging-}
+          # Get full SHA if a short SHA was provided
+          if [ ${#SHA} -lt 40 ]; then
+            FULL_SHA=$(git rev-parse $SHA 2>/dev/null || echo $SHA)
+            if [ $? -eq 0 ]; then
+              SHA=$FULL_SHA
+            fi
+          fi
         else
           SHA="${{ inputs.version }}"
         fi
         echo "sha=$SHA" >> $GITHUB_OUTPUT
+        echo "short_sha=$(echo $SHA | cut -c1-8)" >> $GITHUB_OUTPUT
 
     - name: Tag images for production
       run: |
