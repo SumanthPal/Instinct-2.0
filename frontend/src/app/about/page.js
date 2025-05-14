@@ -2,11 +2,13 @@ import React from 'react';
 import '../../../styles/globals.css';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
-import { SiNextdotjs, SiTailwindcss, SiRedis, SiSupabase, SiFastapi, SiSelenium } from 'react-icons/si';
+import { SiNextdotjs, SiTailwindcss, SiRedis, SiSupabase, SiFastapi, SiSelenium, } from 'react-icons/si';
 import { FaLinkedin, FaGithub, FaDiscord } from 'react-icons/fa';
 import { FaXTwitter } from "react-icons/fa6";
+import TechTransition from '@/components/ui/TechTransition';
 
-import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai, SiPostgresql, SiJavascript } from 'react-icons/si'; // Added new icons
+import { SiHeroku, SiVercel, SiPython, SiGoogle, SiOpenai, SiPostgresql, SiJavascript} from 'react-icons/si'; // Added new icons
+import { VscAzure } from 'react-icons/vsc';
 
 const About = () => {
   return (
@@ -141,11 +143,15 @@ const About = () => {
             </div>
             {/* New technologies */}
             <div className="relative group flex items-center space-x-4 justify-center">
-              <SiHeroku className="w-8 h-8 text-gray-900 dark:text-dark-text" />
-              <span className="text-xl text-gray-700 dark:text-dark-text">Heroku</span>
-              <div className="absolute bottom-full mb-2 w-64 text-sm text-white bg-black dark:bg-dark-base px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-              Our backend is hosted on Heroku with four Dynos. (I need more money for compute 😭)
-              </div>
+            <TechTransition
+              iconOld={<SiHeroku className="w-8 h-8 text-gray-900 dark:text-dark-text" />}
+              iconNew={<VscAzure className="w-8 h-8 text-gray-900 dark:text-dark-text" />}
+              labelOld="Heroku"
+              labelNew="Azure"
+              tooltipOld="Our backend is hosted on Heroku with four Dynos. (I need more money for compute 😭)"
+              tooltipNew="Moved to Azure because... Heroku cried when I started spawning bots 💀"
+            />
+
             </div>
             <div className="relative group flex items-center space-x-4 justify-center">
               <SiVercel className="w-8 h-8 text-gray-900 dark:text-dark-text" />

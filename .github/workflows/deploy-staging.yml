@@ -1,0 +1,112 @@
+name: Deploy to Staging
+on:
+  push:
+    branches: [main]
+
+env:
+  ACR_NAME: instinctregistry.azurecr.io
+  RESOURCE_GROUP: instinct
+  REGION: westus
+  WEB_APP: web
+  SCRAPER_APP: scraper
+  DISCORD_APP: discord
+  TIMESTAMP: ${{ github.sha }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Log in to ACR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.ACR_NAME }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push web image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.base
+        push: true
+        tags: |
+          ${{ env.ACR_NAME }}/backend-web:latest
+          ${{ env.ACR_NAME }}/backend-web:${{ env.TIMESTAMP }}
+
+    - name: Build and push scraper image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.scraper
+        push: true
+        tags: |
+          ${{ env.ACR_NAME }}/backend-scraper:latest
+          ${{ env.ACR_NAME }}/backend-scraper:${{ env.TIMESTAMP }}
+
+    - name: Build and push discord image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.base
+        push: true
+        tags: |
+          ${{ env.ACR_NAME }}/backend-discord:latest
+          ${{ env.ACR_NAME }}/backend-discord:${{ env.TIMESTAMP }}
+        build-args: |
+          COMMAND=python app/tools/discord_bot.py
+
+    - name: Deploy updated images to Staging Container Apps
+      run: |
+        # Create staging revision with the SHA-tagged image
+        az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
+          --image $ACR_NAME/backend-web:$TIMESTAMP \
+          --revision-suffix "staging-$TIMESTAMP"
+
+        az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
+          --image $ACR_NAME/backend-scraper:$TIMESTAMP \
+          --revision-suffix "staging-$TIMESTAMP"
+
+        az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
+          --image $ACR_NAME/backend-discord:$TIMESTAMP \
+          --revision-suffix "staging-$TIMESTAMP"
+        
+        # Store revision info for easy access
+        echo "WEB_REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'staging-$TIMESTAMP')].name" -o tsv)" >> $GITHUB_ENV
+        echo "SCRAPER_REVISION=$(az containerapp revision list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'staging-$TIMESTAMP')].name" -o tsv)" >> $GITHUB_ENV
+        echo "DISCORD_REVISION=$(az containerapp revision list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'staging-$TIMESTAMP')].name" -o tsv)" >> $GITHUB_ENV
+
+    - name: Create deployment summary
+      id: summary
+      run: |
+        echo "## Staging Revision Created! :rocket:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Web App Revision**: ${{ env.WEB_REVISION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Scraper App Revision**: ${{ env.SCRAPER_REVISION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Discord App Revision**: ${{ env.DISCORD_REVISION }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Get revision URLs for testing
+        WEB_URL=$(az containerapp revision show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $WEB_REVISION --query "properties.fqdn" -o tsv)
+        echo "### Testing URLs" >> $GITHUB_STEP_SUMMARY
+        echo "- **Web App**: https://$WEB_URL" >> $GITHUB_STEP_SUMMARY
+        
+        echo "To promote this revision to production, use:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "GitHub Actions → Promote to Production → Run workflow → Version: $TIMESTAMP" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+    - name: Create deployment tag
+      run: |
+        git tag staging-${{ env.TIMESTAMP }}
+        git push origin staging-${{ env.TIMESTAMP }} || echo "Warning: Could not push tag (missing permissions?)"
