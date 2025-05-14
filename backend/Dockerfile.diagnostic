@@ -1,9 +1,13 @@
-cat > Dockerfile.diagnostic << 'EOF'
-FROM instinctregistry.azurecr.io/backend-web:latest
-# Override any existing entrypoint/cmd to just keep the container running
-ENTRYPOINT ["tail", "-f", "/dev/null"]
-EOF
-
-# Build and push the diagnostic image
-docker build -t instinctregistry.azurecr.io/backend-web:diagnostic -f Dockerfile.diagnostic .
-docker push instinctregistry.azurecr.io/backend-web:diagnostic
+FROM python:3.11.8-slim
+WORKDIR /app
+# Install debugging tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl procps net-tools && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy application code
+COPY . .
+# Create a diagnostic script
+RUN echo '#!/bin/bash\necho "Environment variables:"\nenv\necho "\nFile structure:"\nfind /app -type f | grep -v "__pycache__" | sort\necho "\nRunning in infinite loop for debugging. Use Docker exec to connect."\nwhile true; do sleep 60; done' > /app/diagnostic.sh && \
+    chmod +x /app/diagnostic.sh
+# Run the diagnostic script
+CMD ["/app/diagnostic.sh"]

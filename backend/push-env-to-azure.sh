@@ -1,42 +1,44 @@
 #!/bin/bash
+# This script will build and deploy a diagnostic container to Azure Container Apps
+# to help debug why your application is failing to start.
 
-# List of your Container Apps
-APPS=("web" "scraper" "discord")
+# Set variables
+ACR_NAME="instinctregistry.azurecr.io"
+RESOURCE_GROUP="instinct"
+WEB_APP="web"
 
-# Your Azure Resource Group
-RG="instinct"
+# Login to Azure (if not already logged in)
+echo "Logging in to Azure..."
+az login
 
-# Path to your .env file
-ENV_FILE=".env"
+# Login to ACR
+echo "Logging in to Azure Container Registry..."
+az acr login --name ${ACR_NAME%%.*}
 
-# Fail if .env is missing
-if [ ! -f "$ENV_FILE" ]; then
-  echo "❌ .env file not found at $ENV_FILE"
-  exit 1
-fi
+# Build the diagnostic container
+echo "Building diagnostic container..."
+docker build -t $ACR_NAME/backend-web:diagnostic -f Dockerfile.diagnostic .
 
-# Read each line of .env
-while IFS='=' read -r key value; do
-  # Skip comments and empty lines
-  [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
+# Push the diagnostic container
+echo "Pushing diagnostic container to ACR..."
+docker push $ACR_NAME/backend-web:diagnostic
 
-  secret_name=$(echo "$key" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+# Deploy the diagnostic container
+echo "Deploying diagnostic container to Azure Container App..."
+az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
+  --image $ACR_NAME/backend-web:diagnostic \
+  --revision-suffix "diagnostic" \
+  --command '["/app/diagnose.sh"]'
 
-  echo "🔐 Processing: $key → secret name: $secret_name"
+# Get the revision name
+echo "Getting revision information..."
+REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'diagnostic')].name" -o tsv)
 
-  for app in "${APPS[@]}"; do
-    echo "  ↳ Setting secret for $app"
-    az containerapp secret set \
-      --name "$app" \
-      --resource-group "$RG" \
-      --secrets "$secret_name=$value" >/dev/null
-
-    echo "  ↳ Injecting env var $key=secretref:$secret_name"
-    az containerapp update \
-      --name "$app" \
-      --resource-group "$RG" \
-      --set-env-vars "$key=secretref:$secret_name" >/dev/null
-  done
-done < "$ENV_FILE"
-
-echo "✅ All secrets and env vars pushed to web, scraper, and discord"
+# Show how to get logs
+echo ""
+echo "Diagnostic container deployed as revision: $REVISION"
+echo "Wait a few moments for it to start, then check the logs with:"
+echo "az containerapp logs show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $REVISION"
+echo ""
+echo "This diagnostic container will show the file structure and environment of your container."
+echo "This should help identify why your container isn't starting correctly in Azure."

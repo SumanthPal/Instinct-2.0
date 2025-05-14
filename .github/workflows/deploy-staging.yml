@@ -1,4 +1,5 @@
 name: Deploy to Staging
+
 on:
   push:
     branches: [main]
@@ -43,16 +44,8 @@ jobs:
         tags: |
           ${{ env.ACR_NAME }}/backend-web:latest
           ${{ env.ACR_NAME }}/backend-web:${{ env.TIMESTAMP }}
-
-    - name: Build and push scraper image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./backend/Dockerfile.scraper
-        push: true
-        tags: |
-          ${{ env.ACR_NAME }}/backend-scraper:latest
-          ${{ env.ACR_NAME }}/backend-scraper:${{ env.TIMESTAMP }}
+        build-args: |
+          "COMMAND=python app/server.py"
 
     - name: Build and push discord image
       uses: docker/build-push-action@v5
@@ -60,58 +53,78 @@ jobs:
         context: .
         file: ./backend/Dockerfile.base
         push: true
+        platforms: linux/amd64,linux/arm64
         tags: |
           ${{ env.ACR_NAME }}/backend-discord:latest
           ${{ env.ACR_NAME }}/backend-discord:${{ env.TIMESTAMP }}
         build-args: |
-          COMMAND=python app/tools/discord_bot.py
+          "COMMAND=python app/tools/discord_bot.py"
+
+    - name: Build and push scraper image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.scraper
+        push: true
+        platforms: linux/amd64,linux/arm64
+        tags: |
+          ${{ env.ACR_NAME }}/backend-scraper:latest
+          ${{ env.ACR_NAME }}/backend-scraper:${{ env.TIMESTAMP }}
 
     - name: Set short SHA
       id: vars
-      run: echo "SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+      run: echo "SHORT_SHA=${GITHUB_SHA::8}" >> $GITHUB_ENV
 
     - name: Deploy updated images to Staging Container Apps
       run: |
-        # Create staging revision with the SHA-tagged image but use shorter revision suffix
         az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
           --image $ACR_NAME/backend-web:$TIMESTAMP \
-          --revision-suffix "stg-${{ env.SHORT_SHA }}"
+          --revision-suffix "stg-${SHORT_SHA}"
 
         az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
           --image $ACR_NAME/backend-scraper:$TIMESTAMP \
-          --revision-suffix "stg-${{ env.SHORT_SHA }}"
+          --revision-suffix "stg-${SHORT_SHA}"
 
         az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
           --image $ACR_NAME/backend-discord:$TIMESTAMP \
-          --revision-suffix "stg-${{ env.SHORT_SHA }}"
-        
-        # Store revision info for easy access
-        echo "WEB_REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'stg-${{ env.SHORT_SHA }}')].name" -o tsv)" >> $GITHUB_ENV
-        echo "SCRAPER_REVISION=$(az containerapp revision list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'stg-${{ env.SHORT_SHA }}')].name" -o tsv)" >> $GITHUB_ENV
-        echo "DISCORD_REVISION=$(az containerapp revision list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, 'stg-${{ env.SHORT_SHA }}')].name" -o tsv)" >> $GITHUB_ENV
+          --revision-suffix "stg-${SHORT_SHA}"
+
+        echo "WEB_REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${SHORT_SHA}')].name\" -o tsv)" >> $GITHUB_ENV
+        echo "SCRAPER_REVISION=$(az containerapp revision list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${SHORT_SHA}')].name\" -o tsv)" >> $GITHUB_ENV
+        echo "DISCORD_REVISION=$(az containerapp revision list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${SHORT_SHA}')].name\" -o tsv)" >> $GITHUB_ENV
 
     - name: Create deployment summary
       id: summary
       run: |
         echo "## Staging Revision Created! :rocket:" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Short SHA**: ${{ env.SHORT_SHA }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Web App Revision**: ${{ env.WEB_REVISION }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Scraper App Revision**: ${{ env.SCRAPER_REVISION }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Discord App Revision**: ${{ env.DISCORD_REVISION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Short SHA**: $SHORT_SHA" >> $GITHUB_STEP_SUMMARY
+        echo "- **Web App Revision**: $WEB_REVISION" >> $GITHUB_STEP_SUMMARY
+        echo "- **Scraper App Revision**: $SCRAPER_REVISION" >> $GITHUB_STEP_SUMMARY
+        echo "- **Discord App Revision**: $DISCORD_REVISION" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # Get revision URLs for testing
+
         WEB_URL=$(az containerapp revision show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $WEB_REVISION --query "properties.fqdn" -o tsv || echo "Not available")
         echo "### Testing URLs" >> $GITHUB_STEP_SUMMARY
         echo "- **Web App**: https://$WEB_URL" >> $GITHUB_STEP_SUMMARY
-        
+
         echo "To promote this revision to production, use:" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        echo "GitHub Actions → Promote to Production → Run workflow → Version: ${{ env.SHORT_SHA }}" >> $GITHUB_STEP_SUMMARY
+        echo "GitHub Actions → Promote to Production → Run workflow → Version: $SHORT_SHA" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
 
     - name: Create deployment tag
       run: |
-        git tag staging-${{ env.SHORT_SHA }}
-        git push origin staging-${{ env.SHORT_SHA }} || echo "Warning: Could not push tag (missing permissions?)"
+        git tag staging-${SHORT_SHA}
+        git push origin staging-${SHORT_SHA} || echo "Warning: Could not push tag (missing permissions?)"
+
+    - name: Check container logs
+      run: |
+        echo "### Web App Logs" >> $GITHUB_STEP_SUMMARY
+        az containerapp logs show --name $WEB_APP --resource-group $RESOURCE_GROUP --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Scraper App Logs" >> $GITHUB_STEP_SUMMARY
+        az containerapp logs show --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Discord App Logs" >> $GITHUB_STEP_SUMMARY
+        az containerapp logs show --name $DISCORD_APP --resource-group $RESOURCE_GROUP --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY

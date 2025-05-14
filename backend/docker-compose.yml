@@ -1,12 +1,14 @@
 version: "3.9"
-
 services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.base
+      dockerfile: backend/Dockerfile.base
+    entrypoint: /entrypoint.sh
     command: python app/server.py
     env_file: .env
+    environment:
+      - PORT=8000
     ports:
       - "8000:8000"
     networks:
@@ -16,7 +18,8 @@ services:
   scraper:
     build:
       context: .
-      dockerfile: Dockerfile.scraper
+      dockerfile: backend/Dockerfile.scraper
+    entrypoint: /entrypoint.sh
     command: python app/tools/scraper_rotation.py
     env_file: .env
     networks:
@@ -26,7 +29,8 @@ services:
   discord:
     build:
       context: .
-      dockerfile: Dockerfile.base
+      dockerfile: backend/Dockerfile.base
+    entrypoint: /entrypoint.sh
     command: python app/tools/discord_bot.py
     env_file: .env
     networks:
