@@ -10,9 +10,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source
 COPY backend /app
 
-# Add entrypoint
-COPY backend/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "app/server.py"]

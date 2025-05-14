@@ -53,7 +53,6 @@ jobs:
         context: .
         file: ./backend/Dockerfile.base
         push: true
-        platforms: linux/amd64,linux/arm64
         tags: |
           ${{ env.ACR_NAME }}/backend-discord:latest
           ${{ env.ACR_NAME }}/backend-discord:${{ env.TIMESTAMP }}
@@ -66,7 +65,6 @@ jobs:
         context: .
         file: ./backend/Dockerfile.scraper
         push: true
-        platforms: linux/amd64,linux/arm64
         tags: |
           ${{ env.ACR_NAME }}/backend-scraper:latest
           ${{ env.ACR_NAME }}/backend-scraper:${{ env.TIMESTAMP }}

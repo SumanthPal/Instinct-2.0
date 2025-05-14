@@ -15,8 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend /app
 
-COPY backend/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "app/tools/scraper_rotation.py"]
