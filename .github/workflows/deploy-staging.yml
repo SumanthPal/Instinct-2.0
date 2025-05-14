@@ -73,26 +73,26 @@ jobs:
 
     - name: Set short SHA
       id: vars
-      run: echo "SHORT_SHA=${GITHUB_SHA::8}" >> $GITHUB_ENV
+      run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_ENV
 
     - name: Deploy updated images to Staging Container Apps
       run: |
         az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
           --image $ACR_NAME/backend-web:$TIMESTAMP \
-          --revision-suffix "stg-${SHORT_SHA}"
-
+          --revision-suffix "stg-${{ env.SHORT_SHA }}"
+    
         az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
           --image $ACR_NAME/backend-scraper:$TIMESTAMP \
-          --revision-suffix "stg-${SHORT_SHA}"
-
+          --revision-suffix "stg-${{ env.SHORT_SHA }}"
+    
         az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
           --image $ACR_NAME/backend-discord:$TIMESTAMP \
-          --revision-suffix "stg-${SHORT_SHA}"
-
-        echo "WEB_REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${SHORT_SHA}')].name\" -o tsv)" >> $GITHUB_ENV
-        echo "SCRAPER_REVISION=$(az containerapp revision list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${SHORT_SHA}')].name\" -o tsv)" >> $GITHUB_ENV
-        echo "DISCORD_REVISION=$(az containerapp revision list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${SHORT_SHA}')].name\" -o tsv)" >> $GITHUB_ENV
-
+          --revision-suffix "stg-${{ env.SHORT_SHA }}"
+    
+        echo "WEB_REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${{ env.SHORT_SHA }}')].name\" -o tsv)" >> $GITHUB_ENV
+        echo "SCRAPER_REVISION=$(az containerapp revision list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${{ env.SHORT_SHA }}')].name\" -o tsv)" >> $GITHUB_ENV
+        echo "DISCORD_REVISION=$(az containerapp revision list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query \"[?contains(name, 'stg-${{ env.SHORT_SHA }}')].name\" -o tsv)" >> $GITHUB_ENV
+    
     - name: Create deployment summary
       id: summary
       run: |

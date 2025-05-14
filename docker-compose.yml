@@ -6,7 +6,7 @@ services:
       dockerfile: backend/Dockerfile.base
     entrypoint: /entrypoint.sh
     command: python app/server.py
-    env_file: .env
+    env_file: backend/.env
     environment:
       - PORT=8000
     ports:
@@ -21,7 +21,7 @@ services:
       dockerfile: backend/Dockerfile.scraper
     entrypoint: /entrypoint.sh
     command: python app/tools/scraper_rotation.py
-    env_file: .env
+    env_file: backend/.env
     networks:
       - instinct-net
     restart: unless-stopped
@@ -32,7 +32,7 @@ services:
       dockerfile: backend/Dockerfile.base
     entrypoint: /entrypoint.sh
     command: python app/tools/discord_bot.py
-    env_file: .env
+    env_file: backend/.env
     networks:
       - instinct-net
     restart: unless-stopped
