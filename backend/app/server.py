@@ -1,5 +1,5 @@
 from io import BytesIO, StringIO
-from tools.ai_validation import EventParser
+from tools.ai_validation import EventParser, get_embedding
 from tools.calendar_connection import CalendarConnection
 from tools.scraper_rotation import ScraperRotation
 from db.supabase_client import supabase
