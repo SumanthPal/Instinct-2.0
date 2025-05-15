@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase'
 
 const supabase = createClient()
 
-const API_BASE_URL = 'http://localhost:8000'; // or your production API URL
+const API_BASE_URL = 'https://web.gentlemeadow-727fb9e6.westus.azurecontainerapps.io/'; // or your production API URL
 
 export const fetchClubManifest = async (page = 1, limit = 20, category = null) => {
   try {
