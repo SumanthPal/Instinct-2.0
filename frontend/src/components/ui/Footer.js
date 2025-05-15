@@ -3,36 +3,41 @@ import React, { useState, useEffect } from 'react';
 
 const Footer = () => {
   const [healthStatus, setHealthStatus] = useState('loading');
-
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/health');
-        if (response.ok) {
-          const data = await response.json();
-          setHealthStatus(data.status === 'healthy' ? 'Systems Online' : 'Systems Offline');
-        } else {
-          setHealthStatus('Systems Offline');
-        }
-      } catch (error) {
-        console.error('Health check failed:', error);
+  
+  // Move the checkHealth function outside useEffect to avoid recreating it on every render
+  const checkHealth = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/health');
+      if (response.ok) {
+        const data = await response.json();
+        setHealthStatus(data.status === 'healthy' ? 'Online' : 'Offline');
+      } else {
         setHealthStatus('Systems Offline');
       }
-    };
+    } catch (error) {
+      console.error('Health check failed:', error);
+      setHealthStatus('Systems Offline');
+    }
+  };
 
+  useEffect(() => {
+    // Initial health check
     checkHealth();
+    
     // Set up a periodic health check every 30 seconds
     const intervalId = setInterval(checkHealth, 30000);
     
     // Clean up the interval when the component unmounts
     return () => clearInterval(intervalId);
+    
+    // Empty dependency array ensures this effect runs only once when component mounts
   }, []);
 
   const getStatusColor = () => {
     switch (healthStatus) {
-      case 'Systems Online':
+      case 'Online':
         return 'bg-green-500';
-      case 'Systems Offline':
+      case 'Offline':
         return 'bg-red-500';
       default:
         return 'bg-yellow-500'; // Loading state
@@ -47,7 +52,7 @@ const Footer = () => {
         <div className="flex items-center space-x-2">
           <div className={`h-3 w-3 rounded-full ${getStatusColor()} animate-pulse`}></div>
           <span className="text-xs text-gray-600 dark:text-gray-400">
-            {healthStatus === 'loading' ? 'Checking status...' : `${healthStatus}`}
+            {healthStatus === 'loading' ? 'Checking status...' : `Status: ${healthStatus}`}
           </span>
         </div>
         
