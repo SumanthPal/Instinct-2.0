@@ -56,98 +56,72 @@ export default function NewsPage() {
       
       <Navbar />
       
-      <main className="container mx-auto px-4 py-24">
-        <h1 className="text-5xl font-bold mb-8 text-center text-gray-900 dark:text-dark-text">UCI News</h1>
-        
-        {/* Main tabs for Categories vs Schools */}
-        <div className="flex justify-center mb-8">
-          <button
-            onClick={() => setActiveTab('categories')}
-            className={`px-6 py-3 text-xl font-semibold rounded-lg transition-colors ${
-              activeTab === 'categories'
-                ? 'dark:bg-dark-card bg-gray-700 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-dark-base dark:text-dark-subtext dark:hover:bg-dark-accent'
-            }`}
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => setActiveTab('schools')}
-            className={`px-6 py-3 text-xl font-semibold rounded-lg ml-4 transition-colors ${
-              activeTab === 'schools'
-                ? 'dark:bg-dark-card bg-gray-700 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-dark-base dark:text-dark-subtext dark:hover:bg-dark-accent'
-            }`}
-          >
-            Schools
-          </button>
-        </div>
-        
-        {/* Category/School Selection Buttons */}
-        <div className="mb-8 flex flex-wrap justify-center gap-2">
-          {Object.keys(RSS_FEEDS[activeTab]).map((category) => (
-            <button
-              key={category}
-              onClick={() => handleFeedChange(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                category === selectedCategory
-                  ? 'dark:bg-dark-card bg-blue-400 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-dark-gradient-start dark:text-dark-subtext dark:hover:bg-dark-accent'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-        
-        {/* Current Feed Display */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-6 text-center text-gray-900 dark:text-dark-text">{selectedCategory}</h2>
+      <main className="container mx-auto px-4 py-24 text-center">
+  <h1 className="text-5xl font-bold mb-16 text-gray-900 dark:text-white">UCI News</h1>
+
+  {/* Glass Tabs */}
+  <div className="inline-flex mb-12 backdrop-blur-sm bg-white/30 dark:bg-white/10 p-1 rounded-full border border-white/20 shadow-md">
+    {['categories', 'schools'].map((tab) => (
+      <button
+        key={tab}
+        onClick={() => setActiveTab(tab)}
+        className={`px-6 py-2 rounded-full text-lg font-medium transition-all ${
+          activeTab === tab
+            ? 'bg-black/80 dark:bg-white/20 text-white'
+            : 'text-gray-800 dark:text-gray-200 hover:bg-black/10 dark:hover:bg-white/10'
+        }`}
+      >
+        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+      </button>
+    ))}
+  </div>
+
+  {/* Subcategory Buttons */}
+  <div className="flex flex-wrap justify-center gap-3 mb-20">
+    {Object.keys(RSS_FEEDS[activeTab]).map((category) => (
+      <button
+        key={category}
+        onClick={() => handleFeedChange(category)}
+        className={`px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm border transition-colors ${
+          category === selectedCategory
+            ? 'bg-black/80 text-white dark:bg-white/20 dark:text-white'
+            : 'border-gray-300 dark:border-white/20 bg-white/30 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-white/20'
+        }`}
+      >
+        {category}
+      </button>
+    ))}
+  </div>
+
+  {/* Main Feed */}
+  <section className="mb-32">
+    <h2 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">{selectedCategory}</h2>
+    <RssFeed feedUrl={currentFeedUrl} className="mx-auto max-w-3xl" maxItems={10} showFullContent />
+  </section>
+
+  {/* Featured Categories */}
+  <section className="mt-32">
+    <h2 className="text-4xl font-bold mb-12 text-gray-900 dark:text-white">Featured Categories</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 max-w-6xl mx-auto">
+      {[
+        'Science & Technology',
+        'Campus Life',
+        'Arts & Humanities'
+      ].map((cat) => (
+        <div key={cat}>
+          <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">{cat}</h3>
           <RssFeed
-            feedUrl={currentFeedUrl}
-            className="w-full"
-            maxItems={10}
-            showFullContent={true}
+            feedUrl={RSS_FEEDS.categories[cat]}
+            maxItems={3}
+            showFullContent={false}
+            className="max-w-md mx-auto"
           />
         </div>
-        
-        {/* Featured Categories Section */}
-        <div className="mt-24">
-          <h2 className="text-4xl font-bold mb-8 text-center text-gray-900 dark:text-dark-text">Featured Categories</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Science & Technology Feed */}
-            <div>
-              <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-dark-text">Science & Technology</h3>
-              <RssFeed
-                feedUrl={RSS_FEEDS.categories['Science & Technology']}
-                maxItems={3}
-                showFullContent={false}
-              />
-            </div>
-            
-            {/* Campus Life Feed */}
-            <div>
-              <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-dark-text">Campus Life</h3>
-              <RssFeed
-                feedUrl={RSS_FEEDS.categories['Campus Life']}
-                maxItems={3}
-                showFullContent={false}
-              />
-            </div>
-            
-            {/* Arts & Humanities Feed */}
-            <div>
-              <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-dark-text">Arts & Humanities</h3>
-              <RssFeed
-                feedUrl={RSS_FEEDS.categories['Arts & Humanities']}
-                maxItems={3}
-                showFullContent={false}
-              />
-            </div>
-          </div>
-        </div>
-      </main>
+      ))}
+    </div>
+  </section>
+</main>
+
       
       <Footer />
     </div>
