@@ -1,17 +1,27 @@
+// Updated version of the HomeClient component with hybrid search integration
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import { createClient } from '@/lib/supabase';
 import ClubCard from "../components/ClubCard";
 import SearchBar from "../components/ui/SearchBar";
 import CategoryFilter from "../components/ui/CategoryFilter";
 import ParallaxBackground from "../components/ui/ParallaxBackground";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
-import { fetchClubManifest, fetchSmartSearch, fetchMoreClubs, fetchClubsByCategory } from '@/lib/api';
-import "../../styles/globals.css"
+import Toast from "@/components/ui/search-toast";
+import { 
+  fetchClubManifest, 
+  fetchSmartSearch, 
+  fetchHybridSearch,
+  fetchMoreClubs, 
+  fetchClubsByCategory 
+} from '@/lib/api';
+import "../../styles/globals.css";
 import CategoryFooter from "@/components/ui/CategoryFooter";
 
 export default function HomeClient({ initialClubs, totalCount, hasMore, currentPage }) {
+  const supabase = createClient();
   const [clubs, setClubs] = useState(initialClubs || []);
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -21,7 +31,29 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   const [hasMoreClubs, setHasMoreClubs] = useState(hasMore || false);
   const [filteredClubs, setFilteredClubs] = useState(initialClubs || []);
   const [totalClubCount, setTotalClubCount] = useState(totalCount || 0);
+  const [user, setUser] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [semanticWeight, setSemanticWeight] = useState(0.5); // Default weight for hybrid search
   
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+      
+      // Set up auth state change listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setUser(session?.user || null);
+        }
+      );
+      
+      return () => subscription?.unsubscribe();
+    };
+    
+    checkUser();
+  }, []);
+
   // Filter clubs whenever search input changes
   useEffect(() => {
     const searchClubs = async () => {
@@ -29,12 +61,12 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
         // 🔥 Full reset when search input cleared
         setLoading(true);
         try {
-          const data = await fetchClubManifest(1, 20); // ← Fetch page 1 again
-          setClubs(data.results);              // <- base list
-          setFilteredClubs(data.results);       // <- filtered display
-          setPage(1);                           // <- reset pagination pointer
-          setTotalClubCount(data.totalCount);   // <- reset total count
-          setHasMoreClubs(data.hasMore);         // <- reset scroll flag
+          const data = await fetchClubManifest(1, 20);
+          setClubs(data.results);
+          setFilteredClubs(data.results);
+          setPage(1);
+          setTotalClubCount(data.totalCount);
+          setHasMoreClubs(data.hasMore);
         } catch (error) {
           console.error("Error resetting clubs:", error);
         } finally {
@@ -43,16 +75,42 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
         return;
       }
   
-      // Normal smart search when typing
+      // Search handling based on authentication status
       setLoading(true);
       try {
-        const data = await fetchSmartSearch(searchInput, 1, 20);
-        setFilteredClubs(data.results);
-        setTotalClubCount(data.totalCount);
-        setHasMoreClubs(data.hasMore);
-        setPage(data.page);
+        // Try hybrid search for authenticated users
+        if (user) {
+          try {
+            const data = await fetchHybridSearch(
+              searchInput, 
+              1, 
+              20, 
+              selectedCategories.length === 1 ? selectedCategories[0] : null,
+              semanticWeight
+            );
+            setFilteredClubs(data.results);
+            setTotalClubCount(data.totalCount);
+            setHasMoreClubs(data.hasMore);
+            setPage(data.page);
+          } catch (error) {
+            console.error("Hybrid search failed, falling back to smart search:", error);
+            // If hybrid search fails, fall back to smart search
+            const data = await fetchSmartSearch(searchInput, 1, 20);
+            setFilteredClubs(data.results);
+            setTotalClubCount(data.totalCount);
+            setHasMoreClubs(data.hasMore);
+            setPage(data.page);
+          }
+        } else {
+          // For non-authenticated users, use normal smart search
+          const data = await fetchSmartSearch(searchInput, 1, 20);
+          setFilteredClubs(data.results);
+          setTotalClubCount(data.totalCount);
+          setHasMoreClubs(data.hasMore);
+          setPage(data.page);
+        }
       } catch (error) {
-        console.error("Error smart searching clubs:", error);
+        console.error("Error searching clubs:", error);
       } finally {
         setLoading(false);
       }
@@ -61,17 +119,28 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     const timeout = setTimeout(searchClubs, 500); // debounce
     
     return () => clearTimeout(timeout);
-  }, [searchInput]);
+  }, [searchInput, user]);
   
-  
-  
-
   const scrollToClubs = () => {
     clubsRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleSearchChange = (event) => {
     setSearchInput(event.target.value);
+  };
+
+  const handleSearch = async () => {
+    if (searchInput.trim() !== "") {
+      // Show toast for non-authenticated users
+      if (!user) {
+        setToast({
+          message: "Sign in for hybrid search capabilities",
+          type: "info"
+        });
+      }
+      
+      scrollToClubs();
+    }
   };
 
   const handleCategoryChange = async (categories) => {
@@ -86,11 +155,29 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
         setTotalClubCount(data.totalCount);
         setHasMoreClubs(data.hasMore);
       } else {
-        const data = await fetchSmartSearch(searchInput, 1, 20);
-        setFilteredClubs(data.results);
-        setPage(1);
-        setTotalClubCount(data.totalCount);
-        setHasMoreClubs(data.hasMore);
+        // Use appropriate search based on auth status
+        if (user) {
+          try {
+            const data = await fetchHybridSearch(searchInput, 1, 20, null, semanticWeight);
+            setFilteredClubs(data.results);
+            setTotalClubCount(data.totalCount);
+            setHasMoreClubs(data.hasMore);
+            setPage(data.page);
+          } catch (error) {
+            console.error("Hybrid search failed, falling back to smart search:", error);
+            const data = await fetchSmartSearch(searchInput, 1, 20);
+            setFilteredClubs(data.results);
+            setTotalClubCount(data.totalCount);
+            setHasMoreClubs(data.hasMore);
+            setPage(data.page);
+          }
+        } else {
+          const data = await fetchSmartSearch(searchInput, 1, 20);
+          setFilteredClubs(data.results);
+          setPage(1);
+          setTotalClubCount(data.totalCount);
+          setHasMoreClubs(data.hasMore);
+        }
       }
       return;
     }
@@ -105,11 +192,36 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
       setTotalClubCount(data.totalCount);
       setHasMoreClubs(data.hasMore);
     } else {
-      // Search mode: Filter the existing search results locally
-      const filtered = filteredClubs.filter(club => 
-        club.categories.some(cat => categories.includes(cat.name))
-      );
-      setFilteredClubs(filtered);
+      // Search mode with categories
+      if (user) {
+        try {
+          // For authenticated users, try hybrid search with category
+          const data = await fetchHybridSearch(
+            searchInput, 
+            1, 
+            20, 
+            categories[0],
+            semanticWeight
+          );
+          setFilteredClubs(data.results);
+          setTotalClubCount(data.totalCount);
+          setHasMoreClubs(data.hasMore);
+          setPage(data.page);
+        } catch (error) {
+          console.error("Error with hybrid category search:", error);
+          // Fall back to filtering existing results
+          const filtered = filteredClubs.filter(club => 
+            club.categories.some(cat => categories.includes(cat.name))
+          );
+          setFilteredClubs(filtered);
+        }
+      } else {
+        // For non-authenticated, filter the existing search results locally
+        const filtered = filteredClubs.filter(club => 
+          club.categories.some(cat => categories.includes(cat.name))
+        );
+        setFilteredClubs(filtered);
+      }
     }
   };
   
@@ -122,8 +234,26 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
       let data;
       
       if (searchInput.trim() !== "") {
-        // If searching, use smart search
-        data = await fetchSmartSearch(searchInput, nextPage, 20);
+        // If searching, use appropriate search method based on auth
+        if (user) {
+          try {
+            const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
+            data = await fetchHybridSearch(
+              searchInput, 
+              nextPage, 
+              20, 
+              category,
+              semanticWeight
+            );
+          } catch (error) {
+            console.error("Hybrid search load more failed:", error);
+            // Fall back to smart search
+            data = await fetchSmartSearch(searchInput, nextPage, 20);
+          }
+        } else {
+          // For non-authenticated, use smart search
+          data = await fetchSmartSearch(searchInput, nextPage, 20);
+        }
       } else {
         // Normal load more
         const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
@@ -141,7 +271,6 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     }
   };
   
-
   // Setup intersection observer for infinite scrolling
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -189,6 +318,10 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     'Networking'
   ];
   
+  // Close toast handler
+  const closeToast = () => {
+    setToast(null);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
@@ -197,118 +330,128 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
       </div>
 
       <Navbar />
+      
+      {/* Toast Notification */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={closeToast} 
+        />
+      )}
+      
       <main className="w-full px-4 pt-28 pb-8 flex flex-col items-center justify-center text-center">
       <div className="hero min-h-[50vh] w-full max-w-7xl flex flex-col items-center justify-center z-10 mb-8 px-4">
 
-<div className="flex items-center justify-center space-x-4 mb-6">
-            <h1
-              className="font-bold text-gray-900 dark:text-white"
-              style={{
-                fontSize: "clamp(2.5rem, 8vw, 4rem)",
-              }}
-            >
-              Explore UC Irvine
-            </h1>
-          </div>
+        <div className="flex items-center justify-center space-x-4 mb-6">
+          <h1
+            className="font-bold text-gray-900 dark:text-white"
+            style={{
+              fontSize: "clamp(2.5rem, 8vw, 4rem)",
+            }}
+          >
+            Explore UC Irvine
+          </h1>
+        </div>
           
-          <h2 className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-8">
-            Find and connect with campus organizations
-          </h2>
+        <h2 className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-8">
+          Find and connect with campus organizations
+        </h2>
 
-          {/* Search Bar and Category Filter */}
-          <div className="flex flex-col items-center w-full max-w-4xl mx-auto">
+        {/* Search Bar and Category Filter */}
+        <div className="flex flex-col items-center w-full max-w-4xl mx-auto">
           <SearchBar
-              value={searchInput}
-              onChange={handleSearchChange}
-              onEnter={scrollToClubs}
-              placeholder="Search clubs by name, category, or keyword..."
-            />
-            <div className="relative mt-4 w-full">
+            value={searchInput}
+            onChange={handleSearchChange}
+            onEnter={handleSearch}
+            placeholder="Search clubs by name, category, or keyword..."
+          />
+          <div className="relative mt-4 w-full">
             <CategoryFilter
-  categories={categoriesList}
-  selectedCategories={selectedCategories}
-  onChange={handleCategoryChange}
-/>
-<CategoryFooter />
+              categories={categoriesList}
+              selectedCategories={selectedCategories}
+              onChange={handleCategoryChange}
+            />
+            <CategoryFooter />
 
-
-
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {selectedCategories.map((category) => (
-                  <div
-                    key={category}
-                    className="inline-flex items-center gap-2 px-3 py-1
-                      bg-white/90 dark:bg-slate-700/90
-                      text-sm text-gray-900 dark:text-white 
-                      rounded-full border border-transparent
-                      hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200"
-                  >
-                    <span>{category}</span>
-                    <button
-                      onClick={() =>
-                        handleCategoryChange(
-                          selectedCategories.filter(
-                            (selected) => selected !== category
-                          )
+            <div className="mt-4 flex flex-wrap gap-2">
+              {selectedCategories.map((category) => (
+                <div
+                  key={category}
+                  className="inline-flex items-center gap-2 px-3 py-1
+                    bg-white/90 dark:bg-slate-700/90
+                    text-sm text-gray-900 dark:text-white 
+                    rounded-full border border-transparent
+                    hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200"
+                >
+                  <span>{category}</span>
+                  <button
+                    onClick={() =>
+                      handleCategoryChange(
+                        selectedCategories.filter(
+                          (selected) => selected !== category
                         )
-                      }
-                      className="text-gray-500 hover:text-red-500 transition-colors duration-200 font-bold"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      )
+                    }
+                    className="text-gray-500 hover:text-red-500 transition-colors duration-200 font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Results count */}
-        <div ref={clubsRef} className="w-full max-w-7xl text-left px-4 sm:px-6 mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-            Search Results ({filteredClubs.length} of {totalClubCount})
-          </h2>
-        </div>
-
-        {/* Club Cards Grid */}
-        <div 
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 
-                    w-full max-w-7xl px-4 sm:px-6 mb-12"
-        >
-          {filteredClubs.length > 0 ? (
-            filteredClubs.map((club) => (
-              <ClubCard
-                key={club.id}
-                club={{
-                  profilePicture: club.profile_image_url ? club.profile_image_path : club.profile_pic,
-                  name: club.name,
-                  description: club.description,
-                  instagram: club.instagram_handle,
-                  categories: club.categories,
-                }}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-700 dark:text-gray-300 text-xl mb-2">
-                No clubs match your search criteria
-              </p>
-              <button
-                onClick={() => {
-                  setSearchInput("");
-                  setSelectedCategories([]);
-                }}
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                Clear all filters
-              </button>
-            </div>
+      {/* Results count */}
+      <div ref={clubsRef} className="w-full max-w-7xl text-left px-4 sm:px-6 mb-4">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+          Search Results ({filteredClubs.length} of {totalClubCount})
+          {user && searchInput.trim() !== "" && (
+            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+              Using hybrid search
+            </span>
           )}
-        </div>
-        <div id="load-more-trigger" className="h-1 w-full"></div>
+        </h2>
+      </div>
 
-      
+      {/* Club Cards Grid */}
+      <div 
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 
+                  w-full max-w-7xl px-4 sm:px-6 mb-12"
+      >
+        {filteredClubs.length > 0 ? (
+          filteredClubs.map((club) => (
+            <ClubCard
+              key={club.id}
+              club={{
+                profilePicture: club.profile_image_url ? club.profile_image_path : club.profile_pic,
+                name: club.name,
+                description: club.description,
+                instagram: club.instagram_handle,
+                categories: club.categories,
+              }}
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-700 dark:text-gray-300 text-xl mb-2">
+              No clubs match your search criteria
+            </p>
+            <button
+              onClick={() => {
+                setSearchInput("");
+                setSelectedCategories([]);
+              }}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Clear all filters
+            </button>
+          </div>
+        )}
+      </div>
+      <div id="load-more-trigger" className="h-1 w-full"></div>
       </main>
       <Footer />
     </div>
