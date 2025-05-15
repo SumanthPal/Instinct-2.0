@@ -13,6 +13,22 @@ from db.queries import SupabaseQueries
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 
+def get_embedding(text: str) -> list:
+    """Get embedding from OpenAI API."""
+    client = OpenAI(api_key=os.getenv('OPENAI'))
+    if not text or text.strip() == "":
+        return None
+    
+    try:
+        # Using text-embedding-3-small model (newer and more cost-effective)
+        response = client.embeddings.create(
+            model="text-embedding-3-small",
+            input=text
+        )
+        return response.data[0].embedding
+    except Exception as e:
+        print(f"Error getting embedding: {e}")
+        return None
 
 class EventParser:
     def __init__(self):

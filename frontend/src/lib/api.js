@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase'
 
 const supabase = createClient()
 
-const API_BASE_URL = 'http://localhost:8000'; // or your production API URL
+const API_BASE_URL = 'https://web.gentlemeadow-727fb9e6.westus.azurecontainerapps.io/'; // or your production API URL
 
 export const fetchClubManifest = async (page = 1, limit = 20, category = null) => {
   try {
@@ -174,6 +174,61 @@ export const submitNewClub = async (clubData) => {
     return data;
   } catch (error) {
     console.error('Error submitting new club:', error);
+    throw error;
+  }
+};
+export const fetchHybridSearch = async (
+  query, 
+  page = 1, 
+  limit = 20, 
+  category = null,
+  semanticWeight = 0.5
+) => {
+  try {
+    // Check for authentication first
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      throw new Error('Authentication required for hybrid search')
+    }
+
+    const token = session.access_token
+    
+    // Build the query string with all parameters
+    let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+    
+    // Add optional parameters if provided
+    if (category) {
+      queryParams += `&category=${encodeURIComponent(category)}`;
+    }
+    
+    // Add semantic weight parameter
+    queryParams += `&semantic_weight=${semanticWeight}`;
+
+    const response = await fetch(`${API_BASE_URL}/hybrid-search?${queryParams}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch hybrid search: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    
+    console.log('Fetched hybrid search results:', data);
+    
+    return {
+      results: data.results || [],
+      totalCount: data.count || 0,
+      hasMore: data.hasMore || false,
+      page: data.page || page
+    };
+  } catch (error) {
+    console.error('Error fetching hybrid search:', error);
+    // We'll rethrow to handle in the component
     throw error;
   }
 };
