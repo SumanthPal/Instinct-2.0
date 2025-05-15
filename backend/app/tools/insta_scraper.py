@@ -172,14 +172,14 @@ class InstagramScraper:
         """
         try:
             # Add random delay to avoid detection patterns
-            delay = random.uniform(1.0, 1.5)
+            delay = random.uniform(0.25, 0.8)
             time.sleep(delay)
             
             # Navigate to the URL
             self._driver.get(url)
             
             # Wait for page to load and possibly redirect
-            time.sleep(2)
+            time.sleep(0.5)
             
             # Check if we've been rate limited
             if self.detect_rate_limit():

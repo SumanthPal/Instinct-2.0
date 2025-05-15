@@ -9,7 +9,7 @@ env:
   RESOURCE_GROUP: instinct
   REGION: westus
   WEB_APP: web
-  SCRAPER_APP: scraper-new  # Updated to use the new scraper app
+  SCRAPER_APP: scraper
   DISCORD_APP: discord
   TIMESTAMP: ${{ github.sha }}
 
