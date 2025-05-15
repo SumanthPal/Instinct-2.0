@@ -75,49 +75,59 @@ const RssFeed = ({
       ) : feedData && feedData.items ? (
         <div className="space-y-6">
           {feedData.items.slice(0, maxItems).map((item, index) => (
-            <div 
-              key={index} 
-              className="border-b border-gray-200 dark:border-gray-700 pb-4 last:border-0"
-            >
-              <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-dark-text">
-                <a 
-                  href={item.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                >
-                  {item.title}
-                </a>
-              </h3>
-              
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                {new Date(item.pubDate).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </p>
-              
-              {showFullContent ? (
-                <div 
-                  className="text-gray-700 dark:text-dark-subtext prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: item.content || item.contentSnippet }}
-                />
-              ) : (
-                <p className="text-gray-700 dark:text-dark-subtext">
-                  {truncateText(stripHtml(item.content || item.contentSnippet || ''))}
-                </p>
-              )}
-              
-              <a 
-                href={item.link} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-block mt-2 text-purple-600 dark:text-purple-400 font-semibold hover:underline text-sm"
-              >
-                Read more →
-              </a>
-            </div>
+           <div className={`backdrop-blur-sm bg-white/30 dark:bg-white/10 border border-white/20 rounded-2xl p-6 shadow-md ${className}`}>
+           {loading ? (
+             <div className="flex justify-center items-center h-24">
+               <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
+             </div>
+           ) : error ? (
+             <div className="text-red-600 dark:text-red-400 text-center">
+               <p>{error}</p>
+             </div>
+           ) : feedData && feedData.items ? (
+             <div className="space-y-8">
+               {feedData.items.slice(0, maxItems).map((item, index) => (
+                 <div key={index}>
+                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                     <a
+                       href={item.link}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                     >
+                       {item.title}
+                     </a>
+                   </h3>
+                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                     {new Date(item.pubDate).toLocaleDateString('en-US', {
+                       year: 'numeric',
+                       month: 'long',
+                       day: 'numeric'
+                     })}
+                   </p>
+                   <p className="text-gray-800 dark:text-gray-300 text-sm leading-relaxed">
+                     {showFullContent
+                       ? <span dangerouslySetInnerHTML={{ __html: item.content || item.contentSnippet }} />
+                       : truncateText(stripHtml(item.content || item.contentSnippet || ''))
+                     }
+                   </p>
+                   <a
+                     href={item.link}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="inline-block mt-2 text-indigo-600 dark:text-indigo-400 font-medium hover:underline text-sm"
+                   >
+                     Read more →
+                   </a>
+                 </div>
+               ))}
+             </div>
+           ) : (
+             <p className="text-center text-gray-700 dark:text-gray-300">No articles found.</p>
+           )}
+         </div>
+         
+         
           ))}
         </div>
       ) : (
