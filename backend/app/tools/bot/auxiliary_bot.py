@@ -1256,7 +1256,96 @@ async def club_insights_cmd(ctx, instagram_handle: str):
     except Exception as e:
         logger.error(f"Error in clubinsights command: {e}")
         await ctx.send(f"omg i'm so sorry but I couldn't fetch insights rn 😭 ({str(e)})")
+
+@aux_bot.command(name="queuestats")
+async def queue_stats_cmd(ctx):
+    """Show comprehensive queue statistics."""
+    try:
+        # Get stats for all queue types
+        scraper_stats = get_queue_status().get("scraper", {})
+        event_stats = get_queue_status().get("event", {})
         
+        # Calculate success/fail ratios
+        try:
+            scraper_completed = redis_conn.hlen(QUEUE_KEYS["scraper"]["completed"])
+            scraper_failed = scraper_stats.get("failed_count", 0)
+            scraper_total = scraper_completed + scraper_failed
+            scraper_success_rate = round((scraper_completed / scraper_total) * 100, 2) if scraper_total > 0 else 0
+            
+            event_completed = redis_conn.hlen(QUEUE_KEYS["event"]["completed"])
+            event_failed = event_stats.get("failed_count", 0)
+            event_total = event_completed + event_failed
+            event_success_rate = round((event_completed / event_total) * 100, 2) if event_total > 0 else 0
+        except Exception as e:
+            logger.error(f"Error calculating success rates: {e}")
+            scraper_success_rate = event_success_rate = "N/A"
+            scraper_completed = event_completed = 0
+        
+        # Create embed
+        embed = discord.Embed(
+            title="📊 Queue Statistics",
+            description="Detailed metrics about all queues",
+            color=discord.Color.blue(),
+            timestamp=datetime.datetime.now()
+        )
+        
+        # Scraper stats
+        embed.add_field(
+            name="🔍 Scraper Queue",
+            value=(
+                f"Waiting: **{scraper_stats.get('queue_count', 0)}**\n"
+                f"Processing: **{scraper_stats.get('processing_count', 0)}**\n"
+                f"Failed: **{scraper_stats.get('failed_count', 0)}**\n"
+                f"Completed: **{scraper_completed}**\n"
+                f"Success Rate: **{scraper_success_rate}%**"
+            ),
+            inline=True
+        )
+        
+        # Event stats
+        embed.add_field(
+            name="📅 Event Queue",
+            value=(
+                f"Waiting: **{event_stats.get('queue_count', 0)}**\n"
+                f"Processing: **{event_stats.get('processing_count', 0)}**\n"
+                f"Failed: **{event_stats.get('failed_count', 0)}**\n"
+                f"Completed: **{event_completed}**\n"
+                f"Success Rate: **{event_success_rate}%**"
+            ),
+            inline=True
+        )
+        
+        # Rate limiting info
+        embed.add_field(
+            name="⏱️ Rate Limiting",
+            value=(
+                f"Last Hour Requests: **{scraper_stats.get('rate_limited_last_hour', 'N/A')}**\n"
+                f"Limit: **100/hour**"
+            ),
+            inline=False
+        )
+        
+        # Get stalled jobs
+        try:
+            stalled_scraper = len(redis_conn.hgetall(QUEUE_KEYS["scraper"]["processing"]))
+            stalled_event = len(redis_conn.hgetall(QUEUE_KEYS["event"]["processing"]))
+            
+            embed.add_field(
+                name="⚠️ Potentially Stalled Jobs",
+                value=(
+                    f"Scraper: **{stalled_scraper}**\n"
+                    f"Event: **{stalled_event}**"
+                ),
+                inline=False
+            )
+        except Exception as e:
+            logger.error(f"Error getting stalled jobs: {e}")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in queuestats command: {e}")
+        await ctx.send(f"couldn't get queue stats 😭 here's why: {str(e)}") 
 # Run the bot
 if __name__ == "__main__":
     aux_bot.run(AUX_BOT_TOKEN)
