@@ -31,7 +31,7 @@ class ScraperRotation:
         """Initialize the scraper rotation manager"""
         dotenv.load_dotenv()
         self.db = SupabaseQueries()
-        self.clubs_per_session = 40
+        self.clubs_per_session = 10
         self.cooldown_hours = 24  # Don't scrape same club more than once every 3 days
         self.session_cooldown_hours = 2  # Wait between sessions
         self.max_threads = 1  # Start with 1 thread (can be increased based on Heroku dyno)
@@ -513,6 +513,10 @@ class ScraperRotation:
                 self.pause()
             elif command == "resume":
                 self.resume()
+            elif command == "populate_queue":
+                self.populate_queue()
+            elif command == "requeue_stalled":
+                self.queue.requeue_stalled()
             elif command == "flush_queue":
                 queue_type_str = data.get("queue_type", "scraper")
                 queue_type = getattr(QueueType, queue_type_str.upper(), QueueType.SCRAPER)

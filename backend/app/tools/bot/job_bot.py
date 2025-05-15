@@ -480,6 +480,14 @@ async def on_ready():
     # Add this to bot startup (on_ready event)
     monitor_system_health.start()
     logger.info("System health monitoring started")
+    
+    job_bot.queue_monitor = LiveQueueMonitor(
+            job_bot, 
+            JOB_BOT_CHANNEL_ID,
+            update_interval=30
+        )
+    await job_bot.queue_monitor.start_monitoring()
+    logger.info("Live queue monitor started automatically")
 
 # Add a new health stream name constant at the top with the other stream names
     
@@ -2111,6 +2119,323 @@ async def quick_health_cmd(ctx):
     except Exception as e:
         logger.error(f"Error in quickhealth command: {e}")
         await ctx.send(f"💔 couldn't get quick health info: `{e}`")
+import asyncio
+import datetime
+import discord
+from discord.ext import tasks
+import json
+from typing import Dict, List, Optional, Set
+
+# Import the RedisScraperQueue class from your existing code
+# Assuming the redis_queue.py file is in the same directory or in your import path
+from redis_queue import RedisScraperQueue, QueueType
+
+class LiveQueueMonitor:
+    """
+    A class to provide live updates about which clubs are being processed in the Redis queues.
+    This can be integrated into your existing Discord bot.
+    """
+    def __init__(self, bot, channel_id: int, update_interval: int = 30):
+        """
+        Initialize the live queue monitor.
+        
+        Args:
+            bot: The Discord bot instance
+            channel_id: The ID of the channel to send updates to
+            update_interval: How often to check for updates (in seconds)
+        """
+        self.bot = bot
+        self.channel_id = channel_id
+        self.update_interval = update_interval
+        self.redis_queue = RedisScraperQueue()
+        
+        # Keep track of previously seen jobs to detect changes
+        self.previous_processing: Set[str] = set()
+        self.previous_queued_count = 0
+        
+        # Message ID of the pinned status message to update
+        self.status_message_id = None
+        
+        # Emoji indicators for different states
+        self.emojis = {
+            "processing": "⚙️",
+            "queued": "📋",
+            "new": "🆕",
+            "completed": "✅",
+            "failed": "❌",
+            "up": "📈",
+            "down": "📉",
+            "same": "➡️"
+        }
+    
+    async def start_monitoring(self):
+        """Start the monitor background task"""
+        self.monitor_queue.start()
+        channel = self.bot.get_channel(self.channel_id)
+        if channel:
+            await channel.send("📊 **Live Queue Monitor started!** I'll keep you updated on what's happening with the scraper jobs.")
+    
+    async def stop_monitoring(self):
+        """Stop the monitor background task"""
+        self.monitor_queue.cancel()
+        channel = self.bot.get_channel(self.channel_id)
+        if channel:
+            await channel.send("📊 **Live Queue Monitor stopped!** You won't receive further updates.")
+    
+    async def create_status_message(self):
+        """Create a new pinned status message that will be updated"""
+        channel = self.bot.get_channel(self.channel_id)
+        if not channel:
+            return
+            
+        embed = discord.Embed(
+            title="🔄 Live Scraper Queue Status",
+            description="This message will update automatically with the latest queue status.",
+            color=0x3498DB,
+            timestamp=datetime.datetime.now()
+        )
+        
+        embed.add_field(
+            name="⏳ Initializing...",
+            value="Collecting data... please wait for the first update.",
+            inline=False
+        )
+        
+        message = await channel.send(embed=embed)
+        
+        # Pin the message for easy reference
+        try:
+            await message.pin()
+            self.status_message_id = message.id
+        except discord.HTTPException:
+            # Failed to pin, possibly due to too many pins
+            await channel.send("⚠️ Could not pin status message - you may have too many pins already. I'll still update it regularly.")
+            self.status_message_id = message.id
+    
+    async def update_status_message(self, processing_jobs: List[str], queue_stats: Dict):
+        """Update the pinned status message with current information"""
+        if not self.status_message_id:
+            await self.create_status_message()
+            
+        channel = self.bot.get_channel(self.channel_id)
+        if not channel:
+            return
+            
+        try:
+            message = await channel.fetch_message(self.status_message_id)
+        except (discord.NotFound, discord.HTTPException):
+            # Message was deleted or cannot be found
+            await self.create_status_message()
+            return
+        
+        # Create a new embed with updated information
+        embed = discord.Embed(
+            title="🔄 Live Scraper Queue Status",
+            description=f"Last updated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            color=0x3498DB
+        )
+        
+        # Queue stats section
+        queue_count = queue_stats.get("queue_count", 0)
+        processing_count = queue_stats.get("processing_count", 0)
+        failed_count = queue_stats.get("failed_count", 0)
+        stalled_count = queue_stats.get("stalled_count", 0)
+        
+        # Determine queue trend
+        if queue_count > self.previous_queued_count:
+            queue_trend = f"{self.emojis['up']} +{queue_count - self.previous_queued_count}"
+        elif queue_count < self.previous_queued_count:
+            queue_trend = f"{self.emojis['down']} -{self.previous_queued_count - queue_count}"
+        else:
+            queue_trend = f"{self.emojis['same']} No change"
+        
+        embed.add_field(
+            name="📊 Queue Statistics",
+            value=(
+                f"{self.emojis['queued']} Queued: **{queue_count}** ({queue_trend})\n"
+                f"{self.emojis['processing']} Processing: **{processing_count}**\n"
+                f"{self.emojis['failed']} Failed: **{failed_count}**\n"
+                f"⚠️ Stalled: **{stalled_count}**"
+            ),
+            inline=False
+        )
+        
+        # Currently processing section
+        if processing_jobs:
+            # Find new entries that weren't in the previous update
+            new_jobs = set(processing_jobs) - self.previous_processing
+            
+            processing_text = ""
+            for i, job in enumerate(processing_jobs[:10], 1):
+                marker = f"{self.emojis['new']} " if job in new_jobs else ""
+                processing_text += f"{i}. {marker}`{job}`\n"
+                
+            if len(processing_jobs) > 10:
+                processing_text += f"...and {len(processing_jobs) - 10} more clubs"
+                
+            embed.add_field(
+                name=f"{self.emojis['processing']} Currently Processing ({len(processing_jobs)})",
+                value=processing_text or "No clubs currently being processed.",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name=f"{self.emojis['processing']} Currently Processing",
+                value="No clubs currently being processed.",
+                inline=False
+            )
+        
+        # Recent activity section
+        # We can include some information about recent completions or failures
+        # This could be expanded with data from completed/failed queues
+        
+        # Update the message
+        await message.edit(embed=embed)
+        
+        # Update previous state for comparison in next update
+        self.previous_processing = set(processing_jobs)
+        self.previous_queued_count = queue_count
+    
+    async def send_notification(self, title: str, message: str, color: int = 0x57F287):
+        """Send a notification about notable queue events"""
+        channel = self.bot.get_channel(self.channel_id)
+        if not channel:
+            return
+            
+        embed = discord.Embed(
+            title=title,
+            description=message,
+            color=color,
+            timestamp=datetime.datetime.now()
+        )
+        
+        await channel.send(embed=embed)
+    
+    @tasks.loop(seconds=30)
+    async def monitor_queue(self):
+        """Background task to monitor the queue and provide updates"""
+        try:
+            # Get currently processing jobs
+            processing_jobs_data = self.redis_queue.redis.hgetall(
+                self.redis_queue.queue_keys[QueueType.SCRAPER]["processing"]
+            )
+            
+            # Extract instagram handles from processing jobs
+            processing_jobs = []
+            for job_id, job_data in processing_jobs_data.items():
+                try:
+                    if isinstance(job_id, bytes):
+                        job_id = job_id.decode('utf-8')
+                    processing_jobs.append(job_id)
+                except Exception as e:
+                    print(f"Error processing job ID: {e}")
+            
+            # Get queue statistics
+            queue_stats = self.redis_queue.get_queue_status(QueueType.SCRAPER)
+            
+            # Update the status message with current information
+            await self.update_status_message(processing_jobs, queue_stats)
+            
+            # Check for notable events and send notifications
+            await self.check_notable_events(processing_jobs, queue_stats)
+            
+        except Exception as e:
+            print(f"Error in queue monitor: {e}")
+    
+    async def check_notable_events(self, processing_jobs: List[str], queue_stats: Dict):
+        """Check for notable events and send notifications when appropriate"""
+        # New jobs entering processing
+        new_jobs = set(processing_jobs) - self.previous_processing
+        if len(new_jobs) > 3:
+            # More than 3 new jobs, just send a summary
+            await self.send_notification(
+                "🔄 New Clubs Being Processed",
+                f"{len(new_jobs)} new clubs have started processing.",
+                0x3498DB  # Blue
+            )
+        elif new_jobs and len(self.previous_processing) > 0:  # Don't notify on first run
+            # 1-3 new jobs, list them specifically
+            await self.send_notification(
+                "🔄 New Clubs Being Processed",
+                "The following clubs have started processing:\n" + 
+                "\n".join([f"• `{job}`" for job in new_jobs]),
+                0x3498DB  # Blue
+            )
+        
+        # Jobs that finished processing
+        completed_jobs = self.previous_processing - set(processing_jobs)
+        if len(completed_jobs) > 3:
+            # More than 3 completed jobs, just send a summary
+            await self.send_notification(
+                "✅ Clubs Finished Processing",
+                f"{len(completed_jobs)} clubs have finished processing.",
+                0x57F287  # Green
+            )
+            
+        # Check if queue size has changed significantly
+        if self.previous_queued_count > 0:  # Skip the first run
+            queue_count = queue_stats.get("queue_count", 0)
+            
+            # Queue grew significantly (more than 10 new items)
+            if queue_count > self.previous_queued_count + 10:
+                await self.send_notification(
+                    "📈 Queue Growth Detected",
+                    f"The queue has grown from {self.previous_queued_count} to {queue_count} items.",
+                    0xFEE75C  # Yellow
+                )
+            
+            # Queue depleted significantly (more than 50% reduction with at least 10 items processed)
+            elif self.previous_queued_count > 20 and queue_count <= self.previous_queued_count * 0.5:
+                await self.send_notification(
+                    "📉 Queue Depleting",
+                    f"The queue has reduced from {self.previous_queued_count} to {queue_count} items.",
+                    0x57F287  # Green
+                )
+        
+        # Check for stalled jobs
+        stalled_count = queue_stats.get("stalled_count", 0)
+        if stalled_count > 0 and stalled_count % 5 == 0:  # Notify every 5 stalled jobs
+            await self.send_notification(
+                "⚠️ Stalled Jobs Detected",
+                f"There are currently {stalled_count} stalled jobs in the scraper queue.",
+                0xED4245  # Red
+            )
+
+# To integrate this with your existing bot, add the following to your bot.py file:
+
+@job_bot.command(name="startmonitor")
+@is_admin()
+async def start_monitor_cmd(ctx):
+    """Start the live queue monitoring system"""
+    try:
+        # Initialize the monitor if it doesn't exist
+        if not hasattr(job_bot, "queue_monitor"):
+            job_bot.queue_monitor = LiveQueueMonitor(
+                job_bot, 
+                JOB_BOT_CHANNEL_ID,  # Use your notification channel
+                update_interval=30  # Update every 30 seconds
+            )
+        
+        await job_bot.queue_monitor.start_monitoring()
+    except Exception as e:
+        logger.error(f"Error starting queue monitor: {e}")
+        await ctx.send(f"❌ Error starting queue monitor: `{e}`")
+
+@job_bot.command(name="stopmonitor")
+@is_admin()
+async def stop_monitor_cmd(ctx):
+    """Stop the live queue monitoring system"""
+    try:
+        if hasattr(job_bot, "queue_monitor"):
+            await job_bot.queue_monitor.stop_monitoring()
+            await ctx.send("📊 Live queue monitoring stopped!")
+        else:
+            await ctx.send("📊 Monitor wasn't running!")
+    except Exception as e:
+        logger.error(f"Error stopping queue monitor: {e}")
+        await ctx.send(f"❌ Error stopping queue monitor: `{e}`")
+
+
 # Run the bot
 if __name__ == "__main__":
     job_bot.run(JOB_BOT_TOKEN)
