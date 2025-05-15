@@ -9,7 +9,7 @@ import CategoryFilter from "../components/ui/CategoryFilter";
 import ParallaxBackground from "../components/ui/ParallaxBackground";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
-import Toast from "@/components/ui/search-toast";
+import { useToast } from "@/components/ui/toast"; // Import the useToast hook
 import { 
   fetchClubManifest, 
   fetchSmartSearch, 
@@ -22,6 +22,7 @@ import CategoryFooter from "@/components/ui/CategoryFooter";
 
 export default function HomeClient({ initialClubs, totalCount, hasMore, currentPage }) {
   const supabase = createClient();
+  const { toast } = useToast(); // Use the toast hook
   const [clubs, setClubs] = useState(initialClubs || []);
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -32,7 +33,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   const [filteredClubs, setFilteredClubs] = useState(initialClubs || []);
   const [totalClubCount, setTotalClubCount] = useState(totalCount || 0);
   const [user, setUser] = useState(null);
-  const [toast, setToast] = useState(null);
+  const [toastMessage, setToastMessage] = useState(""); // For storing the message
   const [semanticWeight, setSemanticWeight] = useState(0.5); // Default weight for hybrid search
   
   // Check authentication status on component mount
@@ -133,9 +134,13 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     if (searchInput.trim() !== "") {
       // Show toast for non-authenticated users
       if (!user) {
-        setToast({
-          message: "Sign in for hybrid search capabilities",
-          type: "info"
+        // Use the direct toast API for immediate notifications
+        toast({
+          title: "Authentication Required",
+          description: "Sign in to use hybrid search capabilities for better results",
+          status: "info",
+          duration: 5000,
+          isClosable: true,
         });
       }
       
@@ -319,8 +324,8 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   ];
   
   // Close toast handler
-  const closeToast = () => {
-    setToast(null);
+  const handleToastClose = () => {
+    setShowToast(false);
   };
 
   return (
@@ -331,15 +336,8 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
 
       <Navbar />
       
-      {/* Toast Notification */}
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={closeToast} 
-        />
-      )}
-      
+      {/* Toast Notification using SimpleToast */}
+     
       <main className="w-full px-4 pt-28 pb-8 flex flex-col items-center justify-center text-center">
       <div className="hero min-h-[50vh] w-full max-w-7xl flex flex-col items-center justify-center z-10 mb-8 px-4">
 
