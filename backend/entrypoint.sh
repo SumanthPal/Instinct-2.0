@@ -11,3 +11,4 @@ env | grep -v PASSWORD | grep -v SECRET | sort
 echo "=== STARTING APPLICATION ==="
 
 exec "$@"
+ 

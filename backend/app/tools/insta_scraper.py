@@ -69,25 +69,43 @@ class InstagramScraper:
         Returns:
             A configured Chrome WebDriver instance.
         """
-        if chrome_options is None:
-            chrome_options = Options()
-        
-        # Check if running in Docker or CI environment
+        # Check if running in Docker or CI environment (set in Dockerfile)
         if os.environ.get('DOCKER_ENV') or os.environ.get('CI'):
-            # Docker/CI configuration
-            chromedriver_path = "/usr/bin/chromedriver"
-            chrome_bin_path = "/usr/bin/chromium"
+            logger.info("Running in Docker/CI environment. Using system ChromeDriver.")
             
-            if os.path.exists(chrome_bin_path):
+            # Use environment variables if set, otherwise use defaults
+            chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
+            chrome_bin_path = os.environ.get('CHROME_BIN', '/usr/bin/chromium')
+            
+            logger.info(f"ChromeDriver path: {chromedriver_path}")
+            logger.info(f"Chrome binary path: {chrome_bin_path}")
+            
+            # Check if binaries exist
+            if not os.path.exists(chrome_bin_path):
+                logger.warning(f"Chrome binary not found at {chrome_bin_path}")
+            else:
                 chrome_options.binary_location = chrome_bin_path
+                logger.info(f"Chrome binary location set to {chrome_bin_path}")
             
-            if os.path.exists(chromedriver_path):
+            if not os.path.exists(chromedriver_path):
+                logger.warning(f"ChromeDriver not found at {chromedriver_path}")
+                logger.info("Falling back to webdriver_manager")
+                service = Service(ChromeDriverManager().install())
+            else:
+                logger.info(f"Using ChromeDriver at {chromedriver_path}")
                 service = Service(executable_path=chromedriver_path)
-                return webdriver.Chrome(service=service, options=chrome_options)
+        else:
+            # For local development, use webdriver_manager
+            logger.info("Local environment detected. Using webdriver_manager.")
+            service = Service(ChromeDriverManager().install())
         
-        # For local development, use webdriver_manager
-        service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=chrome_options)
+        try:
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            logger.info("Chrome WebDriver created successfully")
+            return driver
+        except Exception as e:
+            logger.error(f"Failed to create Chrome WebDriver: {str(e)}")
+            raise
     
     def __enter__(self):
         return self
