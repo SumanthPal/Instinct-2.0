@@ -41,9 +41,9 @@ jobs:
         context: .
         file: ./backend/Dockerfile.web
         push: true
+        platforms: linux/amd64
         tags: |
           ${{ env.ACR_NAME }}/backend-web:latest
-          ${{ env.ACR_NAME }}/backend-web:${{ env.TIMESTAMP }}
 
     - name: Build and push discord image
       uses: docker/build-push-action@v5
@@ -51,9 +51,9 @@ jobs:
         context: .
         file: ./backend/Dockerfile.discord
         push: true
+        platforms: linux/amd64
         tags: |
           ${{ env.ACR_NAME }}/backend-discord:latest
-          ${{ env.ACR_NAME }}/backend-discord:${{ env.TIMESTAMP }}
 
     - name: Build and push scraper image
       uses: docker/build-push-action@v5
@@ -63,7 +63,6 @@ jobs:
         push: true
         tags: |
           ${{ env.ACR_NAME }}/backend-scraper:latest
-          ${{ env.ACR_NAME }}/backend-scraper:${{ env.TIMESTAMP }}
 
     - name: Set short SHA
       id: vars
@@ -73,18 +72,21 @@ jobs:
       run: |
         # Deploy Web App
         az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
-          --image $ACR_NAME/backend-web:$TIMESTAMP \
-          --revision-suffix prod-${{ env.SHORT_SHA }}
+          --image $ACR_NAME/backend-web:latest \
+          --revision-suffix prod-${{ env.SHORT_SHA }} \
+          --set-env-vars REVISION_MODE=single
     
         # Deploy Scraper App
         az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
-          --image $ACR_NAME/backend-scraper:$TIMESTAMP \
-          --revision-suffix prod-${{ env.SHORT_SHA }}
+          --image $ACR_NAME/backend-scraper:latest \
+          --revision-suffix prod-${{ env.SHORT_SHA }} \
+          --set-env-vars REVISION_MODE=single
     
         # Deploy Discord App
         az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
-          --image $ACR_NAME/backend-discord:$TIMESTAMP \
-          --revision-suffix prod-${{ env.SHORT_SHA }}
+          --image $ACR_NAME/backend-discord:latest \
+          --revision-suffix prod-${{ env.SHORT_SHA }} \
+          --set-env-vars REVISION_MODE=single
     
         # Get revision names with simpler query approach
         QUERY_PATTERN="prod-${{ env.SHORT_SHA }}"
@@ -114,11 +116,11 @@ jobs:
 
     - name: Check container logs
       run: |
-        echo "### Web App Logs" >> $GITHUB_STEP_SUMMARY
-        az containerapp logs show --name $WEB_APP --resource-group $RESOURCE_GROUP --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Scraper App Logs" >> $GITHUB_STEP_SUMMARY
-        az containerapp logs show --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Discord App Logs" >> $GITHUB_STEP_SUMMARY
-        az containerapp logs show --name $DISCORD_APP --resource-group $RESOURCE_GROUP --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
+          echo "### Web App Logs" >> $GITHUB_STEP_SUMMARY
+          az containerapp logs show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $WEB_REVISION --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
+      
+          echo "### Scraper App Logs" >> $GITHUB_STEP_SUMMARY
+          az containerapp logs show --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --revision $SCRAPER_REVISION --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
+      
+          echo "### Discord App Logs" >> $GITHUB_STEP_SUMMARY
+          az containerapp logs show --name $DISCORD_APP --resource-group $RESOURCE_GROUP --revision $DISCORD_REVISION --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
