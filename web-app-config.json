@@ -1,0 +1,175 @@
+{
+  "id": "/subscriptions/0476e0f5-cfc5-4a8e-8d05-4788d2b5154f/resourceGroups/instinct/providers/Microsoft.App/containerapps/web",
+  "identity": {
+    "type": "None"
+  },
+  "location": "West US",
+  "name": "web",
+  "properties": {
+    "configuration": {
+      "activeRevisionsMode": "Single",
+      "dapr": null,
+      "identitySettings": [],
+      "ingress": {
+        "additionalPortMappings": null,
+        "allowInsecure": false,
+        "clientCertificateMode": null,
+        "corsPolicy": null,
+        "customDomains": null,
+        "exposedPort": 0,
+        "external": true,
+        "fqdn": "web.gentlemeadow-727fb9e6.westus.azurecontainerapps.io",
+        "ipSecurityRestrictions": null,
+        "stickySessions": null,
+        "targetPort": 8000,
+        "traffic": [
+          {
+            "latestRevision": true,
+            "weight": 100
+          }
+        ],
+        "transport": "Auto"
+      },
+      "maxInactiveRevisions": null,
+      "registries": [
+        {
+          "identity": "",
+          "passwordSecretRef": "instinctregistryazurecrio-instinctregistry",
+          "server": "instinctregistry.azurecr.io",
+          "username": "instinctregistry"
+        }
+      ],
+      "runtime": null,
+      "secrets": [
+        {
+          "name": "redis-url"
+        },
+        {
+          "name": "supabase-key"
+        },
+        {
+          "name": "supabase-url"
+        },
+        {
+          "name": "instinctregistryazurecrio-instinctregistry"
+        },
+        {
+          "name": "openai"
+        }
+      ],
+      "service": null
+    },
+    "customDomainVerificationId": "763CECA287BC506B4CE202FD0CAB92D09E98F631D8E6AB61BE2B856729216B6B",
+    "delegatedIdentities": [],
+    "environmentId": "/subscriptions/0476e0f5-cfc5-4a8e-8d05-4788d2b5154f/resourceGroups/instinct/providers/Microsoft.App/managedEnvironments/instinctenv",
+    "eventStreamEndpoint": "https://westus.azurecontainerapps.dev/subscriptions/0476e0f5-cfc5-4a8e-8d05-4788d2b5154f/resourceGroups/instinct/containerApps/web/eventstream",
+    "latestReadyRevisionName": "web--0000001",
+    "latestRevisionFqdn": "web--rev-20250516031814.gentlemeadow-727fb9e6.westus.azurecontainerapps.io",
+    "latestRevisionName": "web--rev-20250516031814",
+    "managedEnvironmentId": "/subscriptions/0476e0f5-cfc5-4a8e-8d05-4788d2b5154f/resourceGroups/instinct/providers/Microsoft.App/managedEnvironments/instinctenv",
+    "outboundIpAddresses": [
+      "172.184.170.81",
+      "20.245.255.132",
+      "13.83.133.35",
+      "172.184.161.148",
+      "40.125.40.79",
+      "13.83.133.254",
+      "20.66.102.34",
+      "20.253.223.53",
+      "40.125.40.75",
+      "52.225.92.22",
+      "13.87.246.93",
+      "13.87.246.131",
+      "13.87.246.102",
+      "13.87.246.100",
+      "13.93.214.71",
+      "13.91.44.183",
+      "13.91.98.58",
+      "13.91.96.202",
+      "13.91.40.31",
+      "13.91.45.140",
+      "20.253.254.228",
+      "20.253.254.247",
+      "20.253.254.64",
+      "20.253.254.235",
+      "104.210.49.205",
+      "104.210.49.250",
+      "104.210.49.206",
+      "104.210.55.200",
+      "104.210.49.225",
+      "104.210.49.214",
+      "172.184.128.196"
+    ],
+    "provisioningState": "Succeeded",
+    "runningStatus": "Running",
+    "template": {
+      "containers": [
+        {
+          "args": [
+            "app/server.py"
+          ],
+          "command": [
+            "[\"python\", \"app/server.py\"]"
+          ],
+          "env": [
+            {
+              "name": "ENV",
+              "value": "production"
+            },
+            {
+              "name": "SUPABASE_URL",
+              "secretRef": "supabase-url"
+            },
+            {
+              "name": "SUPABASE_KEY",
+              "secretRef": "supabase-key"
+            },
+            {
+              "name": "REDIS_URL",
+              "secretRef": "redis-url"
+            },
+            {
+              "name": "OPENAI",
+              "secretRef": "openai"
+            },
+            {
+              "name": "REVISION_MODE",
+              "value": "single"
+            }
+          ],
+          "image": "instinctregistry.azurecr.io/backend-web:latest",
+          "name": "web",
+          "probes": [],
+          "resources": {
+            "cpu": 0.5,
+            "ephemeralStorage": "2Gi",
+            "memory": "1Gi"
+          }
+        }
+      ],
+      "initContainers": null,
+      "revisionSuffix": "rev-20250516031814",
+      "scale": {
+        "cooldownPeriod": 300,
+        "maxReplicas": 10,
+        "minReplicas": null,
+        "pollingInterval": 30,
+        "rules": null
+      },
+      "serviceBinds": null,
+      "terminationGracePeriodSeconds": null,
+      "volumes": []
+    },
+    "workloadProfileName": "Consumption"
+  },
+  "resourceGroup": "instinct",
+  "systemData": {
+    "createdAt": "2025-05-10T00:23:29.3192574",
+    "createdBy": "sumanth@pallamreddy.com",
+    "createdByType": "User",
+    "lastModifiedAt": "2025-05-16T03:18:22.0316583",
+    "lastModifiedBy": "a8b10cb6-56b3-4dc9-b0ed-313c001ce4d2",
+    "lastModifiedByType": "Application"
+  },
+  "type": "Microsoft.App/containerApps"
+}
