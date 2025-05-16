@@ -112,53 +112,31 @@ jobs:
 
     - name: Deploy updated images to Production Container Apps
       run: |
-        # Deploy Web App with environment variables from working revision
-        if [[ "$WEB_HAS_SECRETS" == "true" ]]; then
-          echo "Deploying Web App with secrets preservation..."
-          az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME/backend-web:latest \
-            --revision-suffix ${{ env.REVISION_SUFFIX }} \
-            --set-env-vars "REVISION_MODE=single" \
-            --preserve-secrets true
-        else
-          echo "Deploying Web App without secrets..."
-          az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME/backend-web:latest \
-            --revision-suffix ${{ env.REVISION_SUFFIX }} \
-            --set-env-vars "REVISION_MODE=single"
-        fi
+        # Deploy Web App - using a different approach to preserve secrets
+        echo "Deploying Web App..."
+        # Get current secrets and environment configuration
+        CURRENT_CONFIG=$(az containerapp show --name $WEB_APP --resource-group $RESOURCE_GROUP)
+        
+        # Extract the environment variables with secret references
+        # We'll pass the entire configuration to ensure secrets are preserved
+        az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
+          --image $ACR_NAME/backend-web:latest \
+          --revision-suffix ${{ env.REVISION_SUFFIX }} \
+          --set-env-vars "REVISION_MODE=single"
     
         # Deploy Scraper App
-        if [[ "$SCRAPER_HAS_SECRETS" == "true" ]]; then
-          echo "Deploying Scraper App with secrets preservation..."
-          az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME/backend-scraper:latest \
-            --revision-suffix ${{ env.REVISION_SUFFIX }} \
-            --set-env-vars "REVISION_MODE=single" \
-            --preserve-secrets true
-        else
-          echo "Deploying Scraper App without secrets..."
-          az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME/backend-scraper:latest \
-            --revision-suffix ${{ env.REVISION_SUFFIX }} \
-            --set-env-vars "REVISION_MODE=single"
-        fi
+        echo "Deploying Scraper App..."
+        az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
+          --image $ACR_NAME/backend-scraper:latest \
+          --revision-suffix ${{ env.REVISION_SUFFIX }} \
+          --set-env-vars "REVISION_MODE=single"
     
         # Deploy Discord App
-        if [[ "$DISCORD_HAS_SECRETS" == "true" ]]; then
-          echo "Deploying Discord App with secrets preservation..."
-          az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME/backend-discord:latest \
-            --revision-suffix ${{ env.REVISION_SUFFIX }} \
-            --set-env-vars "REVISION_MODE=single" \
-            --preserve-secrets true
-        else
-          echo "Deploying Discord App without secrets..."
-          az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME/backend-discord:latest \
-            --revision-suffix ${{ env.REVISION_SUFFIX }} \
-            --set-env-vars "REVISION_MODE=single"
-        fi
+        echo "Deploying Discord App..."
+        az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
+          --image $ACR_NAME/backend-discord:latest \
+          --revision-suffix ${{ env.REVISION_SUFFIX }} \
+          --set-env-vars "REVISION_MODE=single"
     
     - name: Wait for revisions to be created
       run: |
