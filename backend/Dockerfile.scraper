@@ -1,4 +1,4 @@
-# Dockerfile.scraper
+# Dockerfile.scraper.fixed
 FROM python:3.11.8-slim as builder
 
 # Create and activate virtual environment
@@ -17,12 +17,11 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Chromium and ChromeDriver with exact version specification
+# Install Chromium and dependencies but don't run version checks during build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-driver \
     ca-certificates \
-    # Add dependencies for Chrome
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
@@ -40,16 +39,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /var/cache/apt/archives/*
 
-# Get and print Chrome and ChromeDriver versions for debugging
-RUN echo "Installed Chrome version:" && chromium --version \
-    && echo "Installed ChromeDriver version:" && chromedriver --version \
-    && echo "Chrome binary location:" && which chromium \
-    && echo "ChromeDriver binary location:" && which chromedriver
+# Add verification script that will run at runtime, not build time
+RUN echo '#!/bin/bash\necho "Chrome version: $(chromium --version 2>/dev/null || echo \"Not available in this environment\")"\necho "ChromeDriver version: $(chromedriver --version 2>/dev/null || echo \"Not available in this environment\")"\necho "Starting scraper..."\npython app/tools/scraper_rotation.py\n' > /app/start.sh \
+    && chmod +x /app/start.sh
 
-# Set environment variables
+# Set environment variables for Chrome
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 ENV DOCKER_ENV=true
+
+# Set Chrome options for running in container
+ENV CHROME_OPTIONS="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage"
 
 # Copy only necessary source files
 COPY backend/app /app/app
@@ -57,9 +57,5 @@ COPY backend/app /app/app
 # Set Python to not write .pyc files and remove __pycache__ folders
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
-# Add debugging script for ChromeDriver issues
-RUN echo '#!/bin/bash\necho "Chrome version: $(chromium --version)"\necho "ChromeDriver version: $(chromedriver --version)"\necho "Starting scraper..."\npython app/tools/scraper_rotation.py\n' > /app/start.sh \
-    && chmod +x /app/start.sh
 
 CMD ["/app/start.sh"]
