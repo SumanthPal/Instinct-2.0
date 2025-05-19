@@ -117,6 +117,22 @@ const About = () => {
         </section>
 
         <section className="mb-32">
+        <h2 className="text-4xl md:text-5xl font-bold mb-16 text-gray-900 dark:text-white">Listen More About It</h2>
+        <div className="max-w-3xl mx-auto">
+          <iframe 
+            style={{borderRadius: "12px"}} 
+            src="https://open.spotify.com/embed/episode/0xLs6q9TYf2Jmqv80ayH7r?utm_source=generator" 
+            width="100%" 
+            height="352" 
+            frameBorder="0" 
+            allowFullScreen="" 
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+            loading="lazy">
+          </iframe>
+        </div>
+      </section>
+
+        <section className="mb-32">
           <h2 className="text-4xl md:text-5xl font-bold mb-12 text-gray-900 dark:text-white">FAQs</h2>
           <div className="max-w-3xl mx-auto space-y-6 text-left">
             <details className="group bg-white/70 dark:bg-dark-profile-card rounded-xl p-5 shadow-md">
