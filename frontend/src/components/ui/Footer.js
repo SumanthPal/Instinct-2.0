@@ -7,7 +7,7 @@ const Footer = () => {
   // Move the checkHealth function outside useEffect to avoid recreating it on every render
   const checkHealth = async () => {
     try {
-      const response = await fetch('https://web.gentlemeadow-727fb9e6.westus.azurecontainerapps.io/health');
+      const response = await fetch('https://web2.gentlemeadow-727fb9e6.westus.azurecontainerapps.io/health');
       if (response.ok) {
         const data = await response.json();
         setHealthStatus(data.status === 'healthy' ? 'Online' : 'Offline');
