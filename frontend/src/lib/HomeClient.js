@@ -32,6 +32,8 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   const [semanticWeight, setSemanticWeight] = useState(0.5);
   const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
+  // New state for mobile optimization
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   
   // Check authentication status on component mount
   useEffect(() => {
@@ -147,6 +149,8 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
 
   const handleCategoryChange = async (categories) => {
     setSelectedCategories(categories);
+    // Close the dropdown on mobile after selecting
+    setShowCategoryDropdown(false);
   
     if (categories.length === 0) {
       if (searchInput.trim() === "") {
@@ -376,24 +380,38 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     <div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
       
-      <main className="container mx-auto px-4 py-16 sm:py-20 text-center">
+      <main className="container mx-auto px-3 sm:px-4 py-10 sm:py-16 md:py-20 text-center">
         {/* Heading */}
-        <div className="mb-12">
-          <h1 className="text-5xl font-bold mb-3 text-dark-base dark:text-white">
+        <div className="mb-8 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 sm:mb-3 text-dark-base dark:text-white">
             ANTEATER CLUBS
           </h1>
-          <p className="text-dark-base dark:text-dark-subtext text-lg">Find and connect with campus organizations</p>
+          <p className="text-dark-base dark:text-dark-subtext text-base sm:text-lg">Find and connect with campus organizations</p>
         </div>
 
+        {/* Search Bar */}
+        <div className="mb-6 sm:mb-8 max-w-2xl mx-auto">
+          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 p-1 shadow-md">
+            <SearchBar
+              value={searchInput}
+              onChange={handleSearchChange}
+              onEnter={handleSearch}
+              placeholder="Search clubs..."
+              className="w-full bg-transparent text-dark-base dark:text-dark-text py-2 sm:py-3 px-4 sm:px-5 rounded-full outline-none placeholder:text-dark-base/50 dark:placeholder:text-dark-text/50 text-sm sm:text-base"
+            />
+          </div>
+        </div>
+
+        {/* Mobile: View mode + Category dropdown toggle in one row */}
+        <div className="flex flex-wrap items-center justify-between md:justify-center mb-6 gap-2">
         {/* View Toggle */}
-        <div className="flex justify-end mb-6">
           <div className="inline-flex backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
             <button 
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded ${viewMode === 'grid' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
               aria-label="Grid view"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
               </svg>
             </button>
@@ -402,33 +420,82 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
               className={`p-2 rounded ${viewMode === 'list' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
               aria-label="List view"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
+          
+          {/* Mobile: Category dropdown toggle */}
+          <button 
+            className="md:hidden inline-flex items-center gap-1 px-4 py-2 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 text-dark-base dark:text-dark-text"
+            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+          >
+            <span>Categories</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-8 max-w-2xl mx-auto">
-          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 p-1 shadow-md">
-            <SearchBar
-              value={searchInput}
-              onChange={handleSearchChange}
-              onEnter={handleSearch}
-              placeholder="Search clubs by name, category, or keyword..."
-              className="w-full bg-transparent text-dark-base dark:text-dark-text py-3 px-5 rounded-full outline-none placeholder:text-dark-base/50 dark:placeholder:text-dark-text/50"
-            />
+        {/* Mobile: Dropdown for categories */}
+        {showCategoryDropdown && (
+          <div className="md:hidden mb-6 p-3 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-md">
+            <div className="flex flex-wrap justify-start gap-2 mb-3">
+              {Object.entries(categoryGroups).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setActiveTab(key);
+                  }}
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition-all ${
+                    activeTab === key
+                      ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
+                      : 'text-dark-base dark:text-dark-text bg-white/20 dark:bg-dark-card/20 hover:bg-white/30 dark:hover:bg-dark-text/20'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex flex-wrap justify-start gap-2">
+              <button
+                key="all-categories"
+                onClick={() => handleCategoryChange([])}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  selectedCategories.length === 0
+                    ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
+                    : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
+                }`}
+              >
+                <span className="mr-1">{categoryEmojis['All'] || '📚'}</span> All
+              </button>
+              
+              {filteredCategories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => handleCategoryChange([category])}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    selectedCategories.includes(category)
+                      ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
+                      : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
+                  }`}
+                >
+                  <span className="mr-1">{categoryEmojis[category] || '📄'}</span> {category.length > 12 ? category.slice(0, 10) + '...' : category}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Category Tabs */}
-        <div className="inline-flex mb-8 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
+        {/* Desktop: Category Tabs - Hide on mobile */}
+        <div className="hidden md:inline-flex mb-8 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
           {Object.entries(categoryGroups).map(([key, label]) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`px-6 py-3 rounded-full text-lg font-medium transition-all ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 rounded-full text-base sm:text-lg font-medium transition-all ${
                 activeTab === key
                   ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
                   : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'
@@ -439,12 +506,12 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
           ))}
         </div>
 
-        {/* Category Pills with Emojis */}
-        <div className="flex flex-wrap justify-center gap-2 mb-12 max-w-4xl mx-auto">
+        {/* Desktop: Category Pills with Emojis - Hide on mobile */}
+        <div className="hidden md:flex flex-wrap justify-center gap-2 mb-8 lg:mb-12 max-w-4xl mx-auto">
           <button
             key="all-categories"
             onClick={() => handleCategoryChange([])}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
               selectedCategories.length === 0
                 ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
                 : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
@@ -457,7 +524,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
             <button
               key={category}
               onClick={() => handleCategoryChange([category])}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
                 selectedCategories.includes(category)
                   ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
                   : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
@@ -469,26 +536,28 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
         </div>
 
         {/* Main Feed - Club Results */}
-        <section className="mb-20" ref={clubsRef}>
-          <div className="flex items-center justify-center mb-8">
-            <div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
-            <h2 className="text-3xl font-bold text-dark-base dark:text-white flex items-center">
+        <section className="mb-12 sm:mb-20" ref={clubsRef}>
+          <div className="flex items-center justify-center mb-6 sm:mb-8">
+            <div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-10 sm:w-16 mr-2 sm:mr-4"></div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-dark-base dark:text-white flex items-center flex-wrap justify-center">
               <span className="mr-2">
                 {selectedCategories.length === 1 
                   ? categoryEmojis[selectedCategories[0]] || '📄' 
                   : '📚'}
               </span>
-              {selectedCategories.length === 1 ? selectedCategories[0] : 'All Clubs'}
-              <span className="ml-3 text-lg font-normal">({filteredClubs.length} of {totalClubCount})</span>
+              <span className="truncate max-w-[150px] sm:max-w-none">
+                {selectedCategories.length === 1 ? selectedCategories[0] : 'All Clubs'}
+              </span>
+              <span className="ml-2 sm:ml-3 text-sm sm:text-base md:text-lg font-normal">({filteredClubs.length} of {totalClubCount})</span>
             </h2>
-            <div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
+            <div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-10 sm:w-16 ml-2 sm:ml-4"></div>
           </div>
           
           {/* Club Cards Grid */}
           <div className={`${
             viewMode === 'grid' 
-              ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6' 
-              : 'flex flex-col gap-4'
+              ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6' 
+              : 'flex flex-col gap-3 sm:gap-4'
           } max-w-6xl mx-auto`}>
             {filteredClubs.length > 0 ? (
               filteredClubs.map((club) => (
@@ -510,8 +579,8 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
                 </div>
               ))
             ) : (
-              <div className="col-span-full text-center py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
-                <p className="text-dark-base dark:text-dark-text text-xl mb-2">
+              <div className="col-span-full text-center py-8 sm:py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+                <p className="text-dark-base dark:text-dark-text text-lg sm:text-xl mb-2">
                   No clubs match your search criteria
                 </p>
                 <button
@@ -519,7 +588,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
                     setSearchInput("");
                     setSelectedCategories([]);
                   }}
-                  className="px-6 py-2 mt-4 bg-lavender hover:bg-lavender/80 dark:bg-dark-gradient-start dark:hover:bg-dark-gradient-start/80 text-dark-base dark:text-dark-text-white rounded-full font-medium transition-all"
+                  className="px-4 sm:px-6 py-2 mt-3 sm:mt-4 bg-lavender hover:bg-lavender/80 dark:bg-dark-gradient-start dark:hover:bg-dark-gradient-start/80 text-dark-base dark:text-dark-text-white rounded-full font-medium transition-all text-sm sm:text-base"
                 >
                   Clear all filters
                 </button>
@@ -529,11 +598,11 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
           
           {/* Load More Indicator */}
           {hasMoreClubs && (
-            <div className="text-center mt-8">
-              <div className="inline-block px-6 py-3 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
+            <div className="text-center mt-6 sm:mt-8">
+              <div className="inline-block px-4 sm:px-6 py-2 sm:py-3 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md text-sm sm:text-base">
                 {loading ? (
                   <div className="flex items-center">
-                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-lavender dark:border-dark-gradient-start border-t-transparent dark:border-t-transparent rounded-full"></div>
+                    <div className="animate-spin mr-2 h-3 w-3 sm:h-4 sm:w-4 border-2 border-lavender dark:border-dark-gradient-start border-t-transparent dark:border-t-transparent rounded-full"></div>
                     <span className="text-dark-base dark:text-dark-text">Loading more clubs...</span>
                   </div>
                 ) : (
@@ -558,7 +627,13 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
         .fade-in {
           animation: fadeIn 0.5s ease-out forwards;
         }
-      `}</style>
-    </div>
+        
+        @media (max-width: 640px) {
+          .fade-in {
+            animation-duration: 0.3s;
+          }
+        `}
+        </style>
+        </div>
   );
 }
