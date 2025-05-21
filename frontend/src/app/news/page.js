@@ -79,8 +79,8 @@ export default function NewsPage() {
       
       <Navbar />
       
-      <main className="container mx-auto px-4 py-16 sm:py-20 text-center">
-        {/* Heading */}
+      <main className="container mx-auto px-3 sm:px-4 pt-[100px] sm:pt-[120px] pb-10 sm:pb-16 md:pb-20 text-center">
+      {/* Heading */}
         <div className="mb-12">
           <h1 className="text-5xl font-bold mb-3 text-dark-base dark:text-white">
             ANTEATER PULSE

@@ -56,11 +56,6 @@ const UCIBackground = () => {
   
   const uciImages = [
     "campus_1.jpeg",
-    "campus_2.jpeg",
-    "campus_3.jpeg",
-    "campus_4.jpeg",
-    "campus_5.jpeg",
-    "campus_6.jpeg",
   ];
   
   // Preload images for smoother transitions
@@ -111,7 +106,8 @@ const UCIBackground = () => {
         <div
           className="absolute inset-0 w-full h-full bg-cover bg-center"
           style={{ 
-            backgroundImage: `url(${uciImages[currentImageIndex]})`,
+            //fix for rotation better
+            backgroundImage: `url(${uciImages[0]})`,
             opacity: isTransitioning ? 0 : 1,
             transition: "opacity 1000ms ease-in-out"
           }}
