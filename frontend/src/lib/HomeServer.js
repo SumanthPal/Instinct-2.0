@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import HomeClient from "./HomeClient";
 import { fetchClubManifest } from "../lib/api";
+import Navbar from "@/components/ui/Navbar";
+import Footer from "@/components/ui/Footer";
 
 export default function HomeServer() {
   const [initialData, setInitialData] = useState({
@@ -12,7 +14,7 @@ export default function HomeServer() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  
   // Initial load of clubs
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -34,30 +36,47 @@ export default function HomeServer() {
         setLoading(false);
       }
     };
-
     fetchInitialData();
   }, []);
-
+  
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900">
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg max-w-md w-full">
-          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Error Loading Clubs</h2>
-          <p className="text-gray-700 dark:text-gray-300 mb-6">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+        <Navbar />
+        <main className="container mx-auto px-4 py-24 flex items-center justify-center">
+          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg max-w-md w-full border border-white/20 dark:border-dark-text/10">
+            <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4 text-center">Error Loading Clubs</h2>
+            <p className="text-dark-base dark:text-dark-text mb-6 text-center">{error}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="w-full py-3 bg-lavender hover:bg-lavender/80 dark:bg-dark-gradient-start dark:hover:bg-dark-gradient-start/80 text-dark-base dark:text-dark-text-white rounded-full font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
-
+  
   // Show loading state
- 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+        <Navbar />
+        <main className="container mx-auto px-4 py-24 flex items-center justify-center">
+          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg text-center border border-white/20 dark:border-dark-text/10">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-lavender dark:border-dark-gradient-start border-t-transparent dark:border-t-transparent mb-4"></div>
+            <h2 className="text-xl font-medium text-dark-base dark:text-dark-text">Loading Anteater Clubs...</h2>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+  
   // Show main content
   return (
     <HomeClient 

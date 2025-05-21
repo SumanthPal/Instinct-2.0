@@ -232,3 +232,19 @@ export const fetchHybridSearch = async (
     throw error;
   }
 };
+
+
+export const checkApiHealth = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.status === 'healthy' ? 'Online' : 'Offline';
+    } else {
+      return 'Systems Offline';
+    }
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return 'Systems Offline';
+  }
+};

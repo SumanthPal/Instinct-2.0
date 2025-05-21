@@ -7,71 +7,77 @@ export const likesService = {
   /**
    * Get all clubs liked by the current user
    */
-  async getLikedClubs() {
-    const supabase = createClient();
+  // Updated getLikedClubs method for like-service.js
+async getLikedClubs() {
+  const supabase = createClient();
+  
+  try {
+    // Check for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('You must be logged in to view liked clubs');
+    }
     
-    try {
-      // Check for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('You must be logged in to view liked clubs');
+    // Get user's liked clubs
+    const { data: likedData, error: likedError } = await supabase
+      .from('user_liked_clubs')
+      .select(`
+        instagram_handle,
+        created_at
+      `)
+      .eq('user_id', session.user.id);
+    
+    if (likedError) throw likedError;
+    
+    if (!likedData || likedData.length === 0) return [];
+    
+    // Get the full club details for each liked club using instagram handles
+    const instagramHandles = likedData.map(item => item.instagram_handle);
+    
+    // Select all columns from clubs table for the liked clubs
+    const { data: clubsData, error: clubsError } = await supabase
+      .from('clubs')
+      .select('*')
+      .in('instagram_handle', instagramHandles);
+    
+    if (clubsError) throw clubsError;
+    
+    console.log('Raw club data:', clubsData);
+    
+    // Map the clubs data to the format expected by the ClubCard component
+    return clubsData.map(club => {
+      const likeInfo = likedData.find(item => item.instagram_handle === club.instagram_handle);
+      
+      // Determine which profile picture field to use
+      const profilePicture = club.profile_pic || club.profile_image_path || null;
+      
+      // Extract categories from club_links if available
+      let categories = [];
+      if (club.club_links && Array.isArray(club.club_links)) {
+        // Assuming club_links might contain category information
+        // This is a placeholder - adjust based on your actual data structure
+        categories = club.club_links
+          .filter(link => link && link.category)
+          .map(link => ({ name: link.category }));
       }
       
-      // First, fetch all columns from clubs table to inspect the schema
-      const { data: sampleClub, error: sampleError } = await supabase
-        .from('clubs')
-        .select('*')
-        .limit(1);
-      
-      console.log('Club schema sample:', sampleClub);
-      
-      // Get user's liked clubs
-      const { data, error } = await supabase
-        .from('user_liked_clubs')
-        .select(`
-          instagram_handle,
-          created_at
-        `)
-        .eq('user_id', session.user.id);
-      
-      if (error) throw error;
-      
-      if (!data || data.length === 0) return [];
-      
-      // Get the full club details for each liked club using instagram handles
-      const instagramHandles = data.map(item => item.instagram_handle);
-      
-      const { data: clubsData, error: clubsError } = await supabase
-        .from('clubs')
-        .select('*')
-        .in('instagram_handle', instagramHandles);
-      
-      if (clubsError) throw clubsError;
-      
-      console.log('Raw club data:', clubsData);
-      
-      // Combine the data with flexible property access
-      return clubsData.map(club => {
-        const likeInfo = data.find(item => item.instagram_handle === club.instagram_handle);
-        
-        // Try to determine the instagram handle field name
-        const instagramField = 
-          club.instagram_handle !== undefined ? 'instagram_handle' : 
-          club.instagram !== undefined ? 'instagram' : 
-          club.handle !== undefined ? 'handle' : null;
-        
-        return {
-          ...club,
-          // Add standard properties that ClubCard expects
-          instagram: club[instagramField] || '',  
-          liked_at: likeInfo?.created_at
-        };
-      });
-    } catch (error) {
-      console.error('Error fetching liked clubs:', error);
-      return [];
-    }
-  },
+      return {
+        id: club.id,
+        name: club.name,
+        description: club.description || '',
+        instagram: club.instagram_handle,
+        profilePicture: profilePicture,
+        categories: categories,
+        followers: club.followers,
+        following: club.following,
+        liked_at: likeInfo?.created_at
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching liked clubs:', error);
+    return [];
+  }
+},
   
   /**
    * Check if a club is liked by the current user

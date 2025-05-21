@@ -1,15 +1,12 @@
-// Updated version of the HomeClient component with hybrid search integration
 "use client";
 
 import { useRef, useState, useEffect } from "react";
 import { createClient } from '@/lib/supabase';
 import ClubCard from "../components/ClubCard";
 import SearchBar from "../components/ui/SearchBar";
-import CategoryFilter from "../components/ui/CategoryFilter";
-import ParallaxBackground from "../components/ui/ParallaxBackground";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
-import { useToast } from "@/components/ui/toast"; // Import the useToast hook
+import { useToast } from "@/components/ui/toast";
 import { 
   fetchClubManifest, 
   fetchSmartSearch, 
@@ -18,11 +15,10 @@ import {
   fetchClubsByCategory 
 } from '@/lib/api';
 import "../../styles/globals.css";
-import CategoryFooter from "@/components/ui/CategoryFooter";
 
 export default function HomeClient({ initialClubs, totalCount, hasMore, currentPage }) {
   const supabase = createClient();
-  const { toast } = useToast(); // Use the toast hook
+  const { toast } = useToast();
   const [clubs, setClubs] = useState(initialClubs || []);
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -33,8 +29,9 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   const [filteredClubs, setFilteredClubs] = useState(initialClubs || []);
   const [totalClubCount, setTotalClubCount] = useState(totalCount || 0);
   const [user, setUser] = useState(null);
-  const [toastMessage, setToastMessage] = useState(""); // For storing the message
-  const [semanticWeight, setSemanticWeight] = useState(0.5); // Default weight for hybrid search
+  const [semanticWeight, setSemanticWeight] = useState(0.5);
+  const [activeTab, setActiveTab] = useState('all');
+  const [viewMode, setViewMode] = useState('grid');
   
   // Check authentication status on component mount
   useEffect(() => {
@@ -59,7 +56,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   useEffect(() => {
     const searchClubs = async () => {
       if (searchInput.trim() === "") {
-        // 🔥 Full reset when search input cleared
+        // Full reset when search input cleared
         setLoading(true);
         try {
           const data = await fetchClubManifest(1, 20);
@@ -187,7 +184,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
       return;
     }
   
-    // 🔥 Categories selected
+    // Categories selected
     if (searchInput.trim() === "") {
       // Browsing mode: Fetch clubs filtered by category
       const data = await fetchClubsByCategory(categories[0], 1, 20);
@@ -322,136 +319,246 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     'Community Service',
     'Networking'
   ];
+
+  // Category emoji mapping
+  const categoryEmojis = {
+    'All': '📚',
+    'Diversity and Inclusion': '🌈',
+    'Greek Life': '🏛️',
+    'International': '🌎',
+    'Peer Support': '🤝',
+    'Fitness': '🏋️',
+    'Hobbies and Interest': '🎨',
+    'Religious and Spiritual': '🕊️',
+    'Cultural and Social': '🎭',
+    'Technology': '💻',
+    'Graduate': '🎓',
+    'Performance and Entertainment': '🎬',
+    'Career and Professional': '💼',
+    'LGBTQ': '🏳️‍🌈',
+    'Academics and Honors': '📖',
+    'Media': '📱',
+    'Political': '🗳️',
+    'Education': '🏫',
+    'Environmental': '🌱',
+    'Community Service': '❤️',
+    'Networking': '🔗',
+  };
   
-  // Close toast handler
-  const handleToastClose = () => {
-    setShowToast(false);
+  // Group categories for tabs
+  const categoryGroups = {
+    'all': 'All Clubs',
+    'academic': 'Academic',
+    'cultural': 'Cultural',
+    'career': 'Career',
+    'interest': 'Interests'
+  };
+  
+  // Map categories to groups
+  const getCategoryGroup = (category) => {
+    if (['Academics and Honors', 'Education', 'Graduate', 'Technology'].includes(category)) {
+      return 'academic';
+    } else if (['Cultural and Social', 'International', 'Diversity and Inclusion', 'LGBTQ', 'Religious and Spiritual'].includes(category)) {
+      return 'cultural';
+    } else if (['Career and Professional', 'Networking', 'Media'].includes(category)) {
+      return 'career';
+    } else {
+      return 'interest';
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
-      <div className="absolute inset-0" style={{ zIndex: 0 }}>
-        <ParallaxBackground />
-      </div>
+  // Filter categories for the active tab
+  const filteredCategories = activeTab === 'all' 
+    ? categoriesList 
+    : categoriesList.filter(category => getCategoryGroup(category) === activeTab);
 
+  return (
+    <div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
       
-      {/* Toast Notification using SimpleToast */}
-     
-      <main className="w-full px-4 pt-28 pb-8 flex flex-col items-center justify-center text-center">
-      <div className="hero min-h-[50vh] w-full max-w-7xl flex flex-col items-center justify-center z-10 mb-8 px-4">
-
-        <div className="flex items-center justify-center space-x-4 mb-6">
-          <h1
-            className="font-bold text-gray-900 dark:text-white"
-            style={{
-              fontSize: "clamp(2.5rem, 8vw, 4rem)",
-            }}
-          >
-            Explore UC Irvine
+      <main className="container mx-auto px-4 py-16 sm:py-20 text-center">
+        {/* Heading */}
+        <div className="mb-12">
+          <h1 className="text-5xl font-bold mb-3 text-dark-base dark:text-white">
+            ANTEATER CLUBS
           </h1>
+          <p className="text-dark-base dark:text-dark-subtext text-lg">Find and connect with campus organizations</p>
         </div>
-          
-        <h2 className="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-8">
-          Find and connect with campus organizations
-        </h2>
 
-        {/* Search Bar and Category Filter */}
-        <div className="flex flex-col items-center w-full max-w-4xl mx-auto">
-          <SearchBar
-            value={searchInput}
-            onChange={handleSearchChange}
-            onEnter={handleSearch}
-            placeholder="Search clubs by name, category, or keyword..."
-          />
-          <div className="relative mt-4 w-full">
-            <CategoryFilter
-              categories={categoriesList}
-              selectedCategories={selectedCategories}
-              onChange={handleCategoryChange}
-            />
-            <CategoryFooter />
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {selectedCategories.map((category) => (
-                <div
-                  key={category}
-                  className="inline-flex items-center gap-2 px-3 py-1
-                    bg-white/90 dark:bg-slate-700/90
-                    text-sm text-gray-900 dark:text-white 
-                    rounded-full border border-transparent
-                    hover:border-gray-200 dark:hover:border-gray-600 transition-all duration-200"
-                >
-                  <span>{category}</span>
-                  <button
-                    onClick={() =>
-                      handleCategoryChange(
-                        selectedCategories.filter(
-                          (selected) => selected !== category
-                        )
-                      )
-                    }
-                    className="text-gray-500 hover:text-red-500 transition-colors duration-200 font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Results count */}
-      <div ref={clubsRef} className="w-full max-w-7xl text-left px-4 sm:px-6 mb-4">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
-          Search Results ({filteredClubs.length} of {totalClubCount})
-          {user && searchInput.trim() !== "" && (
-            <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-              Using hybrid search
-            </span>
-          )}
-        </h2>
-      </div>
-
-      {/* Club Cards Grid */}
-      <div 
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 
-                  w-full max-w-7xl px-4 sm:px-6 mb-12"
-      >
-        {filteredClubs.length > 0 ? (
-          filteredClubs.map((club) => (
-            <ClubCard
-              key={club.id}
-              club={{
-                profilePicture: club.profile_image_url ? club.profile_image_path : club.profile_pic,
-                name: club.name,
-                description: club.description,
-                instagram: club.instagram_handle,
-                categories: club.categories,
-              }}
-            />
-          ))
-        ) : (
-          <div className="col-span-full text-center py-12">
-            <p className="text-gray-700 dark:text-gray-300 text-xl mb-2">
-              No clubs match your search criteria
-            </p>
-            <button
-              onClick={() => {
-                setSearchInput("");
-                setSelectedCategories([]);
-              }}
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+        {/* View Toggle */}
+        <div className="flex justify-end mb-6">
+          <div className="inline-flex backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
+              aria-label="Grid view"
             >
-              Clear all filters
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded ${viewMode === 'list' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
+              aria-label="List view"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
           </div>
-        )}
-      </div>
-      <div id="load-more-trigger" className="h-1 w-full"></div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-8 max-w-2xl mx-auto">
+          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 p-1 shadow-md">
+            <SearchBar
+              value={searchInput}
+              onChange={handleSearchChange}
+              onEnter={handleSearch}
+              placeholder="Search clubs by name, category, or keyword..."
+              className="w-full bg-transparent text-dark-base dark:text-dark-text py-3 px-5 rounded-full outline-none placeholder:text-dark-base/50 dark:placeholder:text-dark-text/50"
+            />
+          </div>
+        </div>
+
+        {/* Category Tabs */}
+        <div className="inline-flex mb-8 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
+          {Object.entries(categoryGroups).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`px-6 py-3 rounded-full text-lg font-medium transition-all ${
+                activeTab === key
+                  ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
+                  : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Category Pills with Emojis */}
+        <div className="flex flex-wrap justify-center gap-2 mb-12 max-w-4xl mx-auto">
+          <button
+            key="all-categories"
+            onClick={() => handleCategoryChange([])}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              selectedCategories.length === 0
+                ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
+                : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
+            }`}
+          >
+            <span className="mr-1">{categoryEmojis['All'] || '📚'}</span> All Categories
+          </button>
+          
+          {filteredCategories.map((category) => (
+            <button
+              key={category}
+              onClick={() => handleCategoryChange([category])}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                selectedCategories.includes(category)
+                  ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
+                  : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
+              }`}
+            >
+              <span className="mr-1">{categoryEmojis[category] || '📄'}</span> {category}
+            </button>
+          ))}
+        </div>
+
+        {/* Main Feed - Club Results */}
+        <section className="mb-20" ref={clubsRef}>
+          <div className="flex items-center justify-center mb-8">
+            <div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
+            <h2 className="text-3xl font-bold text-dark-base dark:text-white flex items-center">
+              <span className="mr-2">
+                {selectedCategories.length === 1 
+                  ? categoryEmojis[selectedCategories[0]] || '📄' 
+                  : '📚'}
+              </span>
+              {selectedCategories.length === 1 ? selectedCategories[0] : 'All Clubs'}
+              <span className="ml-3 text-lg font-normal">({filteredClubs.length} of {totalClubCount})</span>
+            </h2>
+            <div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
+          </div>
+          
+          {/* Club Cards Grid */}
+          <div className={`${
+            viewMode === 'grid' 
+              ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6' 
+              : 'flex flex-col gap-4'
+          } max-w-6xl mx-auto`}>
+            {filteredClubs.length > 0 ? (
+              filteredClubs.map((club) => (
+                <div key={club.id} className={`${
+                  viewMode === 'grid'
+                    ? 'transform transition-transform hover:scale-[1.02] hover:shadow-lg'
+                    : 'w-full'
+                } backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md fade-in`}>
+                  <ClubCard
+                    club={{
+                      profilePicture: club.profile_image_url ? club.profile_image_path : club.profile_pic,
+                      name: club.name,
+                      description: club.description,
+                      instagram: club.instagram_handle,
+                      categories: club.categories,
+                    }}
+                    viewMode={viewMode}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+                <p className="text-dark-base dark:text-dark-text text-xl mb-2">
+                  No clubs match your search criteria
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    setSelectedCategories([]);
+                  }}
+                  className="px-6 py-2 mt-4 bg-lavender hover:bg-lavender/80 dark:bg-dark-gradient-start dark:hover:bg-dark-gradient-start/80 text-dark-base dark:text-dark-text-white rounded-full font-medium transition-all"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Load More Indicator */}
+          {hasMoreClubs && (
+            <div className="text-center mt-8">
+              <div className="inline-block px-6 py-3 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-lavender dark:border-dark-gradient-start border-t-transparent dark:border-t-transparent rounded-full"></div>
+                    <span className="text-dark-base dark:text-dark-text">Loading more clubs...</span>
+                  </div>
+                ) : (
+                  <span className="text-dark-base dark:text-dark-text">Scroll for more clubs</span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div id="load-more-trigger" className="h-1 w-full"></div>
+        </section>
       </main>
+      
       <Footer />
+
+      {/* Add custom CSS for animations */}
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }
