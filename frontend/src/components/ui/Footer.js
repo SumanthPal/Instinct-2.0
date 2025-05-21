@@ -1,31 +1,21 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { checkApiHealth } from '@/lib/api';
 
 const Footer = () => {
   const [healthStatus, setHealthStatus] = useState('loading');
-  
-  // Move the checkHealth function outside useEffect to avoid recreating it on every render
-  const checkHealth = async () => {
-    try {
-      const response = await fetch('https://web2.gentlemeadow-727fb9e6.westus.azurecontainerapps.io/health');
-      if (response.ok) {
-        const data = await response.json();
-        setHealthStatus(data.status === 'healthy' ? 'Online' : 'Offline');
-      } else {
-        setHealthStatus('Systems Offline');
-      }
-    } catch (error) {
-      console.error('Health check failed:', error);
-      setHealthStatus('Systems Offline');
-    }
-  };
-
+ 
   useEffect(() => {
     // Initial health check
-    checkHealth();
+    const runHealthCheck = async () => {
+      const status = await checkApiHealth();
+      setHealthStatus(status);
+    };
+    
+    runHealthCheck();
     
     // Set up a periodic health check every 30 seconds
-    const intervalId = setInterval(checkHealth, 30000);
+    const intervalId = setInterval(runHealthCheck, 30000);
     
     // Clean up the interval when the component unmounts
     return () => clearInterval(intervalId);
@@ -56,6 +46,34 @@ const Footer = () => {
           </span>
         </div>
         
+        {/* Feedback Section */}
+        <div className="my-2">
+  <a 
+    href="https://airtable.com/app6eZfxp1tX3cTr1/pag44eL08NgLSEdu0/form"
+    target="_blank" 
+    rel="noopener noreferrer"
+    className="group flex items-center gap-2 px-5 py-2.5 bg-gray-700 dark:bg-gray-600 text-dark-text rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 border border-white/10"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:rotate-12 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+    <span className="font-medium">Share Feedback</span>
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  </a>
+</div>
+
+        {/* Legal Links */}
+        <div className="flex space-x-4 text-sm">
+          <a href="/documents/terms-and-conditions.pdf" target="_blank" rel="noopener noreferrer" className="text-gray-800 dark:text-gray-400 hover:underline">
+            Terms & Conditions
+          </a>
+          <a href="/documents/privacy-policy.pdf" target="_blank" rel="noopener noreferrer" className="text-gray-800 dark:text-gray-400 hover:underline">
+            Privacy Policy
+          </a>
+        </div>
+        
         {/* Disclaimer and Info */}
         <div className="text-gray-600 dark:text-gray-400 space-y-1 text-sm md:text-base">
           <p>Instinct is not affiliated with or endorsed by the University of California, Irvine.</p>
@@ -66,6 +84,7 @@ const Footer = () => {
             </a>
           </p>
         </div>
+        
         {/* Copyright */}
         <div className="text-xs text-gray-500 dark:text-gray-500">
           © {new Date().getFullYear()} Instinct

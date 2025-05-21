@@ -8,20 +8,25 @@ import { FaUserCircle } from 'react-icons/fa';
 import { FaStar, FaRegStar } from 'react-icons/fa';
 import { useAuth } from '@/context/auth-context';
 import { likesService } from '@/lib/like-service';
-import { useToast } from './ui/toast'; // Import the hook, not the function
+import { useToast } from './ui/toast';
 import { VscVerifiedFilled } from "react-icons/vsc";
 
-export default function ClubCard({ club }) {
+export default function ClubCard({ club, viewMode = 'grid' }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
-  const [averageColor, setAverageColor] = useState('rgba(103, 86, 204, 0.3)');
+  const [baseColor, setBaseColor] = useState('');
+  const [gradientColors, setGradientColors] = useState({
+    light: 'rgba(103, 86, 204, 0.3)',
+    medium: 'rgba(103, 86, 204, 0.5)',
+    dark: 'rgba(103, 86, 204, 0.7)'
+  });
+  
   const cardRef = useRef(null);
   const imageRef = useRef(null);
   const { user } = useAuth();
-  const { toast } = useToast(); // Use the hook here
-
+  const { toast } = useToast();
   
   // Check if club is liked when user is available
   useEffect(() => {
@@ -39,7 +44,7 @@ export default function ClubCard({ club }) {
     if (user) {
       checkLikeStatus();
     }
-  }, [user, club.instagram]); // Changed from club.id to club.instagram
+  }, [user, club.instagram]);
 
   // Intersection Observer to detect when the card is in view
   useEffect(() => {
@@ -47,10 +52,10 @@ export default function ClubCard({ club }) {
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.unobserve(entry.target); // Stop observing once visible
+          observer.unobserve(entry.target);
         }
       },
-      { threshold: 0.1 } // Trigger when 10% of the card is visible
+      { threshold: 0.1 }
     );
 
     if (cardRef.current) {
@@ -64,12 +69,11 @@ export default function ClubCard({ club }) {
     };
   }, []);
 
-
-  // Extract average color from image when image loads or use a predefined color scheme
+  // Extract color from image and create gradient colors
   useEffect(() => {
     // Generate a color based on the club name if no profile picture is available
     const generateColorFromText = (text) => {
-      if (!text) return 'rgba(103, 86, 204, 0.3)'; // Default color
+      if (!text) return 'rgba(103, 86, 204, 1)'; // Default color
       
       let hash = 0;
       for (let i = 0; i < text.length; i++) {
@@ -80,13 +84,32 @@ export default function ClubCard({ club }) {
       const g = Math.abs((hash & 0x00FF00) >> 8);
       const b = Math.abs(hash & 0x0000FF);
       
-      return `rgba(${r}, ${g}, ${b}, 0.3)`;
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+
+    // Create gradient colors from base color
+    const createGradientColors = (baseColorRGB) => {
+      const match = baseColorRGB.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (!match) return {
+        light: 'rgba(103, 86, 204, 0.15)',
+        medium: 'rgba(103, 86, 204, 0.3)',
+        dark: 'rgba(103, 86, 204, 0.5)'
+      };
+      
+      const r = parseInt(match[1]);
+      const g = parseInt(match[2]);
+      const b = parseInt(match[3]);
+      
+      return {
+        light: `rgba(${r}, ${g}, ${b}, 0.15)`,
+        medium: `rgba(${r}, ${g}, ${b}, 0.3)`,
+        dark: `rgba(${r}, ${g}, ${b}, 0.5)`
+      };
     };
 
     if (isVisible) {
       if (club.profilePicture && imageRef.current) {
         // Try to extract color from profile picture
-        // Use the global window.Image constructor instead of Next.js Image
         const img = new window.Image();
         img.crossOrigin = "Anonymous";
         img.src = club.profilePicture;
@@ -116,11 +139,15 @@ export default function ClubCard({ club }) {
             g = Math.floor(g / (data.length / 4));
             b = Math.floor(b / (data.length / 4));
             
-            setAverageColor(`rgba(${r}, ${g}, ${b}, 0.2)`);
+            const baseColorRGB = `rgb(${r}, ${g}, ${b})`;
+            setBaseColor(baseColorRGB);
+            setGradientColors(createGradientColors(baseColorRGB));
           } catch (e) {
             console.error('Error extracting color:', e);
             // Fallback to name-based color if image processing fails
-            setAverageColor(generateColorFromText(club.name));
+            const fallbackColor = generateColorFromText(club.name);
+            setBaseColor(fallbackColor);
+            setGradientColors(createGradientColors(fallbackColor));
           }
         };
         
@@ -129,11 +156,15 @@ export default function ClubCard({ club }) {
             console.warn('Warning: Image color extraction failed, using fallback color.');
           }
           // Fallback to name-based color if image fails to load
-          setAverageColor(generateColorFromText(club.name));
+          const fallbackColor = generateColorFromText(club.name);
+          setBaseColor(fallbackColor);
+          setGradientColors(createGradientColors(fallbackColor));
         };
       } else {
         // No profile picture available, generate color from club name
-        setAverageColor(generateColorFromText(club.name));
+        const fallbackColor = generateColorFromText(club.name);
+        setBaseColor(fallbackColor);
+        setGradientColors(createGradientColors(fallbackColor));
       }
     }
   }, [isVisible, club.profilePicture, club.name]);
@@ -141,8 +172,9 @@ export default function ClubCard({ club }) {
   const extractQuotedContent = (str) => {
     if (!str) return '';
     const matches = str.match(/"([^"]*)"/g);
-    return matches ? matches.map(match => match.slice(1, -1)).join(' ') : '';
+    return matches ? matches.map(match => match.slice(1, -1)).join(' ') : str;
   };
+  
   const handleCardClick = (e) => {
     // Check if the click is coming from the star button
     if (e.target.closest('.star-button') || e.target.closest('.star-icon')) {
@@ -158,7 +190,7 @@ export default function ClubCard({ club }) {
     setTimeout(() => {
       setIsLoading(false);
       window.location.href = `/club/${club.instagram}`; // Navigate to the club's page
-    }, 1000); 
+    }, 500); 
   };
 
   const handleLikeToggle = async (e) => {
@@ -208,33 +240,164 @@ export default function ClubCard({ club }) {
     }
   };
 
-  return (
-    <div ref={cardRef} className={`fade-in ${isVisible ? 'visible' : ''}`}>
-      {isVisible ? (
-        <Link href={`/club/${club.instagram}`} passHref>
-          <div
-            onClick={handleCardClick}
-            className="relative p-3 bg-white dark:bg-dark-card rounded-lg shadow-md 
-              border border-white dark:border-gray-700 
-              transition-all duration-300 
-              hover:border-white hover:shadow-lg hover:scale-[1.01]
-              cursor-pointer h-[360px] flex flex-col overflow-hidden"
-            style={{ 
-              background: `linear-gradient(to bottom right, white, ${averageColor})`,
-              boxShadow: `0 4px 6px -1px ${averageColor}, 0 2px 4px -1px rgba(0, 0, 0, 0.06)`
-            }}
-          >
-            {isLoading ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10 rounded-lg">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 dark:border-dark-text"></div>
-              </div>
-            ) : null}
+  // Grid view card layout
+  const GridCard = () => (
+    <div
+      className="h-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300
+                hover:shadow-xl hover:scale-[1.02]
+                cursor-pointer flex flex-col"
+      style={{ 
+        background: `linear-gradient(135deg, ${gradientColors.medium}, ${gradientColors.dark})`,
+        boxShadow: `0 4px 15px -1px ${gradientColors.light}, 0 2px 8px -1px rgba(0, 0, 0, 0.1)`
+      }}
+    >
+      {isLoading ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10 rounded-xl">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
+        </div>
+      ) : null}
 
+      {/* Star/Like Button - Only show for logged in users */}
+      {user && (
+        <button 
+          className="absolute top-3 right-3 z-20 star-button p-2 rounded-full 
+            bg-white/70 dark:bg-dark-card/70 backdrop-blur-sm
+            hover:bg-white dark:hover:bg-dark-card transition-colors
+            shadow-md"
+          onClick={handleLikeToggle}
+          aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
+          disabled={isLikeLoading}
+        >
+          {isLikeLoading ? (
+            <div className="animate-spin h-5 w-5 border-2 border-t-transparent border-yellow-400 rounded-full"></div>
+          ) : isLiked ? (
+            <FaStar className="text-yellow-400 text-xl star-icon" />
+          ) : (
+            <FaRegStar className="text-gray-400 hover:text-yellow-400 text-xl star-icon" />
+          )}
+        </button>
+      )}
+
+      <div className="flex flex-col items-center pt-6 pb-3">
+        <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shadow-lg mb-3" 
+          style={{ borderColor: gradientColors.dark }}>
+          {club.profilePicture ? (
+            <Image
+              ref={imageRef}
+              src={club.profilePicture}
+              alt={`${club.name} logo`}
+              fill
+              className="object-cover"
+              sizes="(max-width: 80px) 100vw, 80px"
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
+              <FaUserCircle className="text-gray-500 w-full h-full" />
+            </div>
+          )}
+        </div>
+        <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-1">
+          {club.name}
+          {/* Add verified icon if needed */}
+          {/* <VscVerifiedFilled className="text-purple-200" /> */}
+        </h3>
+        <p className="text-sm text-white/80 dark:text-white/80">
+          @{club.instagram}
+        </p>
+      </div>
+
+      <div className="flex-grow px-5 py-3 overflow-hidden">
+        <p className="text-white dark:text-white line-clamp-4 text-sm md:text-base leading-relaxed">
+          {extractQuotedContent(club.description || '')}
+        </p>
+      </div>
+
+      <div className="mt-auto px-3 py-3 overflow-hidden" 
+        style={{ background: `${gradientColors.dark}` }}>
+        <div className="flex flex-wrap gap-1 max-h-[60px] overflow-hidden justify-center">
+          {club.categories?.slice(0, 4).map((category, index) => (
+            <span
+              key={index}
+              className="bg-white/30 dark:bg-dark-profile-card/30 
+                text-white dark:text-white 
+                px-2 py-0.5 rounded-full text-xs whitespace-nowrap
+                shadow-sm"
+            >
+              {typeof category === 'string' ? category : category.name}
+            </span>
+          ))}
+          {club.categories?.length > 4 && (
+            <span className="bg-white/30 dark:bg-dark-profile-card/30 
+              text-white dark:text-white 
+              px-2 py-0.5 rounded-full text-xs whitespace-nowrap
+              shadow-sm">
+              +{club.categories.length - 4} more
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // List view card layout
+  const ListCard = () => (
+    <div
+      className="w-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300
+                hover:shadow-xl hover:scale-[1.01]
+                cursor-pointer"
+      style={{ 
+        background: `linear-gradient(135deg, ${gradientColors.medium}, ${gradientColors.dark})`,
+        boxShadow: `0 4px 15px -1px ${gradientColors.light}, 0 2px 8px -1px rgba(0, 0, 0, 0.1)`
+      }}
+    >
+      {isLoading ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10 rounded-xl">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
+        </div>
+      ) : null}
+
+      <div className="flex p-4">
+        <div className="mr-4 flex-shrink-0">
+          <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 shadow-lg" 
+            style={{ borderColor: gradientColors.dark }}>
+            {club.profilePicture ? (
+              <Image
+                ref={imageRef}
+                src={club.profilePicture}
+                alt={`${club.name} logo`}
+                fill
+                className="object-cover"
+                sizes="(max-width: 80px) 100vw, 80px"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
+                <FaUserCircle className="text-gray-500 w-full h-full" />
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex-grow flex flex-col">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-white dark:text-white flex items-center gap-1">
+                {club.name}
+                {/* <VscVerifiedFilled className="text-purple-200" /> */}
+              </h3>
+              <p className="text-sm text-white/80 dark:text-white/80">
+                @{club.instagram}
+              </p>
+            </div>
+            
             {/* Star/Like Button - Only show for logged in users */}
             {user && (
               <button 
-                className="absolute top-3 right-3 z-20 star-button p-2 rounded-full 
-                  hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="star-button p-2 rounded-full 
+                  bg-white/70 dark:bg-dark-card/70 backdrop-blur-sm
+                  hover:bg-white dark:hover:bg-dark-card transition-colors
+                  shadow-md"
                 onClick={handleLikeToggle}
                 aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
                 disabled={isLikeLoading}
@@ -248,61 +411,52 @@ export default function ClubCard({ club }) {
                 )}
               </button>
             )}
-
-            <CardHeader className="flex items-center space-x-3 flex-shrink-0 py-2 px-3">
-              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2" style={{ borderColor: averageColor }}>
-                {club.profilePicture ? (
-                  <Image
-                    ref={imageRef}
-                    src={club.profilePicture}
-                    alt={`${club.name} logo`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 64px) 100vw, 64px"
-                    priority
-                  />
-                ) : (
-                  <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
-                    <FaUserCircle className="text-gray-500 w-full h-full" />
-                  </div>
-                )}
-              </div>
-              <div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-dark-base flex items-center gap-1">
-  {club.name}
-  {/* <VscVerifiedFilled className="text-purple-700" /> */}
-</h3>
-                <p className="text-sm text-gray-500 dark:text-dark-base">
-                  @{club.instagram}
-                </p>
-              </div>
-            </CardHeader>
-
-            <CardContent className="flex-grow overflow-hidden px-3 py-2">
-            <p className="text-gray-800  line-clamp-4 text-base md:text-lg font-medium leading-relaxed">
+          </div>
+          
+          <p className="text-white dark:text-white line-clamp-3 text-sm md:text-base mt-2 leading-relaxed flex-grow">
             {extractQuotedContent(club.description || '')}
-              </p>
-            </CardContent>
+          </p>
+          
+          <div className="flex flex-wrap gap-1 mt-2">
+            {club.categories?.slice(0, 3).map((category, index) => (
+              <span
+                key={index}
+                className="bg-white/30 dark:bg-dark-profile-card/30 
+                  text-white dark:text-white 
+                  px-2 py-0.5 rounded-full text-xs whitespace-nowrap
+                  shadow-sm"
+              >
+                {typeof category === 'string' ? category : category.name}
+              </span>
+            ))}
+            {club.categories?.length > 3 && (
+              <span className="bg-white/30 dark:bg-dark-profile-card/30 
+                text-white dark:text-white 
+                px-2 py-0.5 rounded-full text-xs whitespace-nowrap
+                shadow-sm"
+              >
+                +{club.categories.length - 3} more
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-            <CardFooter className="flex flex-wrap gap-1 mt-auto pt-2 pb-2 px-3 overflow-hidden" 
-              style={{ background: `${averageColor}` }}>
-              <div className="flex flex-wrap gap-1 max-h-[70px] overflow-hidden">
-              {club.categories?.map((category, index) => (
-                <span
-                  key={index}
-                  className="bg-white/90 dark:bg-dark-profile-card 
-                    text-gray-700 dark:text-dark-text-white 
-                    px-2 py-0.5 rounded-full text-xs whitespace-nowrap"
-                >
-                  {category.name}
-                </span>
-              ))}
-              </div>
-            </CardFooter>
+  return (
+    <div 
+      ref={cardRef} 
+      className={`fade-in ${isVisible ? 'visible' : ''} h-full`}
+    >
+      {isVisible ? (
+        <Link href={`/club/${club.instagram}`} passHref>
+          <div onClick={handleCardClick} className="h-full">
+            {viewMode === 'grid' ? <GridCard /> : <ListCard />}
           </div>
         </Link>
       ) : (
-        <div className="h-[360px] bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse"></div>
+        <div className={`${viewMode === 'grid' ? 'h-[360px]' : 'h-[120px]'} bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse`}></div>
       )}
     </div>
   );
