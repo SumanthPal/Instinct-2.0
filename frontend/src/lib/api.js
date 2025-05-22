@@ -2,8 +2,8 @@ import { createClient } from '@/lib/supabase'
 
 const supabase = createClient()
 
-const API_BASE_URL = 'https://web2.gentlemeadow-727fb9e6.westus.azurecontainerapps.io'; // or your production API URL
-
+//const API_BASE_URL = 'https://web2.gentlemeadow-727fb9e6.westus.azurecontainerapps.io'; // or your production API URL
+const API_BASE_URL = 'http://127.0.0.1:8000'
 export const fetchClubManifest = async (page = 1, limit = 20, category = null) => {
   try {
     // Build the query string with pagination and optional category filter

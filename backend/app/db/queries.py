@@ -626,6 +626,267 @@ class SupabaseQueries:
             logger.error(f"Failed to upload image to Azure Blob Storage: {str(e)}")
             raise e
 
+    def _get_from_cache(self, key: str):
+        """Get item from cache if not expired"""
+        if key in self._cache:
+            if time.time() < self._cache_ttl.get(key, 0):
+                return self._cache[key]
+            else:
+                # Remove expired item
+                self._cache.pop(key, None)
+                self._cache_ttl.pop(key, None)
+        return None
+
+    def _set_cache(self, key: str, value, ttl: int = None):
+        """Set item in cache with TTL"""
+        if ttl is None:
+            ttl = self.default_ttl
+        self._cache[key] = value
+        self._cache_ttl[key] = time.time() + ttl
+
+    def get_clubs_paginated(self, offset: int, limit: int, category: Optional[str] = None) -> Dict:
+        """Fetch clubs with database-level pagination and optional category filtering"""
+        cdn_prefix = os.getenv("AZURE_CDN", "")
+        
+        try:
+            # Build the query with only essential fields to reduce data transfer
+            if category:
+                # For category filtering, we need to use a different approach
+                # since direct filtering on joined tables can be complex
+                query = self.supabase.rpc('get_clubs_by_category_paginated', {
+                    'category_name': category,
+                    'page_offset': offset,
+                    'page_limit': limit
+                })
+            else:
+                # Simple pagination without category filter
+                query = self.supabase.table("clubs")\
+                    .select("id, name, instagram_handle, profile_image_path, description, followers, categories(name)", count="exact")\
+                    .range(offset, offset + limit - 1)\
+                    .order("name")
+            
+            response = query.execute()
+            
+            clubs = response.data if response.data else []
+            total_count = response.count if response.count is not None else 0
+            
+            # Add CDN prefix only when needed
+            for club in clubs:
+                image_path = club.get("profile_image_path")
+                if image_path:
+                    club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+            
+            return {
+                "clubs": clubs,
+                "total": total_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in get_clubs_paginated: {str(e)}")
+            # Fallback to original method if RPC doesn't exist
+            return self._get_clubs_paginated_fallback(offset, limit, category)
+
+    def _get_clubs_paginated_fallback(self, offset: int, limit: int, category: Optional[str] = None) -> Dict:
+        """Fallback method using client-side filtering (less efficient)"""
+        cdn_prefix = os.getenv("AZURE_CDN", "")
+        
+        # Get only essential fields
+        query = self.supabase.table("clubs")\
+            .select("id, name, instagram_handle, profile_image_path, description, followers, categories(name)")
+        
+        if category:
+            # This is less efficient but works without stored procedures
+            all_clubs_response = query.execute()
+            all_clubs = all_clubs_response.data if all_clubs_response.data else []
+            
+            # Filter by category
+            filtered_clubs = []
+            for club in all_clubs:
+                if club.get("categories") and any(
+                    cat.get("name") == category for cat in club.get("categories", [])
+                ):
+                    filtered_clubs.append(club)
+            
+            total_count = len(filtered_clubs)
+            clubs = filtered_clubs[offset:offset + limit]
+        else:
+            response = query.range(offset, offset + limit - 1).execute()
+            clubs = response.data if response.data else []
+            
+            # Get total count separately
+            count_response = self.supabase.table("clubs").select("id", count="exact").execute()
+            total_count = count_response.count if count_response.count is not None else 0
+        
+        # Add CDN prefix
+        for club in clubs:
+            image_path = club.get("profile_image_path")
+            if image_path:
+                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+        
+        return {
+            "clubs": clubs,
+            "total": total_count
+        }
+        
+    def search_clubs_optimized(self, query: str, offset: int, limit: int, category: Optional[str] = None) -> Dict:
+        """Optimized search with database-level pagination"""
+        cdn_prefix = os.getenv("AZURE_CDN", "")
+        logger.info(f"CDN prefix: {cdn_prefix}")  # Debug log
+        
+        try:
+            # Use RPC for complex search operations
+            response = self.supabase.rpc('search_clubs_paginated', {
+                'search_query': query,
+                'page_offset': offset,
+                'page_limit': limit,
+                'filter_category': category
+            }).execute()
+            
+            clubs = response.data if response.data else []
+            total_count = len(clubs) if clubs else 0
+            
+            # Add CDN prefix to profile images
+            for club in clubs:
+                image_path = club.get("profile_image_path")
+                if image_path:
+                    original_path = image_path
+                    club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+                    logger.info(f"RPC: Transformed {original_path} -> {club['profile_image_path']}")  # Debug log
+            
+            return {
+                "clubs": clubs,
+                "total": total_count
+            }
+            
+        except Exception as e:
+            logger.warning(f"RPC search failed, falling back to basic search: {str(e)}")
+            # Fallback to basic text search - get all matches first, then paginate
+            response = self.supabase.table("clubs")\
+                .select("id, name, instagram_handle, profile_image_path, description, categories(name)")\
+                .text_search("search_vector", query)\
+                .execute()
+            
+            all_matches = response.data if response.data else []
+            
+            # Apply category filter if provided
+            if category:
+                filtered_matches = [
+                    club for club in all_matches
+                    if any(cat.get("name") == category for cat in club.get("categories", []))
+                ]
+                all_matches = filtered_matches
+            
+            # Calculate total and apply pagination manually
+            total_count = len(all_matches)
+            clubs = all_matches[offset:offset + limit]
+            
+            # Add CDN prefix to profile images for fallback results
+            for club in clubs:
+                image_path = club.get("profile_image_path")
+                if image_path:
+                    original_path = image_path
+                    club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+                    logger.info(f"Fallback: Transformed {original_path} -> {club['profile_image_path']}")  # Debug log
+            
+            return {
+                "clubs": clubs,
+                "total": total_count
+            }
+
+    def get_club_manifest_optimized(self, category: Optional[str], limit: int, select_fields: str) -> List[Dict]:
+        """Optimized club manifest with selective field loading"""
+        cache_key = f"manifest_{category}_{limit}_{select_fields}"
+        cached_result = self._get_from_cache(cache_key)
+        if cached_result:
+            return cached_result
+        
+        cdn_prefix = os.getenv("AZURE_CDN", "")
+        
+        query = self.supabase.table("clubs").select(select_fields).limit(limit)
+        
+        if category:
+            # Use RPC or fallback to client filtering
+            try:
+                response = self.supabase.rpc('get_clubs_manifest_by_category', {
+                    'category_name': category,
+                    'result_limit': limit
+                }).execute()
+            except:
+                # Fallback to full fetch and filter (less efficient)
+                response = query.execute()
+                if response.data:
+                    response.data = [
+                        club for club in response.data
+                        if any(cat.get("name") == category for cat in club.get("categories", []))
+                    ][:limit]
+        else:
+            response = query.execute()
+        
+        clubs = response.data if response.data else []
+        
+        # Process manifest data
+        manifest = []
+        for club in clubs:
+            manifest_item = {
+                "id": club["id"],
+                "name": club["name"],
+                "instagram_handle": club["instagram_handle"],
+            }
+            
+            # Add profile pic if requested
+            if "profile_image_path" in select_fields:
+                image_path = club.get("profile_image_path")
+                manifest_item["profile_pic"] = f"{cdn_prefix}/{image_path.lstrip('/')}" if image_path else ""
+            
+            # Add categories if requested
+            if "categories" in select_fields:
+                manifest_item["categories"] = [cat["name"] for cat in club.get("categories", [])]
+            
+            manifest.append(manifest_item)
+        
+        # Cache the result
+        self._set_cache(cache_key, manifest, 600)  # Cache for 10 minutes
+        
+        return manifest
+
+    def get_posts_by_club_id(self, club_id: str, limit: int = 10, offset: int = 0) -> List[Dict]:
+        """Optimized posts fetching with selective fields"""
+        try:
+            # Only fetch essential fields
+            response = self.supabase.table("posts")\
+                .select("id, post_url, caption, image_path, posted")\
+                .eq("club_id", club_id)\
+                .order("posted", desc=True)\
+                .range(offset, offset + limit - 1)\
+                .execute()
+
+            return response.data or []
+        except Exception as e:
+            logger.error(f"Error in get_posts_by_club_id: {e}")
+            return []
+
+    # Override the original get_all_clubs to use caching
+    def get_all_clubs(self) -> List[Dict]:
+        """Cached version of get_all_clubs - use only when necessary"""
+        cache_key = "all_clubs"
+        cached_result = self._get_from_cache(cache_key)
+        if cached_result:
+            return cached_result
+        
+        logger.warning("get_all_clubs called - consider using pagination instead")
+        
+        cdn_prefix = os.getenv("AZURE_CDN", "")
+        response = self.supabase.table("clubs").select("*, categories(name)").execute()
+        clubs = response.data if response.data else []
+
+        for club in clubs:
+            image_path = club.get("profile_image_path")
+            if image_path:
+                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+
+        # Cache for a shorter time since this is expensive
+        self._set_cache(cache_key, clubs, 180)  # 3 minutes
+        return clubs
               
     
     

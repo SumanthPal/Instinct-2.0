@@ -24,7 +24,7 @@ import os
 # Load environment variables
 dotenv.load_dotenv()
 from tools.logger import logger
-
+azure_blob_cdn = os.getenv("AZURE_CDN")
 # Initialize dependencies
 calendar = CalendarConnection()
 app = FastAPI(
@@ -38,13 +38,22 @@ origins = [
     "*"
 ]
 
+
+origins = [
+    "https://instinct-2-0.vercel.app",       # production frontend
+    "https://instinct.vercel.app",           # backup/staging
+    "http://localhost:3000",                 # local development
+    "http://127.0.0.1:3000"                  # alt local dev
+]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_credentials=True,       # needed if you send cookies/auth headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # whitelist only used methods
+    allow_headers=["Authorization", "Content-Type", "X-CSRF-Token"],  # restrict to needed headers
 )
+
 
 db = SupabaseQueries()
 
@@ -291,35 +300,19 @@ async def list_clubs(
         # Calculate offset
         offset = (page - 1) * limit
         
-        # Fetch all clubs
-        all_clubs = db.get_all_clubs()
-        
-        # Apply category filter if provided
-        if category:
-            filtered_clubs = []
-            for club in all_clubs:
-                if club.get("categories") and any(
-                    cat.get("name") == category for cat in club.get("categories", [])
-                ):
-                    filtered_clubs.append(club)
-            all_clubs = filtered_clubs
-        
-        # Calculate total count
-        total_count = len(all_clubs)
-        
-        # Paginate the filtered clubs
-        paginated_clubs = all_clubs[offset:offset + limit]
+        # Use optimized database-level pagination
+        result = db.get_clubs_paginated(offset, limit, category)
         
         # Determine if there are more pages
-        has_more = total_count > (offset + limit)
+        has_more = result["total"] > (offset + limit)
         
         # Return the response
         return {
-            "total": total_count,
-            "results": paginated_clubs,
+            "total": result["total"],
+            "results": result["clubs"],
             "hasMore": has_more,
             "page": page,
-            "pages": (total_count + limit - 1) // limit
+            "pages": (result["total"] + limit - 1) // limit
         }
     
     except Exception as e:
@@ -339,12 +332,11 @@ async def get_club_data(instagram_handle: str):
             raise HTTPException(status_code=404, detail=f"Club with Instagram handle '{instagram_handle}' not found")
         
         if club.get("profile_image_path"):
-            public_url = supabase.storage.from_("images")\
-                .get_public_url(club["profile_image_path"])
+            # Fixed: Use instagram_handle variable, correct path, and add dot before jpg
+            public_url = f"{azure_blob_cdn}/pfps/{instagram_handle}.jpg"
             club["profile_image_url"] = public_url
-
+        
         return club
-
     except HTTPException as http_e:
         raise http_e
     except Exception as e:
@@ -370,15 +362,18 @@ async def get_club_posts(
         # Get club ID
         club_id = club["id"]
         
-        # Query posts (this would be implemented in your SupabaseQueries class)
-        # For illustration, we're assuming a method exists
+        # Query posts
         posts = db.get_posts_by_club_id(club_id, limit, offset)
         
         for post in posts:
             if post.get("image_path"):
-                public_url = supabase.storage.from_("images").get_public_url(post["image_path"])
-                post["image_url"] = public_url
-
+                # Fixed: Use Azure CDN instead of Supabase storage
+                # Assuming image_path contains the relative path like "posts/{instagram_handle}/{post_id}"
+                if not post["image_path"].lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+                    post["image_path"] += ".jpg"  # default fallback
+                
+                post["image_url"] = f"{azure_blob_cdn}/{post['image_path']}"
+        
         return {
             "count": len(posts),
             "results": posts
@@ -390,6 +385,7 @@ async def get_club_posts(
             status_code=500,
             content={"message": f"Error fetching club posts: {str(e)}"}
         )
+
         
 @app.get("/club/{instagram_handle}/events")
 async def get_club_events(
@@ -472,29 +468,22 @@ async def get_club_calendar(instagram_handle: str):
 
 
 @app.get("/club-manifest")
-async def get_club_manifest(category: Optional[str] = Query(None)):
-    """Get manifest of all clubs with optional category filter."""
+async def get_club_manifest(
+    category: Optional[str] = Query(None),
+    limit: int = Query(100, description="Max clubs to return"),
+    include_categories: bool = Query(False, description="Include category data")
+):
+    """Get manifest of clubs with pagination and selective field loading."""
     try:
-        clubs = db.get_all_clubs()
-
-        manifest = []
-        for club in clubs:
-            manifest.append({
-                "id": club["id"],
-                "name": club["name"],
-                "instagram_handle": club["instagram_handle"],
-                "profile_pic": club.get("profile_pic", ""),
-                "categories": [cat["name"] for cat in club.get("categories", [])],
-            })
-
-        # 🔥 Filter by category if provided
-        if category:
-            manifest = [
-                club for club in manifest
-                if any(cat == category for cat in club.get("categories", []))
-            ]
-
-        return manifest
+        # Only fetch essential fields for manifest
+        if include_categories:
+            select_fields = "id, name, instagram_handle, profile_image_path, categories(name)"
+        else:
+            select_fields = "id, name, instagram_handle, profile_image_path"
+        
+        result = db.get_club_manifest_optimized(category, limit, select_fields)
+        
+        return result
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -502,7 +491,6 @@ async def get_club_manifest(category: Optional[str] = Query(None)):
             status_code=500,
             content={"message": f"Error fetching club manifest: {str(e)}"}
         )
-
         
 @app.get("/categories")
 async def get_categories():
@@ -546,33 +534,17 @@ async def smart_search(
     limit: int = Query(20, description="Number of clubs per page"),
     category: Optional[str] = Query(None, description="Filter by category")
 ):
-    """Full text smart search on clubs."""
+    """Optimized full text search with database-level pagination."""
     try:
-        # Perform full text search without pagination (Supabase Python limitation)
-        response = supabase.table("clubs") \
-            .select("*") \
-            .text_search("search_vector", q) \
-            .execute()
-
-        matches = response.data if response.data else []
-
-        # Optional: further filter by category
-        if category:
-            matches = [
-                club for club in matches
-                if any(cat["name"] == category for cat in club.get("categories", []))
-            ]
-
-        # Now manually paginate results
-        total_matches = len(matches)
-        start = (page - 1) * limit
-        end = start + limit
-        paginated_matches = matches[start:end]
-
+        offset = (page - 1) * limit
+        
+        # Use database-level search and pagination
+        result = db.search_clubs_optimized(q, offset, limit, category)
+        
         return {
-            "count": total_matches,
-            "results": paginated_matches,
-            "hasMore": end < total_matches,
+            "count": result["total"],
+            "results": result["clubs"],
+            "hasMore": result["total"] > (offset + limit),
             "page": page,
         }
     except Exception as e:
