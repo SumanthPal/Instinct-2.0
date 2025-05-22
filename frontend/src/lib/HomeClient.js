@@ -568,7 +568,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
                 } backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md fade-in`}>
                   <ClubCard
                     club={{
-                      profilePicture: club.profile_pic,
+                      profilePicture: profile_image_path ? club.profile_image_path : club.profile_pic,
                       name: club.name,
                       description: club.description,
                       instagram: club.instagram_handle,
