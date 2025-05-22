@@ -63,11 +63,22 @@ class SupabaseQueries:
             return response.data[0]
         return None
     
-    def get_all_clubs(self) -> List[Dict]:
-        """Fetch all clubs with their categories"""
-        response = self.supabase.table("clubs").select("*, categories(name)").execute()
-        return response.data if response.data else []
     
+    def get_all_clubs(self) -> List[Dict]:
+        """Fetch all clubs with their categories and prepend CDN URL to profile images"""
+        cdn_prefix = os.getenv("AZURE_CDN", "")
+        response = self.supabase.table("clubs").select("*, categories(name)").execute()
+
+        clubs = response.data if response.data else []
+
+        for club in clubs:
+            image_path = club.get("profile_image_path")
+            if image_path:
+                # Construct full image URL: <CDN_URL>/images/<profile_image_path>
+                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+
+        return clubs
+        
     def upsert_club(self, club_info: Dict) -> str:
         """Create or update a club and assign categories"""
         instagram_handle = club_info.get("Instagram Handle", "")

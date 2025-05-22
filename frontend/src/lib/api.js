@@ -30,6 +30,7 @@ export const fetchClubManifest = async (page = 1, limit = 20, category = null) =
       page: data.page || page,
       totalPages: data.pages || 1
     };
+
   } catch (error) {
     console.error('Error fetching club manifest:', error);
     // Return a safe fallback value
