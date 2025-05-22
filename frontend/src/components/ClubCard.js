@@ -317,6 +317,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
               sizes="(max-width: 80px) 100vw, 80px"
               priority={index < 6} // Only prioritize first 6 images
               loading={index < 6 ? "eager" : "lazy"}
+              unoptimized
             />
           ) : (
             <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
