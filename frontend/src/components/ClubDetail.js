@@ -213,6 +213,7 @@ return (
       className="object-cover"
       sizes="(max-width: 640px) 80px, (max-width: 1024px) 96px, 128px"
       loading="lazy"
+      unoptimized
     />
   </div>
   

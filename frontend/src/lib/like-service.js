@@ -49,7 +49,7 @@ async getLikedClubs() {
       const likeInfo = likedData.find(item => item.instagram_handle === club.instagram_handle);
       
       // Determine which profile picture field to use
-      const profilePicture = club.profile_pic || club.profile_image_path || null;
+      const profilePicture =  club.profile_image_path || club.profile_pic || null;
       
       // Extract categories from club_links if available
       let categories = [];
