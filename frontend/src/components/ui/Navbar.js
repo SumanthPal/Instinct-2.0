@@ -160,7 +160,7 @@ export default function Navbar() {
                 className="hidden md:flex items-center px-4 py-2 text-base font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-full hover:shadow-md hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-600 transition duration-300 transform hover:scale-105"
               >
                 <FaGoogle className="mr-2" size={16} />
-                <span>Sign in</span>
+                <span>Sign in with UCI</span>
               </button>
             )
           )}
