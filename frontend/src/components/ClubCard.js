@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardHeader, CardContent, CardFooter } from './ui/Card';
@@ -11,24 +11,78 @@ import { likesService } from '@/lib/like-service';
 import { useToast } from './ui/toast';
 import { VscVerifiedFilled } from "react-icons/vsc";
 
-export default function ClubCard({ club, viewMode = 'grid' }) {
+// Color cache to prevent re-calculating colors for the same clubs
+const colorCache = new Map();
+
+// Pre-generate colors synchronously to prevent flickering
+const generateColorFromText = (text) => {
+  if (!text) return 'rgba(103, 86, 204, 1)';
+  
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = text.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Ensure colors are vibrant and readable
+  const r = Math.abs((hash & 0xFF0000) >> 16) % 180 + 75; // 75-255 range
+  const g = Math.abs((hash & 0x00FF00) >> 8) % 180 + 75;
+  const b = Math.abs(hash & 0x0000FF) % 180 + 75;
+  
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const createGradientColors = (baseColorRGB) => {
+  const match = baseColorRGB.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!match) return {
+    light: 'rgba(103, 86, 204, 0.15)',
+    medium: 'rgba(103, 86, 204, 0.3)',
+    dark: 'rgba(103, 86, 204, 0.5)'
+  };
+  
+  const r = parseInt(match[1]);
+  const g = parseInt(match[2]);
+  const b = parseInt(match[3]);
+  
+  return {
+    light: `rgba(${r}, ${g}, ${b}, 0.15)`,
+    medium: `rgba(${r}, ${g}, ${b}, 0.3)`,
+    dark: `rgba(${r}, ${g}, ${b}, 0.5)`
+  };
+};
+
+const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
-  const [baseColor, setBaseColor] = useState('');
-  const [gradientColors, setGradientColors] = useState({
-    light: 'rgba(103, 86, 204, 0.3)',
-    medium: 'rgba(103, 86, 204, 0.5)',
-    dark: 'rgba(103, 86, 204, 0.7)'
-  });
+  const [imageExtractedColor, setImageExtractedColor] = useState(null);
   
   const cardRef = useRef(null);
   const imageRef = useRef(null);
   const { user } = useAuth();
   const { toast } = useToast();
   
-  // Check if club is liked when user is available
+  // Generate initial colors synchronously to prevent flickering
+  const initialColors = useMemo(() => {
+    const cacheKey = `${club.name}-${club.profilePicture || 'no-image'}`;
+    
+    if (colorCache.has(cacheKey)) {
+      return colorCache.get(cacheKey);
+    }
+    
+    const baseColor = generateColorFromText(club.name);
+    const gradientColors = createGradientColors(baseColor);
+    
+    const colors = { baseColor, gradientColors };
+    colorCache.set(cacheKey, colors);
+    
+    return colors;
+  }, [club.name, club.profilePicture]);
+
+  // Use image-extracted color if available, otherwise use initial colors
+  const finalColors = imageExtractedColor || initialColors;
+
+  // Check like status
   useEffect(() => {
     const checkLikeStatus = async () => {
       if (!user || !club.instagram) return;
@@ -46,7 +100,7 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
     }
   }, [user, club.instagram]);
 
-  // Intersection Observer to detect when the card is in view
+  // Intersection Observer for lazy loading
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -55,7 +109,10 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
           observer.unobserve(entry.target);
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0.1,
+        rootMargin: '50px' // Start loading slightly before visible
+      }
     );
 
     if (cardRef.current) {
@@ -69,103 +126,74 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
     };
   }, []);
 
-  // Extract color from image and create gradient colors
+  // Extract color from image (non-blocking, runs after initial render)
   useEffect(() => {
-    // Generate a color based on the club name if no profile picture is available
-    const generateColorFromText = (text) => {
-      if (!text) return 'rgba(103, 86, 204, 1)'; // Default color
-      
-      let hash = 0;
-      for (let i = 0; i < text.length; i++) {
-        hash = text.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      
-      const r = Math.abs((hash & 0xFF0000) >> 16);
-      const g = Math.abs((hash & 0x00FF00) >> 8);
-      const b = Math.abs(hash & 0x0000FF);
-      
-      return `rgb(${r}, ${g}, ${b})`;
-    };
+    if (!isVisible || !club.profilePicture) return;
+    
+    const cacheKey = `${club.name}-${club.profilePicture}`;
+    if (colorCache.has(cacheKey + '-extracted')) {
+      const cachedColors = colorCache.get(cacheKey + '-extracted');
+      setImageExtractedColor(cachedColors);
+      return;
+    }
 
-    // Create gradient colors from base color
-    const createGradientColors = (baseColorRGB) => {
-      const match = baseColorRGB.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-      if (!match) return {
-        light: 'rgba(103, 86, 204, 0.15)',
-        medium: 'rgba(103, 86, 204, 0.3)',
-        dark: 'rgba(103, 86, 204, 0.5)'
-      };
+    // Use requestIdleCallback to extract colors during idle time
+    const extractColor = () => {
+      const img = new window.Image();
+      img.crossOrigin = "Anonymous";
+      img.src = club.profilePicture;
       
-      const r = parseInt(match[1]);
-      const g = parseInt(match[2]);
-      const b = parseInt(match[3]);
-      
-      return {
-        light: `rgba(${r}, ${g}, ${b}, 0.15)`,
-        medium: `rgba(${r}, ${g}, ${b}, 0.3)`,
-        dark: `rgba(${r}, ${g}, ${b}, 0.5)`
-      };
-    };
-
-    if (isVisible) {
-      if (club.profilePicture && imageRef.current) {
-        // Try to extract color from profile picture
-        const img = new window.Image();
-        img.crossOrigin = "Anonymous";
-        img.src = club.profilePicture;
-        
-        img.onload = () => {
+      img.onload = () => {
+        try {
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
-          canvas.width = img.width;
-          canvas.height = img.height;
           
-          context.drawImage(img, 0, 0);
+          // Use smaller canvas for performance
+          const size = 50;
+          canvas.width = size;
+          canvas.height = size;
           
-          try {
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            
-            let r = 0, g = 0, b = 0;
-            
-            // Get average of all pixels
-            for (let i = 0; i < data.length; i += 4) {
-              r += data[i];
-              g += data[i + 1];
-              b += data[i + 2];
-            }
-            
-            r = Math.floor(r / (data.length / 4));
-            g = Math.floor(g / (data.length / 4));
-            b = Math.floor(b / (data.length / 4));
-            
-            const baseColorRGB = `rgb(${r}, ${g}, ${b})`;
-            setBaseColor(baseColorRGB);
-            setGradientColors(createGradientColors(baseColorRGB));
-          } catch (e) {
-            console.error('Error extracting color:', e);
-            // Fallback to name-based color if image processing fails
-            const fallbackColor = generateColorFromText(club.name);
-            setBaseColor(fallbackColor);
-            setGradientColors(createGradientColors(fallbackColor));
+          context.drawImage(img, 0, 0, size, size);
+          
+          const imageData = context.getImageData(0, 0, size, size);
+          const data = imageData.data;
+          
+          let r = 0, g = 0, b = 0, count = 0;
+          
+          // Sample every 4th pixel for performance
+          for (let i = 0; i < data.length; i += 16) {
+            r += data[i];
+            g += data[i + 1];
+            b += data[i + 2];
+            count++;
           }
-        };
-        
-        img.onerror = () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Warning: Image color extraction failed, using fallback color.');
-          }
-          // Fallback to name-based color if image fails to load
-          const fallbackColor = generateColorFromText(club.name);
-          setBaseColor(fallbackColor);
-          setGradientColors(createGradientColors(fallbackColor));
-        };
-      } else {
-        // No profile picture available, generate color from club name
-        const fallbackColor = generateColorFromText(club.name);
-        setBaseColor(fallbackColor);
-        setGradientColors(createGradientColors(fallbackColor));
-      }
+          
+          r = Math.floor(r / count);
+          g = Math.floor(g / count);
+          b = Math.floor(b / count);
+          
+          const baseColor = `rgb(${r}, ${g}, ${b})`;
+          const gradientColors = createGradientColors(baseColor);
+          const extractedColors = { baseColor, gradientColors };
+          
+          // Cache the extracted colors
+          colorCache.set(cacheKey + '-extracted', extractedColors);
+          setImageExtractedColor(extractedColors);
+        } catch (e) {
+          console.warn('Color extraction failed, using fallback');
+        }
+      };
+      
+      img.onerror = () => {
+        // Keep using the initial colors if image fails
+      };
+    };
+
+    // Use requestIdleCallback if available, otherwise setTimeout
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(extractColor, { timeout: 2000 });
+    } else {
+      setTimeout(extractColor, 100);
     }
   }, [isVisible, club.profilePicture, club.name]);
 
@@ -176,29 +204,25 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
   };
   
   const handleCardClick = (e) => {
-    // Check if the click is coming from the star button
     if (e.target.closest('.star-button') || e.target.closest('.star-icon')) {
-      e.preventDefault(); // Prevent navigation
+      e.preventDefault();
       return;
     }
     
-    // Continue with card navigation
-    e.preventDefault(); // Prevent default link behavior
+    e.preventDefault();
     setIsLoading(true);
 
-    // Simulate an action (e.g., navigating to the club's page)
     setTimeout(() => {
       setIsLoading(false);
-      window.location.href = `/club/${club.instagram}`; // Navigate to the club's page
+      window.location.href = `/club/${club.instagram}`;
     }, 500); 
   };
 
   const handleLikeToggle = async (e) => {
-    e.preventDefault(); // Prevent card navigation
-    e.stopPropagation(); // Stop event propagation
+    e.preventDefault();
+    e.stopPropagation();
     
     if (!user) {
-      // Show toast to log in if user isn't authenticated
       toast({
         title: "Login Required",
         description: "Please log in to save clubs to your favorites",
@@ -212,11 +236,9 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
     try {
       setIsLikeLoading(true);
       
-      // Call the toggle service
       const newLikedState = await likesService.toggleLikeClub(club.instagram);
       setIsLiked(newLikedState);
       
-      // Show toast
       toast({
         title: newLikedState ? "Club Added to Favorites" : "Club Removed from Favorites",
         description: newLikedState 
@@ -240,24 +262,28 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
     }
   };
 
+  // Memoize the card styles to prevent recalculations
+  const cardStyles = useMemo(() => ({
+    background: `linear-gradient(135deg, ${finalColors.gradientColors.medium}, ${finalColors.gradientColors.dark})`,
+    boxShadow: `0 4px 15px -1px ${finalColors.gradientColors.light}, 0 2px 8px -1px rgba(0, 0, 0, 0.1)`,
+    borderColor: finalColors.gradientColors.dark,
+    transition: imageExtractedColor ? 'all 0.3s ease-in-out' : 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out'
+  }), [finalColors, imageExtractedColor]);
+
   // Grid view card layout
   const GridCard = () => (
     <div
       className="h-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300
                 hover:shadow-xl hover:scale-[1.02]
                 cursor-pointer flex flex-col"
-      style={{ 
-        background: `linear-gradient(135deg, ${gradientColors.medium}, ${gradientColors.dark})`,
-        boxShadow: `0 4px 15px -1px ${gradientColors.light}, 0 2px 8px -1px rgba(0, 0, 0, 0.1)`
-      }}
+      style={cardStyles}
     >
-      {isLoading ? (
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10 rounded-xl">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
         </div>
-      ) : null}
+      )}
 
-      {/* Star/Like Button - Only show for logged in users */}
       {user && (
         <button 
           className="absolute top-3 right-3 z-20 star-button p-2 rounded-full 
@@ -280,7 +306,7 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
 
       <div className="flex flex-col items-center pt-6 pb-3">
         <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shadow-lg mb-3" 
-          style={{ borderColor: gradientColors.dark }}>
+          style={{ borderColor: finalColors.gradientColors.dark }}>
           {club.profilePicture ? (
             <Image
               ref={imageRef}
@@ -289,7 +315,8 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
               fill
               className="object-cover"
               sizes="(max-width: 80px) 100vw, 80px"
-              priority
+              priority={index < 6} // Only prioritize first 6 images
+              loading={index < 6 ? "eager" : "lazy"}
             />
           ) : (
             <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
@@ -297,30 +324,28 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
             </div>
           )}
         </div>
-        <h3 className="text-xl font-bold text-white dark:text-white flex items-center gap-1">
+        <h3 className="text-xl font-bold text-gray-700 dark:text-white flex items-center gap-1">
           {club.name}
-          {/* Add verified icon if needed */}
-          {/* <VscVerifiedFilled className="text-purple-200" /> */}
         </h3>
-        <p className="text-sm text-white/80 dark:text-white/80">
+        <p className="text-sm text-gray-700 dark:text-white/80">
           @{club.instagram}
         </p>
       </div>
 
       <div className="flex-grow px-5 py-3 overflow-hidden">
-        <p className="text-white dark:text-white line-clamp-4 text-sm md:text-base leading-relaxed">
+        <p className="text-gray-700 dark:text-white line-clamp-4 text-sm md:text-base leading-relaxed">
           {extractQuotedContent(club.description || '')}
         </p>
       </div>
 
       <div className="mt-auto px-3 py-3 overflow-hidden" 
-        style={{ background: `${gradientColors.dark}` }}>
+        style={{ background: `${finalColors.gradientColors.dark}` }}>
         <div className="flex flex-wrap gap-1 max-h-[60px] overflow-hidden justify-center">
           {club.categories?.slice(0, 4).map((category, index) => (
             <span
               key={index}
               className="bg-white/30 dark:bg-dark-profile-card/30 
-                text-white dark:text-white 
+                text-gray-900 dark:text-white 
                 px-2 py-0.5 rounded-full text-xs whitespace-nowrap
                 shadow-sm"
             >
@@ -346,21 +371,18 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
       className="w-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300
                 hover:shadow-xl hover:scale-[1.01]
                 cursor-pointer"
-      style={{ 
-        background: `linear-gradient(135deg, ${gradientColors.medium}, ${gradientColors.dark})`,
-        boxShadow: `0 4px 15px -1px ${gradientColors.light}, 0 2px 8px -1px rgba(0, 0, 0, 0.1)`
-      }}
+      style={cardStyles}
     >
-      {isLoading ? (
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10 rounded-xl">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
         </div>
-      ) : null}
+      )}
 
       <div className="flex p-4">
         <div className="mr-4 flex-shrink-0">
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 shadow-lg" 
-            style={{ borderColor: gradientColors.dark }}>
+            style={{ borderColor: finalColors.gradientColors.dark }}>
             {club.profilePicture ? (
               <Image
                 ref={imageRef}
@@ -369,7 +391,8 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
                 fill
                 className="object-cover"
                 sizes="(max-width: 80px) 100vw, 80px"
-                priority
+                priority={index < 6}
+                loading={index < 6 ? "eager" : "lazy"}
               />
             ) : (
               <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
@@ -382,16 +405,14 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
         <div className="flex-grow flex flex-col">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-lg sm:text-xl font-bold text-white dark:text-white flex items-center gap-1">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-700 dark:text-white flex items-center gap-1">
                 {club.name}
-                {/* <VscVerifiedFilled className="text-purple-200" /> */}
               </h3>
-              <p className="text-sm text-white/80 dark:text-white/80">
+              <p className="text-sm text-gray-700 dark:text-white/80">
                 @{club.instagram}
               </p>
             </div>
             
-            {/* Star/Like Button - Only show for logged in users */}
             {user && (
               <button 
                 className="star-button p-2 rounded-full 
@@ -413,7 +434,7 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
             )}
           </div>
           
-          <p className="text-white dark:text-white line-clamp-3 text-sm md:text-base mt-2 leading-relaxed flex-grow">
+          <p className="text-gray-700 dark:text-white line-clamp-3 text-sm md:text-base mt-2 leading-relaxed flex-grow">
             {extractQuotedContent(club.description || '')}
           </p>
           
@@ -422,7 +443,7 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
               <span
                 key={index}
                 className="bg-white/30 dark:bg-dark-profile-card/30 
-                  text-white dark:text-white 
+                  text-gray-700 dark:text-white 
                   px-2 py-0.5 rounded-full text-xs whitespace-nowrap
                   shadow-sm"
               >
@@ -433,13 +454,28 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
               <span className="bg-white/30 dark:bg-dark-profile-card/30 
                 text-white dark:text-white 
                 px-2 py-0.5 rounded-full text-xs whitespace-nowrap
-                shadow-sm"
-              >
+                shadow-sm">
                 +{club.categories.length - 3} more
               </span>
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+
+  // Loading placeholder
+  const LoadingPlaceholder = () => (
+    <div 
+      className={`${viewMode === 'grid' ? 'h-[360px]' : 'h-[120px]'} rounded-xl animate-pulse`}
+      style={{
+        background: `linear-gradient(135deg, ${initialColors.gradientColors.light}, ${initialColors.gradientColors.medium})`
+      }}
+    >
+      <div className="p-4 h-full flex flex-col justify-center items-center">
+        <div className="w-16 h-16 rounded-full bg-white/20 mb-3"></div>
+        <div className="w-3/4 h-4 bg-white/20 rounded mb-2"></div>
+        <div className="w-1/2 h-3 bg-white/20 rounded"></div>
       </div>
     </div>
   );
@@ -456,8 +492,10 @@ export default function ClubCard({ club, viewMode = 'grid' }) {
           </div>
         </Link>
       ) : (
-        <div className={`${viewMode === 'grid' ? 'h-[360px]' : 'h-[120px]'} bg-gray-100 dark:bg-gray-800 rounded-xl animate-pulse`}></div>
+        <LoadingPlaceholder />
       )}
     </div>
   );
-}
+});
+
+export default ClubCard;
