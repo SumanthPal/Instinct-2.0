@@ -14,7 +14,7 @@ import httpx
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-
+from azure.storage.blob import BlobServiceClient, ContentSettings
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from db.supabase_client import supabase
 
@@ -27,6 +27,13 @@ class SupabaseQueries:
         self.SUPABASE_URL = os.getenv("SUPABASE_URL")
         self.SUPABASE_KEY = os.getenv("SUPABASE_KEY")
         self.BUCKET_NAME = os.getenv("BUCKET_NAME")
+        self.azure_connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        if not self.azure_connection_string:
+            raise ValueError("AZURE_STORAGE_CONNECTION_STRING environment variable not set")
+        
+        self.blob_service_client = BlobServiceClient.from_connection_string(self.azure_connection_string)
+        self.azure_container_name = "images"
+
 
         
     def get_category_id(self, category_name: str) -> Optional[str]:
@@ -572,6 +579,9 @@ class SupabaseQueries:
             return []
         
     def download_and_upload_img(self, image_url: str, storage_path: str):
+        """
+        Download image from URL, compress it, and upload to Azure Blob Storage
+        """
         response = requests.get(image_url)
         if response.status_code != 200:
             logger.error("Error in fetching image.")
@@ -583,19 +593,38 @@ class SupabaseQueries:
             logger.error("Failed to load image into Pillow")
             raise e
         
+        # Compress image
         compressed_io = BytesIO()
         img.convert("RGB").save(compressed_io, format="JPEG", quality=85)
         compressed_io.seek(0)
         
-        upload_response = self.supabase.storage.from_(self.BUCKET_NAME).upload(
-            storage_path,
-            compressed_io.read(),
-            {
-                "content-type": "image/jpeg"
-            }
-        )
+        # Ensure storage_path has .jpg extension for proper content type detection
+        if not storage_path.lower().endswith(('.jpg', '.jpeg')):
+            storage_path += '.jpg'
         
-        return storage_path
+        try:
+            # Upload to Azure Blob Storage
+            blob_client = self.blob_service_client.get_blob_client(
+                container=self.azure_container_name, 
+                blob=storage_path
+            )
+            
+            # Upload with proper content settings to prevent download behavior
+            blob_client.upload_blob(
+                compressed_io.read(),
+                content_settings=ContentSettings(
+                    content_type='image/jpeg',
+                    content_disposition='inline'
+                ),
+                overwrite=True
+            )
+            
+            logger.info(f"Successfully uploaded image to Azure: {storage_path}")
+            return storage_path
+            
+        except Exception as e:
+            logger.error(f"Failed to upload image to Azure Blob Storage: {str(e)}")
+            raise e
 
               
     
