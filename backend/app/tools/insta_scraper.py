@@ -223,6 +223,7 @@ class InstagramScraper:
         self.current_cookie_index = (self.current_cookie_index + 1) % len(self.cookies_list)
         logger.warning(f"🔄 Swapping to cookie account #{self.current_cookie_index + 1}...")
 
+
         try:
             self._driver.delete_all_cookies()
             decoded_cookies = base64.b64decode(self.cookies_list[self.current_cookie_index])

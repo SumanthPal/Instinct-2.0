@@ -1,81 +1,120 @@
-#!/bin/bash
-# build-fixed.sh - Build Docker images with workaround for Chromium SSE3 issues
+name: Deploy to Production
 
-# First, make sure buildx is available and set up correctly
-if ! docker buildx ls | grep -q mybuilder; then
-    echo "Setting up Docker buildx builder..."
-    docker buildx create --name mybuilder --use
-else
-    docker buildx use mybuilder
-fi
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
 
-echo "Enter which image you would like to build (web | scraper | discord | all)"
-read command
+env:
+  ACR_NAME: instinctregistry.azurecr.io
+  RESOURCE_GROUP: instinct
+  WEB_APP: web2
+  SCRAPER_APP: scraper
+  DISCORD_APP: discord
 
-# Check if input is empty
-if [ -z "$command" ]; then
-    echo "Error: No input provided"
-    exit 1
-fi
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-# Function to build a specific image
-build_image() {
-    local type=$1
-    local dockerfile="./backend/Dockerfile.$type"
-    local tag="instinct-$type"
-    
-    echo "Building $type image for linux/amd64 platform..."
-    
-    # For scraper, we'll use a modified approach
-    if [ "$type" == "scraper" ]; then
-        echo "Using special build process for scraper to avoid Chromium SSE3 issues..."
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Log in to ACR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.ACR_NAME }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push web image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.web
+        push: true
+        platforms: linux/amd64
+        tags: |
+          ${{ env.ACR_NAME }}/backend-web:latest
+
+    - name: Build and push scraper image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.scraper
+        push: true
+        platforms: linux/amd64
+        tags: |
+          ${{ env.ACR_NAME }}/backend-scraper:latest
+
+    - name: Build and push discord image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.discord
+        push: true
+        platforms: linux/amd64
+        tags: |
+          ${{ env.ACR_NAME }}/backend-discord:latest
+
+    - name: Update Container Apps
+      run: |
+        echo "Updating Container Apps with new images..."
         
-        # Create a temporary Dockerfile without the version check commands
-        TEMP_DOCKERFILE=$(mktemp)
-        cat $dockerfile | grep -v "echo \"Installed Chrome version\"" | grep -v "echo \"Installed ChromeDriver version\"" | grep -v "echo \"Chrome binary location\"" | grep -v "echo \"ChromeDriver binary location\"" > $TEMP_DOCKERFILE
+        # Update Web App (now web2)
+        echo "Updating Web App (web2)..."
+        az containerapp update \
+          --name ${{ env.WEB_APP }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.ACR_NAME }}/backend-web:latest
         
-        # Use buildx with the temporary Dockerfile
-        docker buildx build \
-            --platform linux/amd64 \
-            -f $TEMP_DOCKERFILE \
-            -t $tag \
-            --load \
-            .
+        # Update Scraper App
+        echo "Updating Scraper App..."
+        az containerapp update \
+          --name ${{ env.SCRAPER_APP }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.ACR_NAME }}/backend-scraper:latest
         
-        # Remove temporary file
-        rm $TEMP_DOCKERFILE
-    else
-        # Regular build for other images
-        docker buildx build \
-            --platform linux/amd64 \
-            -f $dockerfile \
-            -t $tag \
-            --load \
-            .
-    fi
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Successfully built $tag image"
-    else
-        echo "❌ Failed to build $tag image"
-        exit 1
-    fi
-}
+        # Update Discord App
+        echo "Updating Discord App..."
+        az containerapp update \
+          --name ${{ env.DISCORD_APP }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.ACR_NAME }}/backend-discord:latest
 
-# Build images based on the command
-if [ "$command" == "all" ]; then
-    build_image "scraper"
-    build_image "web"
-    build_image "discord"
-elif [ "$command" == "scraper" ] || [ "$command" == "web" ] || [ "$command" == "discord" ]; then
-    build_image "$command"
-else 
-    echo "Unknown command: $command"
-    echo "Valid options are: web, scraper, discord, all"
-    exit 1
-fi
+    - name: Wait for deployments
+      run: |
+        echo "Waiting for deployments to complete..."
+        sleep 30
+        
+        # Check status of all apps
+        echo "Checking deployment status..."
+        az containerapp show --name ${{ env.WEB_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv
+        az containerapp show --name ${{ env.SCRAPER_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv
+        az containerapp show --name ${{ env.DISCORD_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv
 
-echo "Done! Images are ready for local use."
-echo "To push to Azure Container Registry, you can use:"
-echo "  docker tag instinct-$command instinctregistry.azurecr.io/backend-$command:latest"
-echo "  docker push instinctregistry.azurecr.io/backend-$command:latest"
+    - name: Create deployment summary
+      run: |
+        echo "## 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Updated Apps:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Web App (web2)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Scraper App" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Discord App" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Get app URLs
+        WEB_URL=$(az containerapp show --name ${{ env.WEB_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "Not available")
+        if [[ "$WEB_URL" != "Not available" ]]; then
+          echo "### 🌐 App URLs:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Web App**: https://$WEB_URL" >> $GITHUB_STEP_SUMMARY
+        fi

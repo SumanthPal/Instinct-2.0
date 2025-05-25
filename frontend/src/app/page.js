@@ -8,45 +8,6 @@ import TypingAnimation from "../components/ui/TypingAnimation";
 import { useToast } from '@/components/ui/toast';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-// Error Handler Component 
-const ErrorHandler = () => {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { toast } = useToast();
-  const hasProcessedError = useRef(false);
-  
-  useEffect(() => {
-    // Only run this once when the component mounts
-    if (hasProcessedError.current) return;
-    
-    const error = searchParams.get('error');
-    if (!error) return;
-    
-    // Mark locally to avoid re-processing in this component
-    hasProcessedError.current = true;
-    
-    // Remove error from URL
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('error');
-      window.history.replaceState({}, '', url);
-    }
-    
-    // Show relevant toast
-    if (error === 'invalid-email') {
-      toast({
-        title: 'Invalid Email',
-        description: 'Please sign in with your UCI email address.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-    }
-  }, []); // Empty dependency array means this runs once on mount
-  
-  return null;
-};
-
 const UCIBackground = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [prevImageIndex, setPrevImageIndex] = useState(null);
@@ -135,7 +96,6 @@ const UCIBackground = () => {
 export default function Home() {
   return (
 <div className="min-h-screen flex flex-col justify-between items-center text-gray-900 dark:text-dark-text relative overflow-hidden">
-<ErrorHandler />
       <UCIBackground />
       <Navbar />
 

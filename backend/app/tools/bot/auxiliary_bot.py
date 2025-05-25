@@ -75,7 +75,7 @@ pending_clubs = {}  # pending_id -> message_id
 automation_state = {
     "enabled": True,  # Default to enabled
     "last_run": 0,
-    "populate_interval_hours": 2,  # How often to populate queue
+    "populate_interval_hours": 3,  # How often to populate queue
     "check_pending_interval_minutes": 30,  # How often to check pending clubs
     "requeue_stalled_interval_minutes": 60,  # How often to check for stalled jobs
     "max_queue_size": 10,  # Maximum number of clubs to have in queue

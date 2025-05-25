@@ -12,8 +12,11 @@ from discord import ButtonStyle
 from discord.ui import Button, View
 from typing import Dict, List, Optional
 import asyncio
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend BEFORE importing pyplot
 
 import matplotlib.pyplot as plt
+
 import io
 from collections import deque
 import numpy as np
@@ -28,6 +31,8 @@ LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
 # Import custom modules
 from tools.logger import logger
 from db.queries import SupabaseQueries
+from redis_queue import RedisScraperQueue, QueueType
+
 
 # Load environment variables
 load_dotenv()
@@ -64,20 +69,22 @@ QUEUE_KEYS = {
         "queue": "scraper:queue",
         "processing": "scraper:processing",
         "failed": "scraper:failed",
-        "rate_limit": "scraper:rate_limit"
+        "rate_limit": "scraper:rate_limit",
+        "completed": "scraper:completed"  # Add this
     },
     "event": {
-        "queue": "scraper:event_queue", 
-        "processing": "scraper:event_processing",
-        "failed": "scraper:event_failed"
+        "queue": "event:queue",  # ✅ Fixed
+        "processing": "event:processing",  # ✅ Fixed
+        "failed": "event:failed",  # ✅ Fixed
+        "completed": "event:completed"  # Add this
     },
     "log": {
         "queue": "log:queue",
-        "entries": "logs:entries",
-        "processing": "queue:processing",
-
+        "history": "log:history",  # Changed from "entries"
+        "processing": "log:processing"
     }
 }
+
 
 # Notification streams
 NOTIFICATION_STREAM = "notifications"
@@ -144,48 +151,53 @@ async def send_error(embed=None, message=None, file=None):
 
 # Helper functions for Redis operations
 def get_queue_status():
-    """Get status information for all queues."""
+    """Get status information for all queues with better performance."""
     try:
         stats = {}
         
-        # Scraper queue stats
-        scraper_queue = QUEUE_KEYS["scraper"]["queue"]
-        scraper_processing = QUEUE_KEYS["scraper"]["processing"]
-        scraper_failed = QUEUE_KEYS["scraper"]["failed"]
+        # Use pipeline for better performance
+        with redis_conn.pipeline() as pipe:
+            # Scraper queue stats
+            pipe.zcard(QUEUE_KEYS["scraper"]["queue"])  # 0
+            pipe.hlen(QUEUE_KEYS["scraper"]["processing"])  # 1
+            pipe.hlen(QUEUE_KEYS["scraper"]["failed"])  # 2
+            
+            # Event queue stats
+            pipe.zcard(QUEUE_KEYS["event"]["queue"])  # 3
+            pipe.hlen(QUEUE_KEYS["event"]["processing"])  # 4
+            pipe.hlen(QUEUE_KEYS["event"]["failed"])  # 5
+            
+            # Log queue stats
+            pipe.zcard(QUEUE_KEYS["log"]["queue"])  # 6
+            pipe.llen(QUEUE_KEYS["log"]["history"])  # 7
+            
+            results = pipe.execute()
         
         stats["scraper"] = {
-            "queue_count": redis_conn.zcard(scraper_queue),
-            "processing_count": len(redis_conn.hkeys(scraper_processing)),
-            "failed_count": len(redis_conn.hkeys(scraper_failed))
+            "queue_count": results[0],
+            "processing_count": results[1],
+            "failed_count": results[2]
         }
-        
-        # Event queue stats
-        event_queue = QUEUE_KEYS["event"]["queue"]
-        event_processing = QUEUE_KEYS["event"]["processing"]
-        event_failed = QUEUE_KEYS["event"]["failed"]
         
         stats["event"] = {
-            "queue_count": redis_conn.zcard(event_queue),
-            "processing_count": len(redis_conn.hkeys(event_processing)),
-            "failed_count": len(redis_conn.hkeys(event_failed))
+            "queue_count": results[3],
+            "processing_count": results[4],
+            "failed_count": results[5]
         }
         
-        # Log queue stats
-        log_queue = QUEUE_KEYS["log"]["queue"]
-        log_entries = QUEUE_KEYS["log"]["entries"]
-        
         stats["log"] = {
-            "queue_count": redis_conn.zcard(log_queue),
-            "entries_count": redis_conn.llen(log_entries)
+            "queue_count": results[6],
+            "entries_count": results[7]
         }
         
         return stats
+        
     except Exception as e:
         logger.error(f"Error getting queue status: {e}")
         return {"error": str(e)}
 
 def publish_notification(message, data=None):
-    """Publish a notification to the notification stream."""
+    """Publish a notification to the notification stream.""" 
     try:
         notification = {
             "message": message,
@@ -193,7 +205,7 @@ def publish_notification(message, data=None):
             "data": data or {}
         }
         
-        # Convert to JSON and add to stream
+        # Add to stream with proper payload structure
         redis_conn.xadd(NOTIFICATION_STREAM, {"payload": json.dumps(notification)})
         return True
     except Exception as e:
@@ -406,7 +418,7 @@ def check_rate_limits(window_minutes=30):
     """
     try:
         # Fetch all logs from Redis
-        log_entries = redis_conn.lrange('logs:entries', 0, -1)
+        log_entries = redis_conn.lrange('log:history', 0, -1)
         now = datetime.datetime.now()
         count = 0
 
@@ -980,7 +992,7 @@ async def last_errors_cmd(ctx, count: int = 10):
             return
         
         # Get all logs
-        log_entries = redis_conn.lrange('logs:entries', 0, -1)
+        log_entries = redis_conn.lrange('logs:entries', 0, count -1)
         
         if not log_entries:
             await ctx.send("hmmm no logs discovered rn! 📚✨ system's chillin fr")
@@ -1018,13 +1030,41 @@ async def last_errors_cmd(ctx, count: int = 10):
                 if len(message) > 200:
                     message = message[:197] + "..."
                 
+                # Extract just the time part from timestamp to keep field name short
+                # Handle different timestamp formats
+                time_only = "Unknown"
+                if timestamp != "Unknown time":
+                    try:
+                        # Try to parse ISO format timestamp and extract time
+                        if 'T' in timestamp:
+                            time_part = timestamp.split('T')[1]
+                            time_only = time_part.split('.')[0] if '.' in time_part else time_part
+                        else:
+                            # If not ISO format, just take the last part after space
+                            time_only = timestamp.split()[-1] if ' ' in timestamp else timestamp
+                    except:
+                        time_only = timestamp[-8:] if len(timestamp) > 8 else timestamp
+                
+                # Keep field name short and under 256 chars
+                field_name = f"{idx}. 🕒 {time_only}"
+                
+                # Ensure field name is under 256 characters
+                if len(field_name) > 250:
+                    field_name = f"{idx}. 🕒 {time_only[:240]}..."
+                
                 embed.add_field(
-                    name=f"{idx}. 🕒 {timestamp}",
+                    name=field_name,
                     value=f"```{message}```",
                     inline=False
                 )
             except Exception as e:
                 logger.warning(f"couldn't parse this log entry: {e}")
+                # Add a simple fallback field
+                embed.add_field(
+                    name=f"{idx}. ❌ Parse Error",
+                    value=f"```{error[:200]}{'...' if len(error) > 200 else ''}```",
+                    inline=False
+                )
                 continue
         
         await ctx.send(embed=embed)
@@ -1638,60 +1678,62 @@ health_history = {
 async def monitor_system_health():
     """Background task to monitor system health metrics from Redis stream"""
     try:
-        # Read latest health metrics
-        health_metrics = read_health_metrics(health_history["last_health_id"], count=10)
+        # Read latest health metrics using the correct method
+        health_metrics = redis_conn.xread({HEALTH_STREAM: health_history["last_health_id"]}, count=10)
         
         if not health_metrics:
             return
         
-        # Update last ID for next check
-        health_history["last_health_id"] = health_metrics[-1]["id"]
-        
-        # Process each health metric
-        for metric in health_metrics:
-            try:
-                data = metric["payload"]
-                
-                # Add to history
-                timestamp = datetime.datetime.fromisoformat(data.get("timestamp", "")).strftime("%H:%M:%S")
-                health_history["timestamps"].append(timestamp)
-                health_history["cpu_percent"].append(data.get("cpu", {}).get("percent", 0))
-                health_history["memory_percent"].append(data.get("memory", {}).get("percent", 0))
-                health_history["disk_percent"].append(data.get("disk", {}).get("percent", 0))
-                health_history["process_memory_mb"].append(data.get("process", {}).get("memory_rss_mb", 0))
-                
-                # Check for critical alerts and send notifications if needed
-                process_alerts(data)
-                
-            except Exception as e:
-                logger.error(f"Error processing health metric: {e}")
-                
+        # Process the stream results correctly
+        for stream_name, messages in health_metrics:
+            for msg_id, msg_data in messages:
+                try:
+                    # Update last ID
+                    health_history["last_health_id"] = msg_id.decode()
+                    
+                    # Parse the payload correctly
+                    data = json.loads(msg_data[b"payload"])  # ✅ Fixed parsing
+                    
+                    # Add to history
+                    timestamp = datetime.datetime.fromisoformat(data.get("timestamp", "")).strftime("%H:%M:%S")
+                    health_history["timestamps"].append(timestamp)
+                    health_history["cpu_percent"].append(data.get("cpu", {}).get("percent", 0))
+                    health_history["memory_percent"].append(data.get("memory", {}).get("percent", 0))
+                    health_history["disk_percent"].append(data.get("disk", {}).get("percent", 0))
+                    health_history["process_memory_mb"].append(data.get("process", {}).get("memory_rss_mb", 0))
+                    
+                    # Check for critical alerts
+                    await process_alerts(data)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing health metric: {e}")
+                    
     except Exception as e:
         logger.error(f"Error monitoring system health: {e}")
 
-def process_alerts(health_data):
+async def process_alerts(health_data):
     """Process health data and send alerts for critical conditions"""
     try:
         # Check for critical CPU usage
         cpu_percent = health_data.get("cpu", {}).get("percent", 0)
         if cpu_percent > 90:
-            asyncio.create_task(send_error(
+            await send_error(
                 message=f"🚨 **CRITICAL CPU ALERT** 🚨\nCPU usage at {cpu_percent}% - system performance critical!"
-            ))
+            )
         
         # Check for critical memory usage
         memory_percent = health_data.get("memory", {}).get("percent", 0)
         if memory_percent > 90:
-            asyncio.create_task(send_error(
+            await send_error(
                 message=f"🚨 **CRITICAL MEMORY ALERT** 🚨\nMemory usage at {memory_percent}% - system at risk of OOM!"
-            ))
+            )
         
         # Check for process memory growth (potential memory leak)
         process_memory_mb = health_data.get("process", {}).get("memory_rss_mb", 0)
         if process_memory_mb > 2000:  # 2GB
-            asyncio.create_task(send_error(
+            await send_error(
                 message=f"🚨 **PROCESS MEMORY ALERT** 🚨\nScraper process using {process_memory_mb}MB - possible memory leak!"
-            ))
+            )
             
     except Exception as e:
         logger.error(f"Error processing health alerts: {e}")
@@ -1852,6 +1894,9 @@ async def system_health_cmd(ctx):
 async def create_health_graph():
     """Create a graph of historical health metrics"""
     try:
+        # Force non-interactive mode
+        plt.ioff()  # Turn off interactive mode
+        
         plt.figure(figsize=(10, 6))
         
         # Only plot if we have data
@@ -1894,11 +1939,13 @@ async def create_health_graph():
             
             # Save to a bytes buffer
             buf = io.BytesIO()
-            plt.savefig(buf, format='png')
+            plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
             buf.seek(0)
             
             # Create discord file
             file = discord.File(buf, filename="health_graph.png")
+            
+            # CRITICAL: Close the figure to free memory
             plt.close()
             
             return file
@@ -1908,6 +1955,8 @@ async def create_health_graph():
             
     except Exception as e:
         logger.error(f"Error creating health graph: {e}")
+        # Make sure to close any open figures
+        plt.close('all')
         return None
 
 @job_bot.command(name="memgraph")
@@ -1930,6 +1979,9 @@ async def memory_graph_cmd(ctx, minutes: int = 30):
         timestamps = list(health_history["timestamps"])[-data_limit:]
         memory_percent = list(health_history["memory_percent"])[-data_limit:]
         process_memory = list(health_history["process_memory_mb"])[-data_limit:]
+        
+        # Force non-interactive mode
+        plt.ioff()
         
         # Create the graph
         plt.figure(figsize=(12, 7))
@@ -1965,11 +2017,13 @@ async def memory_graph_cmd(ctx, minutes: int = 30):
         
         # Save to a bytes buffer
         buf = io.BytesIO()
-        plt.savefig(buf, format='png')
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
         buf.seek(0)
         
         # Create discord file
         file = discord.File(buf, filename="memory_graph.png")
+        
+        # CRITICAL: Close the figure
         plt.close()
         
         # Send the graph
@@ -1980,8 +2034,8 @@ async def memory_graph_cmd(ctx, minutes: int = 30):
         
     except Exception as e:
         logger.error(f"Error creating memory graph: {e}")
+        plt.close('all')  # Clean up any open figures
         await ctx.send(f"💔 couldn't generate the memory graph: `{e}`")
-
 @job_bot.command(name="cpugraph")
 async def cpu_graph_cmd(ctx, minutes: int = 30):
     """Generate a detailed CPU usage graph 📈⚙️"""
@@ -2002,6 +2056,9 @@ async def cpu_graph_cmd(ctx, minutes: int = 30):
         timestamps = list(health_history["timestamps"])[-data_limit:]
         cpu_percent = list(health_history["cpu_percent"])[-data_limit:]
         
+        # Force non-interactive mode
+        plt.ioff()
+        
         # Create the graph
         plt.figure(figsize=(12, 6))
         
@@ -2013,7 +2070,7 @@ async def cpu_graph_cmd(ctx, minutes: int = 30):
         plt.axhline(y=90, color='r', linestyle='--', alpha=0.7, label='Critical Threshold (90%)')
         
         # Fill the area under the curve
-        plt.fill_between(timestamps, cpu_percent, alpha=0.2, color='r')
+        plt.fill_between(range(len(cpu_percent)), cpu_percent, alpha=0.2, color='r')
         
         # Set labels and title
         plt.ylabel('CPU Usage %')
@@ -2034,11 +2091,13 @@ async def cpu_graph_cmd(ctx, minutes: int = 30):
         
         # Save to a bytes buffer
         buf = io.BytesIO()
-        plt.savefig(buf, format='png')
+        plt.savefig(buf, format='png', bbox_inches='tight', dpi=100)
         buf.seek(0)
         
         # Create discord file
         file = discord.File(buf, filename="cpu_graph.png")
+        
+        # CRITICAL: Close the figure
         plt.close()
         
         # Send the graph
@@ -2049,6 +2108,7 @@ async def cpu_graph_cmd(ctx, minutes: int = 30):
         
     except Exception as e:
         logger.error(f"Error creating CPU graph: {e}")
+        plt.close('all')  # Clean up any open figures
         await ctx.send(f"💔 couldn't generate the CPU graph: `{e}`")
 
 @job_bot.command(name="quickhealth")
@@ -2128,7 +2188,6 @@ from typing import Dict, List, Optional, Set
 
 # Import the RedisScraperQueue class from your existing code
 # Assuming the redis_queue.py file is in the same directory or in your import path
-from redis_queue import RedisScraperQueue, QueueType
 
 class LiveQueueMonitor:
     """

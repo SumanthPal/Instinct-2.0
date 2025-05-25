@@ -54,15 +54,15 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <Suspense fallback={<div>Loading...</div>}>
+        <ToastProvider>
           <AuthWrapper>
-            <ToastProvider>
               <DarkModeProvider>
                 {children}
               </DarkModeProvider>
               <Analytics />
               <SpeedInsights />
-            </ToastProvider>
           </AuthWrapper>
+        </ToastProvider>
         </Suspense>
       </body>
     </html>

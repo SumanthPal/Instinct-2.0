@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { useToast } from '@/components/ui/toast';
 
 const AuthContext = createContext()
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function AuthProvider({ children }) {
   const searchParams = useSearchParams();
@@ -40,16 +41,21 @@ export function AuthProvider({ children }) {
     const error = searchParams.get('error');
 
     if (error === 'invalid-email' && !toastShown) {
-      toast({
-        title: 'Invalid Email',
-        description: 'Please sign in with your UCI email address.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
+      
+      setTimeout(() => {
+        toast({
+          title: 'Invalid Email',
+          description: 'Please sign in with your UCI email address.',
+          status: 'error', // Make sure your toast component supports 'status'
+          duration: 4000,
+          isClosable: true,
+        });
+      }, 100);
 
       setToastShown(true); // ✅ Mark as shown
-      router.replace(window.location.pathname); // ✅ Clear URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      window.history.replaceState({}, '', url);
     }
   }, [searchParams, router, toast, toastShown]); // watch toastShown too!
 

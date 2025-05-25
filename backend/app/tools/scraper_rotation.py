@@ -214,13 +214,13 @@ class ScraperRotation:
         
     # ---------- Worker thread functions ----------
     
+    
     def scraper_worker(self):
         """Worker function that runs in a thread to process scraper jobs"""
         logger.info("Scraper worker started")
         self.queue.publish_notification("Scraper worker started", {})
         last_check = 0
 
-        
         while self.running and not self.stop_event.is_set():
             try:
                 # Check if we're paused
@@ -232,7 +232,7 @@ class ScraperRotation:
                 if self.rate_limited and time.time() < self.rate_limit_end_time:
                     remaining = int(self.rate_limit_end_time - time.time())
                     logger.info(f"Rate limited. Sleeping for {remaining} more seconds.")
-                    time.sleep(min(remaining, 60))  # Sleep, but check periodically for stop signals
+                    time.sleep(min(remaining, 60))
                     continue
                 elif self.rate_limited:
                     # Rate limit period has expired
@@ -248,9 +248,7 @@ class ScraperRotation:
                 # Get the next job
                 job = self.queue.listen_to_scraper_queue(blocking_timeout=5)
 
-                
                 if not job:
-                # No jobs available, just sleep briefly
                     time.sleep(1)
                     continue
                 
@@ -260,63 +258,63 @@ class ScraperRotation:
                         job = json.loads(job)
                     except Exception as e:
                         logger.error(f"Job in event queue is a raw string and failed to parse JSON: {e} | job={job}")
-                        self.queue.mark_job_failed(QueueType.EVENT, job, error="Invalid job format")
-                        continue  # skip this bad job
+                        self.queue.mark_job_failed(QueueType.SCRAPER, job, error="Invalid job format")
+                        continue
 
                 if not isinstance(job, dict):
                     logger.error(f"Invalid event job: expected dict but got {type(job)}")
-                    self.queue.mark_job_failed(QueueType.EVENT, job, error="Invalid job format")
-                    continue  # skip this bad job
+                    self.queue.mark_job_failed(QueueType.SCRAPER, job, error="Invalid job format")
+                    continue
 
-                # Now safe
                 instagram_handle = job.get('instagram_handle')
-
                 self.status["current_job"] = instagram_handle
                 
-                # Process the job
+                # Process the job - MODIFIED SECTION
                 try:
                     logger.info(f"Processing club {instagram_handle}...")
                     
-                    scrape_sequence([instagram_handle])
+                    # Use the enhanced scrape_sequence that handles cookie rotation
+                    success = self._scrape_with_session_rotation([instagram_handle])
                     
-                    # Update last scraped time in database
-                    self.update_club_last_scraped(instagram_handle)
-                    
-                    # Enqueue for event processing
-                    self.queue.enqueue_job(QueueType.EVENT, {'instagram_handle': instagram_handle})
-                    
-                    # Mark as complete
-                    self.queue.mark_job_complete(QueueType.SCRAPER, instagram_handle)
-                    
-                    # Update statistics
-                    self.status["jobs_completed"] += 1
-                    self.status["current_job"] = None
-                    
-                    # Check for rate limiting
-                    rate_limit_level = self.check_recent_rate_limits()
-                    
-                    if rate_limit_level == 2:
-                        # Severe rate limiting
-                        cooldown_hours = 12
-                        logger.warning(f"🚨 Severe rate limits detected! Cooling down for {cooldown_hours} hours...")
-                        self.set_rate_limit(cooldown_hours * 3600)
-                        continue
-                    elif rate_limit_level == 1:
-                        # Mild rate limiting
-                        cooldown_hours = 6
-                        logger.warning(f"⚠️ Mild rate limits detected. Cooling down for {cooldown_hours} hours...")
-                        self.set_rate_limit(cooldown_hours * 3600)
-                        continue
-                    
-                    # Random delay to avoid detection
-                    delay = random.uniform(2, 5)
-                    time.sleep(delay)
-                    
-                except RateLimitDetected as rl:
-                    logger.error(f"🚨 [RATE LIMIT DETECTED] Cooling down scraper for 12 hours... {rl}")
-                    self.queue.requeue_job(instagram_handle)
-                    self.set_rate_limit(12 * 3600)
-                    
+                    if success:
+                        # Update last scraped time in database
+                        self.update_club_last_scraped(instagram_handle)
+                        
+                        # Enqueue for event processing
+                        self.queue.enqueue_job(QueueType.EVENT, {'instagram_handle': instagram_handle})
+                        
+                        # Mark as complete
+                        self.queue.mark_job_complete(QueueType.SCRAPER, instagram_handle)
+                        
+                        # Update statistics
+                        self.status["jobs_completed"] += 1
+                        self.status["current_job"] = None
+                        
+                        # Check for rate limiting
+                        rate_limit_level = self.check_recent_rate_limits()
+                        
+                        if rate_limit_level == 2:
+                            # Severe rate limiting
+                            cooldown_hours = 12
+                            logger.warning(f"🚨 Severe rate limits detected! Cooling down for {cooldown_hours} hours...")
+                            self.set_rate_limit(cooldown_hours * 3600)
+                            continue
+                        elif rate_limit_level == 1:
+                            # Mild rate limiting
+                            cooldown_hours = 6
+                            logger.warning(f"⚠️ Mild rate limits detected. Cooling down for {cooldown_hours} hours...")
+                            self.set_rate_limit(cooldown_hours * 3600)
+                            continue
+                        
+                        # Random delay to avoid detection
+                        delay = random.uniform(2, 5)
+                        time.sleep(delay)
+                    else:
+                        # Failed after all attempts including cookie rotation
+                        logger.error(f"Failed to scrape {instagram_handle} after all attempts")
+                        self.queue.mark_job_failed(QueueType.SCRAPER, instagram_handle, error="Failed after retries with cookie rotation")
+                        self.status["jobs_failed"] += 1
+                        
                 except Exception as e:
                     logger.error(f"Error scraping {instagram_handle}: {e}")
                     self.queue.mark_job_failed(QueueType.SCRAPER, instagram_handle, error=str(e))
@@ -980,6 +978,127 @@ class ScraperRotation:
                 
         except Exception as e:
             logger.error(f"Error checking health alerts: {e}")
+            
+    
+    def _scrape_with_session_rotation(self, username_list, max_cookie_attempts=2):
+        """
+        Enhanced scraping with cookie rotation - creates fresh session each time
+        
+        Args:
+            username_list: List of usernames to scrape (usually just one)
+            max_cookie_attempts: Number of different cookies to try
+            
+        Returns:
+            bool: True if successful, False if failed
+        """
+        for cookie_attempt in range(max_cookie_attempts):
+            scraper = None
+            try:
+                logger.info(f"Creating new scraper session (cookie attempt {cookie_attempt + 1}/{max_cookie_attempts})")
+                
+                # Create fresh scraper instance
+                from tools.insta_scraper import InstagramScraper
+                scraper = InstagramScraper(
+                    os.getenv("INSTAGRAM_USERNAME"), 
+                    os.getenv("INSTAGRAM_PASSWORD")
+                )
+                
+                # Set the cookie index for this attempt
+                scraper.current_cookie_index = cookie_attempt % len(scraper.cookies_list)
+                logger.info(f"Using cookie account #{scraper.current_cookie_index + 1}")
+                
+                # Login with the selected cookie
+                scraper.login()
+                logger.info("Logged into Instagram with fresh session.")
+
+                # Process each username in the list
+                for username in username_list:
+                    logger.info(f"Starting scrape for {username}...")
+                    
+                    # Use the existing scrape_with_retries but with cookie rotation disabled
+                    # since we're handling cookie rotation at the session level
+                    success = self._scrape_single_with_retries(scraper, username, max_retries=2)
+                    
+                    if not success:
+                        raise RateLimitDetected(f"Failed to scrape {username} - likely rate limited")
+                        
+                    logger.info(f"Finished scraping {username}.")
+                
+                # If we get here, everything succeeded
+                return True
+                
+            except RateLimitDetected as rl:
+                logger.warning(f"Rate limit detected with cookie #{cookie_attempt + 1}: {rl}")
+                
+                if cookie_attempt < max_cookie_attempts - 1:
+                    logger.info(f"Will try next cookie account...")
+                    # Add delay before trying next cookie
+                    delay = random.uniform(30, 60) * (cookie_attempt + 1)  # Progressive delay
+                    time.sleep(delay)
+                else:
+                    logger.error("Rate limited with all available cookies")
+                    return False
+                    
+            except Exception as e:
+                logger.error(f"Session error with cookie #{cookie_attempt + 1}: {str(e)}")
+                
+                if cookie_attempt < max_cookie_attempts - 1:
+                    logger.info("Will try next cookie account...")
+                    time.sleep(30)
+                else:
+                    logger.error("Failed with all available cookies")
+                    return False
+                    
+            finally:
+                # Always clean up the session
+                if scraper:
+                    logger.info("Cleaning up scraper session...")
+                    scraper._driver_quit()
+                    scraper = None
+        
+        return False
+
+    def _scrape_single_with_retries(self, scraper, username, max_retries=2):
+        """
+        Scrape a single username with retries (no cookie swapping - that's handled at session level)
+        
+        Args:
+            scraper: InstagramScraper instance
+            username: Username to scrape
+            max_retries: Number of retry attempts
+            
+        Returns:
+            bool: True if successful, False if failed
+        """
+        for attempt in range(max_retries):
+            try:
+                username = username[1:] if username.startswith('@') else username
+                logger.info(f"Scrape attempt {attempt+1}/{max_retries} for {username}")
+                
+                if attempt > 0:
+                    # Add delay before retry
+                    delay = random.uniform(10, 30) * attempt
+                    logger.info(f"Waiting {delay:.1f} seconds before retry...")
+                    time.sleep(delay)
+                
+                # Try scraping
+                scraper.store_club_data(username)
+                logger.info(f"Successfully scraped {username}")
+                return True
+                
+            except RateLimitDetected as rate_limit_exc:
+                logger.warning(f"Rate limit detected during attempt {attempt+1} for {username}: {rate_limit_exc}")
+                # Don't try cookie swapping here - let the session-level handler deal with it
+                return False
+                
+            except Exception as e:
+                logger.error(f"Attempt {attempt+1} failed for {username}: {str(e)}")
+                
+                if attempt == max_retries - 1:
+                    logger.error(f"All retry attempts failed for {username}")
+                    return False
+        
+        return False
 
 if __name__ == "__main__":
     ScraperRotation().run()

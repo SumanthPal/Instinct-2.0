@@ -49,7 +49,8 @@ async getLikedClubs() {
       const likeInfo = likedData.find(item => item.instagram_handle === club.instagram_handle);
       
       // Determine which profile picture field to use
-      const profilePicture =  club.profile_image_path || club.profile_pic || null;
+      
+      const profilePicture = "https://instinctucistorage.blob.core.windows.net/images/"  + club.profile_image_path 
       
       // Extract categories from club_links if available
       let categories = [];

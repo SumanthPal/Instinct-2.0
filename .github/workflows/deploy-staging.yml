@@ -3,15 +3,14 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+  workflow_dispatch:  # Allow manual trigger
 
 env:
   ACR_NAME: instinctregistry.azurecr.io
   RESOURCE_GROUP: instinct
-  REGION: westus
-  WEB_APP: web
+  WEB_APP: web2
   SCRAPER_APP: scraper
   DISCORD_APP: discord
-  TIMESTAMP: ${{ github.sha }}
 
 jobs:
   build-and-deploy:
@@ -41,19 +40,9 @@ jobs:
         context: .
         file: ./backend/Dockerfile.web
         push: true
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         tags: |
           ${{ env.ACR_NAME }}/backend-web:latest
-
-    - name: Build and push discord image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./backend/Dockerfile.discord
-        push: true
-        platforms: linux/amd64,linux/arm64
-        tags: |
-          ${{ env.ACR_NAME }}/backend-discord:latest
 
     - name: Build and push scraper image
       uses: docker/build-push-action@v5
@@ -61,224 +50,71 @@ jobs:
         context: .
         file: ./backend/Dockerfile.scraper
         push: true
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         tags: |
           ${{ env.ACR_NAME }}/backend-scraper:latest
 
-    - name: Set short SHA and revision suffix
-      id: vars
-      run: |
-        echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_ENV
-        echo "REVISION_SUFFIX=rev-$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
+    - name: Build and push discord image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./backend/Dockerfile.discord
+        push: true
+        platforms: linux/amd64
+        tags: |
+          ${{ env.ACR_NAME }}/backend-discord:latest
 
-    - name: Get environment variables from working revision
+    - name: Update Container Apps
       run: |
-        # We'll skip this step now and rely on --preserve-secrets to maintain environment variables 
-        echo "Using --preserve-secrets to maintain environment variables"
+        echo "Updating Container Apps with new images..."
+        
+        # Update Web App (now web2)
+        echo "Updating Web App (web2)..."
+        az containerapp update \
+          --name ${{ env.WEB_APP }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.ACR_NAME }}/backend-web:latest
+        
+        # Update Scraper App
+        echo "Updating Scraper App..."
+        az containerapp update \
+          --name ${{ env.SCRAPER_APP }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.ACR_NAME }}/backend-scraper:latest
+        
+        # Update Discord App
+        echo "Updating Discord App..."
+        az containerapp update \
+          --name ${{ env.DISCORD_APP }} \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.ACR_NAME }}/backend-discord:latest
 
-    - name: Get secrets for each container app
+    - name: Wait for deployments
       run: |
-        # Get secrets for web app
-        echo "Getting secrets for Web App..."
-        WEB_SECRETS=$(az containerapp secret list --name $WEB_APP --resource-group $RESOURCE_GROUP --query "[].name" -o tsv || echo "")
-        if [[ -n "$WEB_SECRETS" ]]; then
-          echo "Found secrets for Web App: $WEB_SECRETS"
-          echo "WEB_HAS_SECRETS=true" >> $GITHUB_ENV
-        else
-          echo "No secrets found for Web App"
-          echo "WEB_HAS_SECRETS=false" >> $GITHUB_ENV
-        fi
+        echo "Waiting for deployments to complete..."
+        sleep 30
         
-        # Get secrets for scraper app
-        echo "Getting secrets for Scraper App..."
-        SCRAPER_SECRETS=$(az containerapp secret list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query "[].name" -o tsv || echo "")
-        if [[ -n "$SCRAPER_SECRETS" ]]; then
-          echo "Found secrets for Scraper App: $SCRAPER_SECRETS"
-          echo "SCRAPER_HAS_SECRETS=true" >> $GITHUB_ENV
-        else
-          echo "No secrets found for Scraper App"
-          echo "SCRAPER_HAS_SECRETS=false" >> $GITHUB_ENV
-        fi
-        
-        # Get secrets for discord app
-        echo "Getting secrets for Discord App..."
-        DISCORD_SECRETS=$(az containerapp secret list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query "[].name" -o tsv || echo "")
-        if [[ -n "$DISCORD_SECRETS" ]]; then
-          echo "Found secrets for Discord App: $DISCORD_SECRETS"
-          echo "DISCORD_HAS_SECRETS=true" >> $GITHUB_ENV
-        else
-          echo "No secrets found for Discord App"
-          echo "DISCORD_HAS_SECRETS=false" >> $GITHUB_ENV
-        fi
-
-    - name: Deploy updated images to Production Container Apps
-      run: |
-        # Deploy Web App - using a different approach to preserve secrets
-        echo "Deploying Web App..."
-        # Get current secrets and environment configuration
-        CURRENT_CONFIG=$(az containerapp show --name $WEB_APP --resource-group $RESOURCE_GROUP)
-        
-        # Extract the environment variables with secret references
-        # We'll pass the entire configuration to ensure secrets are preserved
-        az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
-          --image $ACR_NAME/backend-web:latest \
-          --revision-suffix ${{ env.REVISION_SUFFIX }} \
-          --set-env-vars "REVISION_MODE=single"
-    
-        # Deploy Scraper App
-        echo "Deploying Scraper App..."
-        az containerapp update --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
-          --image $ACR_NAME/backend-scraper:latest \
-          --revision-suffix ${{ env.REVISION_SUFFIX }} \
-          --set-env-vars "REVISION_MODE=single"
-    
-        # Deploy Discord App
-        echo "Deploying Discord App..."
-        az containerapp update --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
-          --image $ACR_NAME/backend-discord:latest \
-          --revision-suffix ${{ env.REVISION_SUFFIX }} \
-          --set-env-vars "REVISION_MODE=single"
-    
-    - name: Wait for revisions to be created
-      run: |
-        # Wait for revisions to be created (up to 60 seconds)
-        for i in {1..12}; do
-          echo "Checking for revisions (attempt $i/12)..."
-          
-          # Get revision names
-          WEB_REVISION=$(az containerapp revision list --name $WEB_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, '${{ env.REVISION_SUFFIX }}')].name" -o tsv)
-          SCRAPER_REVISION=$(az containerapp revision list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, '${{ env.REVISION_SUFFIX }}')].name" -o tsv)
-          DISCORD_REVISION=$(az containerapp revision list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query "[?contains(name, '${{ env.REVISION_SUFFIX }}')].name" -o tsv)
-          
-          # If all revisions exist, break the loop
-          if [[ -n "$WEB_REVISION" && -n "$SCRAPER_REVISION" && -n "$DISCORD_REVISION" ]]; then
-            echo "All revisions found!"
-            echo "WEB_REVISION=$WEB_REVISION" >> $GITHUB_ENV
-            echo "SCRAPER_REVISION=$SCRAPER_REVISION" >> $GITHUB_ENV
-            echo "DISCORD_REVISION=$DISCORD_REVISION" >> $GITHUB_ENV
-            break
-          fi
-          
-          # Otherwise wait 5 seconds and try again
-          sleep 5
-        done
-        
-        # If any revision is still missing, use default values
-        if [[ -z "$WEB_REVISION" ]]; then
-          echo "WEB_REVISION=revision-not-found" >> $GITHUB_ENV
-        fi
-        if [[ -z "$SCRAPER_REVISION" ]]; then
-          echo "SCRAPER_REVISION=revision-not-found" >> $GITHUB_ENV
-        fi
-        if [[ -z "$DISCORD_REVISION" ]]; then
-          echo "DISCORD_REVISION=revision-not-found" >> $GITHUB_ENV
-        fi
-    
-    - name: Set traffic to new revisions
-      run: |
-        # Only set traffic if the revision exists
-        if [[ "$WEB_REVISION" != "revision-not-found" ]]; then
-          echo "Setting 100% traffic to $WEB_REVISION"
-          az containerapp ingress traffic set --name $WEB_APP --resource-group $RESOURCE_GROUP \
-            --revision-weight $WEB_REVISION=100
-        else
-          echo "Web revision not found, skipping traffic routing"
-        fi
-        
-        if [[ "$SCRAPER_REVISION" != "revision-not-found" ]]; then
-          echo "Setting 100% traffic to $SCRAPER_REVISION"
-          az containerapp ingress traffic set --name $SCRAPER_APP --resource-group $RESOURCE_GROUP \
-            --revision-weight $SCRAPER_REVISION=100
-        else
-          echo "Scraper revision not found, skipping traffic routing"
-        fi
-        
-        if [[ "$DISCORD_REVISION" != "revision-not-found" ]]; then
-          echo "Setting 100% traffic to $DISCORD_REVISION"
-          az containerapp ingress traffic set --name $DISCORD_APP --resource-group $RESOURCE_GROUP \
-            --revision-weight $DISCORD_REVISION=100
-        else
-          echo "Discord revision not found, skipping traffic routing"
-        fi
+        # Check status of all apps
+        echo "Checking deployment status..."
+        az containerapp show --name ${{ env.WEB_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv
+        az containerapp show --name ${{ env.SCRAPER_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv
+        az containerapp show --name ${{ env.DISCORD_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.latestRevisionName" -o tsv
 
     - name: Create deployment summary
-      id: summary
       run: |
-        echo "## Production Deployment Complete! :rocket:" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Short SHA**: ${{ env.SHORT_SHA }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Revision Suffix**: ${{ env.REVISION_SUFFIX }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Web App Revision**: $WEB_REVISION" >> $GITHUB_STEP_SUMMARY
-        echo "- **Scraper App Revision**: $SCRAPER_REVISION" >> $GITHUB_STEP_SUMMARY
-        echo "- **Discord App Revision**: $DISCORD_REVISION" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp**: $(date)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-
-        # Get FQDN only if revision was found
-        if [[ "$WEB_REVISION" != "revision-not-found" ]]; then
-          WEB_URL=$(az containerapp revision show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $WEB_REVISION --query "properties.fqdn" -o tsv || echo "Not available")
-          echo "### Production URLs" >> $GITHUB_STEP_SUMMARY
+        echo "### Updated Apps:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Web App (web2)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Scraper App" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Discord App" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Get app URLs
+        WEB_URL=$(az containerapp show --name ${{ env.WEB_APP }} --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" -o tsv 2>/dev/null || echo "Not available")
+        if [[ "$WEB_URL" != "Not available" ]]; then
+          echo "### 🌐 App URLs:" >> $GITHUB_STEP_SUMMARY
           echo "- **Web App**: https://$WEB_URL" >> $GITHUB_STEP_SUMMARY
-        fi
-
-    - name: Create deployment tag
-      run: |
-        git tag production-${{ env.SHORT_SHA }}
-        git push origin production-${{ env.SHORT_SHA }} || echo "Warning: Could not push tag (missing permissions?)"
-
-    - name: Debug secrets and environment variables
-      if: always()
-      run: |
-        echo "### Current Secrets Configuration" >> $GITHUB_STEP_SUMMARY
-        
-        # Check Web App secrets
-        echo "#### Web App Secrets" >> $GITHUB_STEP_SUMMARY
-        az containerapp secret list --name $WEB_APP --resource-group $RESOURCE_GROUP --query "[].name" -o tsv >> $GITHUB_STEP_SUMMARY || echo "Unable to list Web App secrets" >> $GITHUB_STEP_SUMMARY
-        
-        # Check Scraper App secrets
-        echo "#### Scraper App Secrets" >> $GITHUB_STEP_SUMMARY
-        az containerapp secret list --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --query "[].name" -o tsv >> $GITHUB_STEP_SUMMARY || echo "Unable to list Scraper App secrets" >> $GITHUB_STEP_SUMMARY
-        
-        # Check Discord App secrets
-        echo "#### Discord App Secrets" >> $GITHUB_STEP_SUMMARY
-        az containerapp secret list --name $DISCORD_APP --resource-group $RESOURCE_GROUP --query "[].name" -o tsv >> $GITHUB_STEP_SUMMARY || echo "Unable to list Discord App secrets" >> $GITHUB_STEP_SUMMARY
-        
-        # Check environment variables referencing secrets
-        if [[ "$WEB_REVISION" != "revision-not-found" ]]; then
-          echo "#### Web App Environment Variables (Secret References)" >> $GITHUB_STEP_SUMMARY
-          az containerapp revision show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $WEB_REVISION --query "properties.template.containers[0].env[?secretRef]" -o json >> $GITHUB_STEP_SUMMARY || echo "No secret references found" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "$SCRAPER_REVISION" != "revision-not-found" ]]; then
-          echo "#### Scraper App Environment Variables (Secret References)" >> $GITHUB_STEP_SUMMARY
-          az containerapp revision show --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --revision $SCRAPER_REVISION --query "properties.template.containers[0].env[?secretRef]" -o json >> $GITHUB_STEP_SUMMARY || echo "No secret references found" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        if [[ "$DISCORD_REVISION" != "revision-not-found" ]]; then
-          echo "#### Discord App Environment Variables (Secret References)" >> $GITHUB_STEP_SUMMARY
-          az containerapp revision show --name $DISCORD_APP --resource-group $RESOURCE_GROUP --revision $DISCORD_REVISION --query "properties.template.containers[0].env[?secretRef]" -o json >> $GITHUB_STEP_SUMMARY || echo "No secret references found" >> $GITHUB_STEP_SUMMARY
-        fi
-
-    - name: Check container logs
-      if: always()
-      run: |
-        echo "### Web App Logs" >> $GITHUB_STEP_SUMMARY
-        if [[ "$WEB_REVISION" != "revision-not-found" ]]; then
-          az containerapp logs show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision $WEB_REVISION --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available for $WEB_REVISION" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Web revision not found, checking logs for working revision instead" >> $GITHUB_STEP_SUMMARY
-          az containerapp logs show --name $WEB_APP --resource-group $RESOURCE_GROUP --revision web--0000001 --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available" >> $GITHUB_STEP_SUMMARY
-        fi
-      
-        echo "### Scraper App Logs" >> $GITHUB_STEP_SUMMARY
-        if [[ "$SCRAPER_REVISION" != "revision-not-found" ]]; then
-          az containerapp logs show --name $SCRAPER_APP --resource-group $RESOURCE_GROUP --revision $SCRAPER_REVISION --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available for $SCRAPER_REVISION" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Scraper revision not found, cannot show logs" >> $GITHUB_STEP_SUMMARY
-        fi
-      
-        echo "### Discord App Logs" >> $GITHUB_STEP_SUMMARY
-        if [[ "$DISCORD_REVISION" != "revision-not-found" ]]; then
-          az containerapp logs show --name $DISCORD_APP --resource-group $RESOURCE_GROUP --revision $DISCORD_REVISION --tail 50 >> $GITHUB_STEP_SUMMARY || echo "No logs available for $DISCORD_REVISION" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "Discord revision not found, cannot show logs" >> $GITHUB_STEP_SUMMARY
         fi
