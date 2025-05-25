@@ -600,9 +600,15 @@ async def hybrid_search(
         
         # Manually paginate results
         total_matches = len(matches)
+        cdn_prefix = os.getenv("AZURE_CDN", "")
         start = (page - 1) * limit
         end = start + limit
         paginated_matches = matches[start:end]
+        
+        for club in paginated_matches:
+            image_path = club.get("profile_image_path")
+            if image_path:
+                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
         
         return {
             "count": total_matches,

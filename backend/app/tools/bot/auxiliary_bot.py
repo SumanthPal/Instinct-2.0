@@ -278,7 +278,67 @@ class AutomationToggleView(View):
             content="ugh fineee 🙄 automation is now **OFF**... guess it's all you now 💔",
             view=AutomationToggleView(False)
         )
-
+@tasks.loop(hours=2)  # Run every 2 hours by default
+async def auto_populate_queue():
+    """Automatically populate the scraper queue when needed."""
+    # Skip if automation is disabled
+    if not automation_state["enabled"]:
+        return
+    
+    # Check if enough time has passed since last population
+    current_time = time.time()
+    min_interval = automation_state["min_population_interval_hours"] * 3600
+    
+    if current_time - automation_state["last_population_time"] < min_interval:
+        logger.debug("Skipping auto-population - too soon since last run")
+        return
+    
+    try:
+        # Check current queue size
+        queue_stats = get_queue_status()
+        current_queue_size = queue_stats.get("scraper", {}).get("queue_count", 0)
+        
+        # Only populate if queue is below threshold
+        if current_queue_size >= automation_state["max_queue_size"]:
+            logger.debug(f"Queue size ({current_queue_size}) is at or above max ({automation_state['max_queue_size']})")
+            return
+        
+        # Calculate how many clubs to add
+        clubs_to_add = min(
+            automation_state["clubs_per_population"],
+            automation_state["max_queue_size"] - current_queue_size
+        )
+        
+        # Trigger population
+        publish_notification(
+            "Automated queue population",
+            {
+                "type": "command",
+                "command": "populate_queue",
+                "limit": clubs_to_add,
+                "source": "aux_bot_auto",
+                "trigger": "scheduled",
+                "current_queue_size": current_queue_size
+            }
+        )
+        
+        # Update timestamp
+        automation_state["last_population_time"] = current_time
+        
+        logger.info(f"Auto-triggered queue population: adding {clubs_to_add} clubs")
+        
+        # Optionally notify in Discord channel
+        channel = aux_bot.get_channel(AUX_BOT_CHANNEL_ID)
+        if channel and clubs_to_add > 0:
+            await channel.send(f"🤖 automatically added {clubs_to_add} clubs to queue! current size: {current_queue_size + clubs_to_add} ✨")
+            
+    except Exception as e:
+        logger.error(f"Error in auto_populate_queue: {e}")
+        
+        # Notify about error in Discord
+        channel = aux_bot.get_channel(AUX_BOT_CHANNEL_ID)
+        if channel:
+            await channel.send(f"😭 auto-population failed: {str(e)}")
 # Bot events
 @aux_bot.event
 async def on_ready():
@@ -286,7 +346,7 @@ async def on_ready():
     
     # Start background tasks
     check_pending_clubs.start()
-    #auto_populate_queue.start()
+    auto_populate_queue.start()
     auto_requeue_stalled.start()
     auto_cleanup.start()
     
@@ -294,14 +354,37 @@ async def on_ready():
     activity = discord.Game(name="managing queues ✨ | instinct-2.0")
     await aux_bot.change_presence(status=discord.Status.online, activity=activity)
     
+    # Initial queue population if enabled and queue is empty
+    if automation_state["enabled"]:
+        try:
+            queue_stats = get_queue_status()
+            current_queue_size = queue_stats.get("scraper", {}).get("queue_count", 0)
+            
+            if current_queue_size == 0:
+                # Populate queue on startup
+                publish_notification(
+                    "Initial queue population on bot startup", 
+                    {
+                        "type": "command",
+                        "command": "populate_queue",
+                        "limit": automation_state["clubs_per_population"],
+                        "source": "aux_bot_startup",
+                        "trigger": "startup"
+                    }
+                )
+                automation_state["last_population_time"] = time.time()
+                logger.info("Triggered initial queue population on startup")
+        except Exception as e:
+            logger.error(f"Error during startup population: {e}")
+    
     # Send startup notification
     channel = aux_bot.get_channel(AUX_BOT_CHANNEL_ID)
     if channel:
         await channel.send(
             f"heyyyyy im awakeee 😴✨ it's {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} rn btw!\n" +
-            f"right now i'm feeling **{'ON 🔥' if automation_state['enabled'] else 'OFF 💤'}**"
+            f"right now i'm feeling **{'ON 🔥' if automation_state['enabled'] else 'OFF 💤'}**\n" +
+            f"{'🤖 i also just populated the queue to get started!' if automation_state['enabled'] else ''}"
         )
-
 # Background tasks
 @tasks.loop(minutes=5)
 async def check_pending_clubs():
@@ -743,6 +826,26 @@ async def trigger_cmd(ctx, action: str, *args):
         await ctx.send(f"nooo something broke 😭💔 here's what happened: {str(e)}")
 
 
+def update_task_intervals():
+    """Update task intervals based on automation settings."""
+    try:
+        # Update auto-population interval
+        if hasattr(auto_populate_queue, 'change_interval'):
+            auto_populate_queue.change_interval(hours=automation_state["populate_interval_hours"])
+        
+        # Update other task intervals if needed
+        if hasattr(check_pending_clubs, 'change_interval'):
+            check_pending_clubs.change_interval(minutes=automation_state["check_pending_interval_minutes"])
+            
+        if hasattr(auto_requeue_stalled, 'change_interval'):
+            auto_requeue_stalled.change_interval(minutes=automation_state["requeue_stalled_interval_minutes"])
+            
+        logger.info("Updated task intervals based on automation settings")
+        
+    except Exception as e:
+        logger.error(f"Error updating task intervals: {e}")
+
+
 @aux_bot.command(name="automation")
 @is_admin()
 async def automation_cmd(ctx, action: str = "status", *args):
@@ -837,6 +940,8 @@ async def automation_cmd(ctx, action: str = "status", *args):
                 return
                 
             await ctx.send(f"yayyy i set `{param}` to `{value}` 🎯✨ im so smart omg")
+            update_task_intervals()
+
         
         else:
             await ctx.send("omg nooo 😭 valid actions are: `status`, `enable`, `disable`, `set` ok?? ✨")
@@ -1257,95 +1362,64 @@ async def club_insights_cmd(ctx, instagram_handle: str):
         logger.error(f"Error in clubinsights command: {e}")
         await ctx.send(f"omg i'm so sorry but I couldn't fetch insights rn 😭 ({str(e)})")
 
-@aux_bot.command(name="queuestats")
-async def queue_stats_cmd(ctx):
-    """Show comprehensive queue statistics."""
+@aux_bot.command(name="debug")
+@is_admin()
+async def debug_cmd(ctx):
+    """Debug automation and task status."""
     try:
-        # Get stats for all queue types
-        scraper_stats = get_queue_status().get("scraper", {})
-        event_stats = get_queue_status().get("event", {})
-        
-        # Calculate success/fail ratios
-        try:
-            scraper_completed = redis_conn.hlen(QUEUE_KEYS["scraper"]["completed"])
-            scraper_failed = scraper_stats.get("failed_count", 0)
-            scraper_total = scraper_completed + scraper_failed
-            scraper_success_rate = round((scraper_completed / scraper_total) * 100, 2) if scraper_total > 0 else 0
-            
-            event_completed = redis_conn.hlen(QUEUE_KEYS["event"]["completed"])
-            event_failed = event_stats.get("failed_count", 0)
-            event_total = event_completed + event_failed
-            event_success_rate = round((event_completed / event_total) * 100, 2) if event_total > 0 else 0
-        except Exception as e:
-            logger.error(f"Error calculating success rates: {e}")
-            scraper_success_rate = event_success_rate = "N/A"
-            scraper_completed = event_completed = 0
-        
-        # Create embed
         embed = discord.Embed(
-            title="📊 Queue Statistics",
-            description="Detailed metrics about all queues",
-            color=discord.Color.blue(),
+            title="🔧 Debug Information",
+            color=discord.Color.orange(),
             timestamp=datetime.datetime.now()
         )
         
-        # Scraper stats
+        # Task status
+        tasks_status = []
+        for task_name, task in [
+            ("check_pending_clubs", check_pending_clubs),
+            ("auto_populate_queue", auto_populate_queue),
+            ("auto_requeue_stalled", auto_requeue_stalled),
+            ("auto_cleanup", auto_cleanup)
+        ]:
+            status = "✅ Running" if task.is_running() else "❌ Stopped"
+            next_run = f"Next: {task.next_iteration}" if hasattr(task, 'next_iteration') else "N/A"
+            tasks_status.append(f"**{task_name}**: {status} | {next_run}")
+        
         embed.add_field(
-            name="🔍 Scraper Queue",
-            value=(
-                f"Waiting: **{scraper_stats.get('queue_count', 0)}**\n"
-                f"Processing: **{scraper_stats.get('processing_count', 0)}**\n"
-                f"Failed: **{scraper_stats.get('failed_count', 0)}**\n"
-                f"Completed: **{scraper_completed}**\n"
-                f"Success Rate: **{scraper_success_rate}%**"
-            ),
-            inline=True
+            name="📊 Background Tasks",
+            value="\n".join(tasks_status),
+            inline=False
         )
         
-        # Event stats
+        # Automation state
         embed.add_field(
-            name="📅 Event Queue",
+            name="⚙️ Automation Config",
             value=(
-                f"Waiting: **{event_stats.get('queue_count', 0)}**\n"
-                f"Processing: **{event_stats.get('processing_count', 0)}**\n"
-                f"Failed: **{event_stats.get('failed_count', 0)}**\n"
-                f"Completed: **{event_completed}**\n"
-                f"Success Rate: **{event_success_rate}%**"
-            ),
-            inline=True
-        )
-        
-        # Rate limiting info
-        embed.add_field(
-            name="⏱️ Rate Limiting",
-            value=(
-                f"Last Hour Requests: **{scraper_stats.get('rate_limited_last_hour', 'N/A')}**\n"
-                f"Limit: **100/hour**"
+                f"Enabled: **{automation_state['enabled']}**\n"
+                f"Last Population: **{datetime.datetime.fromtimestamp(automation_state['last_population_time']).strftime('%Y-%m-%d %H:%M:%S') if automation_state['last_population_time'] > 0 else 'Never'}**\n"
+                f"Population Interval: **{automation_state['populate_interval_hours']} hours**\n"
+                f"Max Queue Size: **{automation_state['max_queue_size']}**\n"
+                f"Clubs Per Population: **{automation_state['clubs_per_population']}**"
             ),
             inline=False
         )
         
-        # Get stalled jobs
-        try:
-            stalled_scraper = len(redis_conn.hgetall(QUEUE_KEYS["scraper"]["processing"]))
-            stalled_event = len(redis_conn.hgetall(QUEUE_KEYS["event"]["processing"]))
-            
-            embed.add_field(
-                name="⚠️ Potentially Stalled Jobs",
-                value=(
-                    f"Scraper: **{stalled_scraper}**\n"
-                    f"Event: **{stalled_event}**"
-                ),
-                inline=False
-            )
-        except Exception as e:
-            logger.error(f"Error getting stalled jobs: {e}")
+        # Queue status
+        queue_stats = get_queue_status()
+        embed.add_field(
+            name="📋 Current Queue Status",
+            value=(
+                f"Scraper Queue: **{queue_stats.get('scraper', {}).get('queue_count', 0)}**\n"
+                f"Event Queue: **{queue_stats.get('event', {}).get('queue_count', 0)}**"
+            ),
+            inline=False
+        )
         
         await ctx.send(embed=embed)
         
     except Exception as e:
-        logger.error(f"Error in queuestats command: {e}")
-        await ctx.send(f"couldn't get queue stats 😭 here's why: {str(e)}") 
+        logger.error(f"Error in debug command: {e}")
+        await ctx.send(f"debug failed: {str(e)}")
 # Run the bot
 if __name__ == "__main__":
     aux_bot.run(AUX_BOT_TOKEN)
