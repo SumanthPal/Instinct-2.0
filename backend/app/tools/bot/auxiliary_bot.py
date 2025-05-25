@@ -950,157 +950,6 @@ async def automation_cmd(ctx, action: str = "status", *args):
         logger.error(f"Error in automation command: {e}")
         await ctx.send(f"nooo something broke 😭💔 here's what happened: {str(e)}")
 
-@aux_bot.command(name="helpp")
-async def help_cmd(ctx):
-    """Show help information."""
-    embed = discord.Embed(
-        title="✨ look at all the crazy things i can dooo ✨",
-        description="im basically the best thing ever ok?? 💖😎",
-        color=discord.Color.purple()
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}checkpending",
-        value="i can check pending clubs and post them all cuteee 🎀✨",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}trigger populate [limit]",
-        value="populate queue like a QUEEN 👑 (limit optional)",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}trigger flush [scraper|event|log]",
-        value="flush a queue bc who needs old junk anyway 🤭🗑️",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}trigger cleanup",
-        value="squeaky clean db timeeee ✨🧹",
-        inline=False
-    )
-    
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}trigger status",
-        value="check how everything's going rn 📊✨",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}automation status",
-        value="i'll tell u if im working or just vibin 🛌🎶",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}automation enable/disable",
-        value="make me WORK 😈 or make me NAP 💤",
-        inline=False
-    )
-
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}automation set <param> <value>",
-        value="set my moodswings 👉 (populate_hours, check_pending, requeue_stalled, max_queue, cleanup_days)",
-        inline=False
-    )
-    
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}queueactive [scraper|event]",
-        value="👀 see which clubs are waiting in line rn (paginated bc she's popular 🎟️✨)",
-        inline=False
-    )
-    
-    embed.add_field(
-        name=f"{AUX_BOT_PREFIX}clubinsights <instagram_handle>",
-        value="✨ see all the juicy details about a specific club 📊💖",
-        inline=False
-    )
-    
-    await ctx.send(embed=embed)
-
-@aux_bot.command(name="queueactive")
-async def queue_active_cmd(ctx, queue_type: str = "scraper", limit: int = 10):
-    """Show active queue jobs (no pagination)."""
-    try:
-        if queue_type not in ["scraper", "event"]:
-            await ctx.send("only `scraper` or `event` queue is allowed!! 🛠️✨")
-            return
-        
-        queue_key = QUEUE_KEYS[queue_type]["queue"]
-        jobs = redis_conn.zrange(queue_key, 0, -1)
-
-        if not jobs:
-            await ctx.send(f"no jobs waiting in {queue_type} queue rn 💨🎉")
-            return
-
-        # Parse jobs
-        parsed_jobs = []
-        for job in jobs:
-            try:
-                # Handle byte strings
-                if isinstance(job, bytes):
-                    job = job.decode('utf-8')
-                    
-                job_data = json.loads(job)
-                instagram_handle = job_data.get('instagram_handle', 'unknown')
-                parsed_jobs.append(instagram_handle)
-            except Exception:
-                parsed_jobs.append("(invalid job)")
-
-        # Limit results
-        parsed_jobs = parsed_jobs[:limit]
-
-        # Make the list for display
-        job_list_text = "\n".join(
-            [f"`{i+1}.` @{handle}" for i, handle in enumerate(parsed_jobs)]
-        )
-
-        embed = discord.Embed(
-            title=f"📚 {queue_type.capitalize()} Queue (Top {limit})",
-            description=job_list_text,
-            color=0xF8C8D8
-        )
-        embed.set_footer(text=f"Total in Queue: {len(jobs)}")
-
-        await ctx.send(embed=embed)
-
-    except Exception as e:
-        logger.error(f"queueactive failed: {e}")
-        await ctx.send("something broke 🥲")
-
-@aux_bot.command(name="deletequeue")
-@is_admin()
-async def delete_queue_cmd(ctx, queue_type: str, index: int):
-    """Delete a club from the queue by its index number."""
-    try:
-        if queue_type not in ["scraper", "event"]:
-            await ctx.send("only `scraper` or `event` queue allowed! 🛠️")
-            return
-
-        queue_key = QUEUE_KEYS[queue_type]["queue"]
-        jobs = redis_conn.zrange(queue_key, 0, -1)
-
-        if not jobs:
-            await ctx.send(f"no jobs in {queue_type} queue rn!")
-            return
-
-        if index < 1 or index > len(jobs):
-            await ctx.send(f"invalid index! choose 1-{len(jobs)} ❌")
-            return
-
-        job_to_delete = jobs[index - 1]
-
-        redis_conn.zrem(queue_key, job_to_delete)
-
-        await ctx.send(f"✅ deleted job #{index} from {queue_type} queue!")
-
-    except Exception as e:
-        logger.error(f"deletequeue failed: {e}")
-        await ctx.send("something broke 🥲")
-
 @aux_bot.command(name="clubinsights")
 async def club_insights_cmd(ctx, instagram_handle: str):
     """Show detailed insights about a specific club ✨📊"""
@@ -1421,5 +1270,1071 @@ async def debug_cmd(ctx):
         logger.error(f"Error in debug command: {e}")
         await ctx.send(f"debug failed: {str(e)}")
 # Run the bot
+import discord
+from discord.ext import commands
+from discord import app_commands
+import json
+import datetime
+from typing import Optional, List
+import re
+
+# Add these Modal classes for forms
+class AddEventModal(discord.ui.Modal, title='Add New Event'):
+    def __init__(self, club_id: str, club_name: str):
+        super().__init__()
+        self.club_id = club_id
+        self.club_name = club_name
+
+    event_name = discord.ui.TextInput(
+        label='Event Name',
+        placeholder='Enter the event name...',
+        required=True,
+        max_length=100
+    )
+    
+    event_date = discord.ui.TextInput(
+        label='Event Date & Time',
+        placeholder='YYYY-MM-DD HH:MM (e.g., 2024-03-15 18:30)',
+        required=True,
+        max_length=50
+    )
+    
+    event_location = discord.ui.TextInput(
+        label='Location',
+        placeholder='Enter event location...',
+        required=False,
+        max_length=200
+    )
+    
+    event_description = discord.ui.TextInput(
+        label='Event Description',
+        placeholder='Tell us about this event...',
+        style=discord.TextStyle.paragraph,
+        required=False,
+        max_length=500
+    )
+    
+    event_link = discord.ui.TextInput(
+        label='Event Link (Optional)',
+        placeholder='https://...',
+        required=False,
+        max_length=300
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Parse the date
+            date_str = self.event_date.value.strip()
+            try:
+                # Try to parse the date
+                event_datetime = datetime.datetime.strptime(date_str, '%Y-%m-%d %H:%M')
+            except ValueError:
+                await interaction.response.send_message(
+                    "❌ Invalid date format! Please use YYYY-MM-DD HH:MM (e.g., 2024-03-15 18:30)",
+                    ephemeral=True
+                )
+                return
+            
+            # Insert event into database
+            event_data = {
+                'club_id': self.club_id,
+                'name': self.event_name.value.strip(),
+                'date': event_datetime.isoformat(),
+                'location': self.event_location.value.strip() if self.event_location.value else None,
+                'details': self.event_description.value.strip() if self.event_description.value else None,
+                'link': self.event_link.value.strip() if self.event_link.value else None,
+                'created_at': datetime.datetime.now().isoformat()
+            }
+            
+            # Insert into database
+            result = db.supabase.table('events').insert(event_data).execute()
+            
+            if result.data:
+                # Create success embed
+                embed = discord.Embed(
+                    title="✅ Event Added Successfully!",
+                    description=f"Event **{self.event_name.value}** has been added to **{self.club_name}**",
+                    color=0x57F287,
+                    timestamp=datetime.datetime.now()
+                )
+                
+                embed.add_field(
+                    name="📅 Event Details",
+                    value=(
+                        f"**Date:** {event_datetime.strftime('%B %d, %Y at %I:%M %p')}\n"
+                        f"**Location:** {self.event_location.value or 'Not specified'}\n"
+                        f"**Link:** {self.event_link.value or 'None'}"
+                    ),
+                    inline=False
+                )
+                
+                if self.event_description.value:
+                    embed.add_field(
+                        name="📝 Description",
+                        value=self.event_description.value[:500],
+                        inline=False
+                    )
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                
+                # Log the action
+                logger.info(f"Event '{self.event_name.value}' added to club {self.club_name} by {interaction.user}")
+                
+            else:
+                await interaction.response.send_message(
+                    "❌ Failed to add event to database. Please try again later.",
+                    ephemeral=True
+                )
+                
+        except Exception as e:
+            logger.error(f"Error adding event: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred while adding the event: {str(e)}",
+                ephemeral=True
+            )
+
+class EditClubModal(discord.ui.Modal, title='Edit Club Information'):
+    def __init__(self, club_data: dict):
+        super().__init__()
+        self.club_data = club_data
+        
+        # Pre-fill with current values
+        self.club_name.default = club_data.get('name', '')
+        self.club_description.default = club_data.get('description', '')
+        # Format existing links for editing
+        existing_links = club_data.get('club_links', [])
+        if existing_links:
+            links_text = '\n'.join([f"{link.get('text', '')}: {link.get('url', '')}" for link in existing_links])
+            self.club_links.default = links_text
+
+    club_name = discord.ui.TextInput(
+        label='Club Name',
+        placeholder='Enter the club name...',
+        required=True,
+        max_length=100
+    )
+    
+    club_description = discord.ui.TextInput(
+        label='Club Description',
+        placeholder='Tell us about your club...',
+        style=discord.TextStyle.paragraph,
+        required=False,
+        max_length=500
+    )
+    
+    club_links = discord.ui.TextInput(
+        label='Club Links (Optional)',
+        placeholder='Format: Label: URL (one per line)\nWebsite: https://example.com\nDiscord: https://discord.gg/...',
+        style=discord.TextStyle.paragraph,
+        required=False,
+        max_length=800
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Parse links
+            links = []
+            if self.club_links.value:
+                for line in self.club_links.value.strip().split('\n'):
+                    if ':' in line:
+                        label, url = line.split(':', 1)
+                        label = label.strip()
+                        url = url.strip()
+                        if label and url:
+                            links.append({'text': label, 'url': url})
+            
+            # Update club data
+            update_data = {
+                'name': self.club_name.value.strip(),
+                'description': self.club_description.value.strip() if self.club_description.value else None,
+                'club_links': links,
+                'updated_at': datetime.datetime.now().isoformat()
+            }
+            
+            # Update in database
+            result = db.supabase.table('clubs').update(update_data).eq('id', self.club_data['id']).execute()
+            
+            if result.data:
+                embed = discord.Embed(
+                    title="✅ Club Updated Successfully!",
+                    description=f"**{self.club_name.value}** has been updated",
+                    color=0x57F287,
+                    timestamp=datetime.datetime.now()
+                )
+                
+                embed.add_field(
+                    name="📝 Updated Information",
+                    value=(
+                        f"**Name:** {self.club_name.value}\n"
+                        f"**Description:** {self.club_description.value[:100] + '...' if len(self.club_description.value or '') > 100 else self.club_description.value or 'None'}\n"
+                        f"**Links:** {len(links)} link(s) added"
+                    ),
+                    inline=False
+                )
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                logger.info(f"Club {self.club_name.value} updated by {interaction.user}")
+            else:
+                await interaction.response.send_message(
+                    "❌ Failed to update club information. Please try again later.",
+                    ephemeral=True
+                )
+                
+        except Exception as e:
+            logger.error(f"Error updating club: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred while updating the club: {str(e)}",
+                ephemeral=True
+            )
+
+class AddPostModal(discord.ui.Modal, title='Add New Post'):
+    def __init__(self, club_id: str, club_name: str):
+        super().__init__()
+        self.club_id = club_id
+        self.club_name = club_name
+
+    post_caption = discord.ui.TextInput(
+        label='Post Caption',
+        placeholder='Enter the post caption...',
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=1000
+    )
+    
+    post_image_url = discord.ui.TextInput(
+        label='Image URL',
+        placeholder='https://... (direct link to image)',
+        required=False,
+        max_length=500
+    )
+    
+    post_url = discord.ui.TextInput(
+        label='Instagram Post URL',
+        placeholder='https://instagram.com/p/...',
+        required=False,
+        max_length=300
+    )
+    
+    post_date = discord.ui.TextInput(
+        label='Post Date (Optional)',
+        placeholder='YYYY-MM-DD (leave empty for today)',
+        required=False,
+        max_length=20
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Parse date
+            post_datetime = datetime.datetime.now()
+            if self.post_date.value:
+                try:
+                    post_datetime = datetime.datetime.strptime(self.post_date.value.strip(), '%Y-%m-%d')
+                except ValueError:
+                    await interaction.response.send_message(
+                        "❌ Invalid date format! Please use YYYY-MM-DD or leave empty for today.",
+                        ephemeral=True
+                    )
+                    return
+            
+            # Generate determinant from post URL or create unique one
+            determinant = f"manual_{int(datetime.datetime.now().timestamp())}"
+            if self.post_url.value:
+                # Extract post ID from Instagram URL
+                url_match = re.search(r'/p/([^/]+)', self.post_url.value)
+                if url_match:
+                    determinant = url_match.group(1)
+            
+            # Insert post into database
+            post_data = {
+                'club_id': self.club_id,
+                'caption': self.post_caption.value.strip(),
+                'image_url': self.post_image_url.value.strip() if self.post_image_url.value else None,
+                'post_url': self.post_url.value.strip() if self.post_url.value else None,
+                'posted': post_datetime.isoformat(),
+                'determinant': determinant,
+                'scrapped': True,  # Mark as manually added
+                'parsed': False,   # Will need AI parsing later
+                'created_at': datetime.date.today().isoformat()
+            }
+            
+            # Insert into database
+            result = db.supabase.table('posts').insert(post_data).execute()
+            
+            if result.data:
+                embed = discord.Embed(
+                    title="✅ Post Added Successfully!",
+                    description=f"Post has been added to **{self.club_name}**",
+                    color=0x57F287,
+                    timestamp=datetime.datetime.now()
+                )
+                
+                embed.add_field(
+                    name="📱 Post Details",
+                    value=(
+                        f"**Caption:** {self.post_caption.value[:100]}{'...' if len(self.post_caption.value) > 100 else ''}\n"
+                        f"**Date:** {post_datetime.strftime('%B %d, %Y')}\n"
+                        f"**Has Image:** {'Yes' if self.post_image_url.value else 'No'}\n"
+                        f"**Instagram Link:** {'Yes' if self.post_url.value else 'No'}"
+                    ),
+                    inline=False
+                )
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+                logger.info(f"Post added to club {self.club_name} by {interaction.user}")
+                
+                # Queue for AI parsing if needed
+                publish_notification(
+                    "Manual post added - queue for AI parsing",
+                    {
+                        "type": "manual_post",
+                        "club_id": self.club_id,
+                        "post_id": result.data[0]['id'],
+                        "added_by": str(interaction.user)
+                    }
+                )
+                
+            else:
+                await interaction.response.send_message(
+                    "❌ Failed to add post to database. Please try again later.",
+                    ephemeral=True
+                )
+                
+        except Exception as e:
+            logger.error(f"Error adding post: {e}")
+            await interaction.response.send_message(
+                f"❌ An error occurred while adding the post: {str(e)}",
+                ephemeral=True
+            )
+
+class CategorySelectionView(discord.ui.View):
+    def __init__(self, club_id: str, current_categories: List[str]):
+        super().__init__(timeout=300)
+        self.club_id = club_id
+        self.current_categories = current_categories
+
+    @discord.ui.select(
+        placeholder="Select categories for this club...",
+        min_values=0,
+        max_values=10,  # Adjust based on your needs
+        options=[
+            discord.SelectOption(label="Academic", description="Study groups, academic clubs", emoji="📚"),
+            discord.SelectOption(label="Arts & Culture", description="Art, music, theater, cultural clubs", emoji="🎨"),
+            discord.SelectOption(label="Business", description="Entrepreneurship, professional development", emoji="💼"),
+            discord.SelectOption(label="Community Service", description="Volunteering, social impact", emoji="🤝"),
+            discord.SelectOption(label="Gaming", description="Video games, board games, esports", emoji="🎮"),
+            discord.SelectOption(label="Health & Fitness", description="Sports, wellness, fitness", emoji="💪"),
+            discord.SelectOption(label="Hobbies", description="Special interests, hobby groups", emoji="🎭"),
+            discord.SelectOption(label="Religious", description="Faith-based organizations", emoji="⛪"),
+            discord.SelectOption(label="Social", description="Social events, parties, meetups", emoji="🎉"),
+            discord.SelectOption(label="Technology", description="Programming, tech, innovation", emoji="💻"),
+            discord.SelectOption(label="Greek Life", description="Fraternities, sororities", emoji="🏛️"),
+            discord.SelectOption(label="Environmental", description="Sustainability, environmental causes", emoji="🌱"),
+        ]
+    )
+    async def select_categories(self, interaction: discord.Interaction, select: discord.ui.Select):
+        try:
+            selected_categories = select.values
+            
+            # First, remove existing categories for this club
+            db.supabase.table('clubs_categories').delete().eq('club_id', self.club_id).execute()
+            
+            # Add new categories
+            for category_name in selected_categories:
+                # Get or create category
+                category_result = db.supabase.table('categories').select('id').eq('name', category_name).execute()
+                
+                if category_result.data:
+                    category_id = category_result.data[0]['id']
+                else:
+                    # Create new category
+                    new_category = db.supabase.table('categories').insert({'name': category_name}).execute()
+                    category_id = new_category.data[0]['id']
+                
+                # Link club to category
+                db.supabase.table('clubs_categories').insert({
+                    'club_id': self.club_id,
+                    'category_id': category_id
+                }).execute()
+            
+            embed = discord.Embed(
+                title="✅ Categories Updated!",
+                description=f"Selected {len(selected_categories)} categories for this club",
+                color=0x57F287
+            )
+            
+            if selected_categories:
+                embed.add_field(
+                    name="📋 Selected Categories",
+                    value="• " + "\n• ".join(selected_categories),
+                    inline=False
+                )
+            
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            
+        except Exception as e:
+            logger.error(f"Error updating categories: {e}")
+            await interaction.response.send_message(
+                f"❌ Failed to update categories: {str(e)}",
+                ephemeral=True
+            )
+
+# Add these commands to your aux_bot
+
+@aux_bot.command(name="clubsearch")
+async def club_search_cmd(ctx, *, search_term: str):
+    """Search for clubs by name or Instagram handle 🔍"""
+    try:
+        # Search clubs using ILIKE for case-insensitive partial matching
+        search_results = db.supabase.table('clubs').select(
+            'id, name, instagram_handle, description, followers'
+        ).or_(
+            f'name.ilike.%{search_term}%,instagram_handle.ilike.%{search_term}%'
+        ).limit(10).execute()
+        
+        if not search_results.data:
+            await ctx.send(f"😔 No clubs found matching '{search_term}' bestie...")
+            return
+        
+        embed = discord.Embed(
+            title=f"🔍 Club Search Results for '{search_term}'",
+            description=f"Found {len(search_results.data)} club(s):",
+            color=0x3498DB,
+            timestamp=datetime.datetime.now()
+        )
+        
+        for club in search_results.data[:5]:  # Show top 5 results
+            description = club.get('description', 'No description available')
+            if len(description) > 100:
+                description = description[:97] + "..."
+            
+            embed.add_field(
+                name=f"@{club['instagram_handle']}",
+                value=(
+                    f"**{club['name']}**\n"
+                    f"{description}\n"
+                    f"👥 {club.get('followers', 0):,} followers"
+                ),
+                inline=False
+            )
+        
+        if len(search_results.data) > 5:
+            embed.set_footer(text=f"...and {len(search_results.data) - 5} more results")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in club search: {e}")
+        await ctx.send(f"😭 Search failed: {str(e)}")
+
+@aux_bot.command(name="addevent")
+async def add_event_cmd(ctx, instagram_handle: str):
+    """Add an event to a specific club using a form 📅"""
+    try:
+        # Find the club
+        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        # Show the modal form
+        modal = AddEventModal(club['id'], club['name'])
+        await ctx.send(f"Opening event form for **{club['name']}** (@{instagram_handle})...")
+        
+        # The modal will be triggered when user interacts
+        # We need a button to trigger it
+        class EventButton(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=300)
+            
+            @discord.ui.button(label="📅 Add Event", style=discord.ButtonStyle.primary, emoji="📅")
+            async def add_event_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                await interaction.response.send_modal(modal)
+        
+        await ctx.send(f"Click the button below to add an event to **{club['name']}**:", view=EventButton())
+        
+    except Exception as e:
+        logger.error(f"Error in addevent command: {e}")
+        await ctx.send(f"😭 Failed to open event form: {str(e)}")
+
+@aux_bot.command(name="addpost")
+async def add_post_cmd(ctx, instagram_handle: str):
+    """Add a post to a specific club using a form 📱"""
+    try:
+        # Find the club
+        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        # Show the modal form
+        modal = AddPostModal(club['id'], club['name'])
+        
+        class PostButton(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=300)
+            
+            @discord.ui.button(label="📱 Add Post", style=discord.ButtonStyle.primary, emoji="📱")
+            async def add_post_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                await interaction.response.send_modal(modal)
+        
+        await ctx.send(f"Click the button below to add a post to **{club['name']}**:", view=PostButton())
+        
+    except Exception as e:
+        logger.error(f"Error in addpost command: {e}")
+        await ctx.send(f"😭 Failed to open post form: {str(e)}")
+
+@aux_bot.command(name="editclub")
+async def edit_club_cmd(ctx, instagram_handle: str):
+    """Edit club information using a form ✏️"""
+    try:
+        # Find the club
+        club_result = db.supabase.table('clubs').select('*').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        # Show the modal form
+        modal = EditClubModal(club)
+        
+        class EditButton(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=300)
+            
+            @discord.ui.button(label="✏️ Edit Club", style=discord.ButtonStyle.secondary, emoji="✏️")
+            async def edit_club_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                await interaction.response.send_modal(modal)
+        
+        await ctx.send(f"Click the button below to edit **{club['name']}**:", view=EditButton())
+        
+    except Exception as e:
+        logger.error(f"Error in editclub command: {e}")
+        await ctx.send(f"😭 Failed to open edit form: {str(e)}")
+
+@aux_bot.command(name="setcategories")
+async def set_categories_cmd(ctx, instagram_handle: str):
+    """Set categories for a club using a dropdown menu 📋"""
+    try:
+        # Find the club
+        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        # Get current categories
+        current_categories_result = db.supabase.table('clubs_categories').select(
+            'categories(name)'
+        ).eq('club_id', club['id']).execute()
+        
+        current_categories = []
+        if current_categories_result.data:
+            current_categories = [cat['categories']['name'] for cat in current_categories_result.data]
+        
+        embed = discord.Embed(
+            title=f"📋 Set Categories for {club['name']}",
+            description="Select categories that best describe this club using the dropdown below.",
+            color=0x9B59B6
+        )
+        
+        if current_categories:
+            embed.add_field(
+                name="📌 Current Categories",
+                value="• " + "\n• ".join(current_categories),
+                inline=False
+            )
+        
+        view = CategorySelectionView(club['id'], current_categories)
+        await ctx.send(embed=embed, view=view)
+        
+    except Exception as e:
+        logger.error(f"Error in setcategories command: {e}")
+        await ctx.send(f"😭 Failed to open category selector: {str(e)}")
+
+@aux_bot.command(name="clubevents")
+async def club_events_cmd(ctx, instagram_handle: str, show_past: bool = False):
+    """Show events for a specific club 📅"""
+    try:
+        # Find the club
+        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        # Get events
+        now = datetime.datetime.now()
+        if show_past:
+            events_query = db.supabase.table('events').select('*').eq('club_id', club['id']).order('date', desc=True).limit(10).execute()
+            title_suffix = "(All Events)"
+        else:
+            events_query = db.supabase.table('events').select('*').eq('club_id', club['id']).gte('date', now.isoformat()).order('date', desc=False).limit(10).execute()
+            title_suffix = "(Upcoming Events)"
+        
+        if not events_query.data:
+            await ctx.send(f"📅 No {'upcoming ' if not show_past else ''}events found for **{club['name']}**")
+            return
+        
+        embed = discord.Embed(
+            title=f"📅 {club['name']} {title_suffix}",
+            description=f"@{instagram_handle}",
+            color=0xE1306C,
+            timestamp=datetime.datetime.now()
+        )
+        
+        for event in events_query.data:
+            event_date = datetime.datetime.fromisoformat(event['date'])
+            
+            # Determine if event is past, today, or future
+            if event_date.date() < now.date():
+                date_emoji = "📅"  # Past
+            elif event_date.date() == now.date():
+                date_emoji = "🔥"  # Today
+            else:
+                date_emoji = "⭐"  # Future
+            
+            event_info = f"{date_emoji} **{event_date.strftime('%B %d, %Y at %I:%M %p')}**\n"
+            
+            if event.get('location'):
+                event_info += f"📍 {event['location']}\n"
+            
+            if event.get('details'):
+                details = event['details']
+                if len(details) > 100:
+                    details = details[:97] + "..."
+                event_info += f"📝 {details}\n"
+            
+            if event.get('link'):
+                event_info += f"🔗 [Event Link]({event['link']})"
+            
+            embed.add_field(
+                name=event['name'],
+                value=event_info,
+                inline=False
+            )
+        
+        embed.set_footer(text=f"Use ?clubevents {instagram_handle} true to see past events")
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in clubevents command: {e}")
+        await ctx.send(f"😭 Failed to get events: {str(e)}")
+
+@aux_bot.command(name="clubposts")
+async def club_posts_cmd(ctx, instagram_handle: str, limit: int = 5):
+    """Show recent posts for a specific club 📱"""
+    try:
+        # Validate limit
+        if limit < 1 or limit > 20:
+            await ctx.send("📱 Limit must be between 1 and 20!")
+            return
+        
+        # Find the club
+        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        # Get recent posts
+        posts_query = db.supabase.table('posts').select('*').eq('club_id', club['id']).order('posted', desc=True).limit(limit).execute()
+        
+        if not posts_query.data:
+            await ctx.send(f"📱 No posts found for **{club['name']}**")
+            return
+        
+        embed = discord.Embed(
+            title=f"📱 Recent Posts from {club['name']}",
+            description=f"@{instagram_handle} • Showing {len(posts_query.data)} recent posts",
+            color=0xE1306C,
+            timestamp=datetime.datetime.now()
+        )
+        
+        for i, post in enumerate(posts_query.data, 1):
+            caption = post.get('caption', 'No caption')
+            if len(caption) > 200:
+                caption = caption[:197] + "..."
+            
+            post_date = "Unknown date"
+            if post.get('posted'):
+                try:
+                    post_datetime = datetime.datetime.fromisoformat(str(post['posted']).replace('Z', '+00:00'))
+                    post_date = post_datetime.strftime('%B %d, %Y')
+                except:
+                    pass
+            
+            post_info = f"📅 {post_date}\n📝 {caption}"
+            
+            if post.get('post_url'):
+                post_info += f"\n🔗 [View on Instagram]({post['post_url']})"
+            
+            embed.add_field(
+                name=f"Post #{i}",
+                value=post_info,
+                inline=False
+            )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in clubposts command: {e}")
+        await ctx.send(f"😭 Failed to get posts: {str(e)}")
+
+# Update the help command to include new commands
+@aux_bot.command(name="helpp")
+async def help_cmd(ctx):
+    """Show help information with new client-facing commands."""
+    embed = discord.Embed(
+        title="✨ look at all the crazy things i can dooo ✨",
+        description="im basically the best thing ever ok?? 💖😎",
+        color=discord.Color.purple()
+    )
+
+    # Club Management Commands
+    embed.add_field(
+        name="🔍 **Club Discovery**",
+        value=(
+            f"`{AUX_BOT_PREFIX}clubsearch <term>` - find clubs by name/handle\n"
+            f"`{AUX_BOT_PREFIX}clubinsights <handle>` - detailed club info & stats"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📝 **Club Content Management**",
+        value=(
+            f"`{AUX_BOT_PREFIX}addevent <handle>` - add event with form 📅\n"
+            f"`{AUX_BOT_PREFIX}addpost <handle>` - add post with form 📱\n"
+            f"`{AUX_BOT_PREFIX}editclub <handle>` - edit club info with form ✏️\n"
+            f"`{AUX_BOT_PREFIX}setcategories <handle>` - set club categories 📋"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📊 **Content Viewing**",
+        value=(
+            f"`{AUX_BOT_PREFIX}clubevents <handle> [past?]` - view club events\n"
+            f"`{AUX_BOT_PREFIX}clubposts <handle> [limit]` - view recent posts"
+        ),
+        inline=False
+    )
+
+    # Queue Management Commands
+    embed.add_field(
+        name="⚙️ **Queue Management**",
+        value=(
+            f"`{AUX_BOT_PREFIX}checkpending` - check pending club approvals\n"
+            f"`{AUX_BOT_PREFIX}queueactive [type] [limit]` - see active queue\n"
+            f"`{AUX_BOT_PREFIX}deletequeue <type> <index>` - remove from queue"
+        ),
+        inline=False
+    )
+
+    # Admin Commands
+    embed.add_field(
+        name="🔧 **Admin Controls**",
+        value=(
+            f"`{AUX_BOT_PREFIX}trigger populate [limit]` - populate queue\n"
+            f"`{AUX_BOT_PREFIX}trigger flush [type]` - flush queue\n"
+            f"`{AUX_BOT_PREFIX}trigger cleanup` - database cleanup\n"
+            f"`{AUX_BOT_PREFIX}trigger status` - system status"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🤖 **Automation**",
+        value=(
+            f"`{AUX_BOT_PREFIX}automation status` - check automation status\n"
+            f"`{AUX_BOT_PREFIX}automation enable/disable` - toggle automation\n"
+            f"`{AUX_BOT_PREFIX}automation set <param> <value>` - configure settings\n"
+            f"`{AUX_BOT_PREFIX}debug` - debug info for admins"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(
+        text="💖 your favorite queue manager bestie • use forms for easy club management! ✨",
+        icon_url="https://img.icons8.com/color/48/000000/love.png"
+    )
+    
+    await ctx.send(embed=embed)
+
+# Additional utility commands for better UX
+
+@aux_bot.command(name="categories")
+async def list_categories_cmd(ctx):
+    """List all available categories 📋"""
+    try:
+        # Get all categories with club count
+        categories_query = db.supabase.table('categories').select(
+            'name, id'
+        ).order('name').execute()
+        
+        if not categories_query.data:
+            await ctx.send("📋 No categories found in the database...")
+            return
+        
+        embed = discord.Embed(
+            title="📋 Available Club Categories",
+            description="Here are all the categories you can assign to clubs:",
+            color=0x9B59B6,
+            timestamp=datetime.datetime.now()
+        )
+        
+        # Get club counts for each category
+        category_info = []
+        for category in categories_query.data:
+            # Count clubs in this category
+            count_query = db.supabase.table('clubs_categories').select(
+                'club_id', count='exact'
+            ).eq('category_id', category['id']).execute()
+            
+            club_count = count_query.count if hasattr(count_query, 'count') else 0
+            category_info.append(f"**{category['name']}** - {club_count} club(s)")
+        
+        # Split into multiple fields if too many categories
+        categories_per_field = 8
+        for i in range(0, len(category_info), categories_per_field):
+            field_categories = category_info[i:i+categories_per_field]
+            field_name = "📂 Categories" if i == 0 else f"📂 Categories (cont.)"
+            
+            embed.add_field(
+                name=field_name,
+                value="\n".join(field_categories),
+                inline=False
+            )
+        
+        embed.set_footer(text="Use ?setcategories <handle> to assign categories to clubs")
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error listing categories: {e}")
+        await ctx.send(f"😭 Failed to get categories: {str(e)}")
+
+@aux_bot.command(name="clubsbycategory")
+async def clubs_by_category_cmd(ctx, *, category_name: str):
+    """List clubs in a specific category 🏷️"""
+    try:
+        # Find the category
+        category_query = db.supabase.table('categories').select('id').eq('name', category_name).execute()
+        
+        if not category_query.data:
+            await ctx.send(f"📋 Category '{category_name}' not found. Use `?categories` to see all available categories.")
+            return
+        
+        category_id = category_query.data[0]['id']
+        
+        # Get clubs in this category
+        clubs_query = db.supabase.table('clubs_categories').select(
+            'clubs(name, instagram_handle, followers, description)'
+        ).eq('category_id', category_id).execute()
+        
+        if not clubs_query.data:
+            await ctx.send(f"🏷️ No clubs found in category '{category_name}' yet...")
+            return
+        
+        embed = discord.Embed(
+            title=f"🏷️ Clubs in '{category_name}' Category",
+            description=f"Found {len(clubs_query.data)} club(s) in this category:",
+            color=0x3498DB,
+            timestamp=datetime.datetime.now()
+        )
+        
+        for club_data in clubs_query.data[:10]:  # Show top 10
+            club = club_data['clubs']
+            description = club.get('description', 'No description available')
+            if len(description) > 80:
+                description = description[:77] + "..."
+            
+            embed.add_field(
+                name=f"@{club['instagram_handle']}",
+                value=(
+                    f"**{club['name']}**\n"
+                    f"{description}\n"
+                    f"👥 {club.get('followers', 0):,} followers"
+                ),
+                inline=False
+            )
+        
+        if len(clubs_query.data) > 10:
+            embed.set_footer(text=f"...and {len(clubs_query.data) - 10} more clubs in this category")
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error getting clubs by category: {e}")
+        await ctx.send(f"😭 Failed to get clubs: {str(e)}")
+
+@aux_bot.command(name="recentactivity")
+async def recent_activity_cmd(ctx, hours: int = 24):
+    """Show recent club activity (new events, posts) 📈"""
+    try:
+        if hours < 1 or hours > 168:  # Max 1 week
+            await ctx.send("⏰ Hours must be between 1 and 168 (1 week)!")
+            return
+        
+        cutoff_time = datetime.datetime.now() - datetime.timedelta(hours=hours)
+        
+        # Get recent events
+        recent_events = db.supabase.table('events').select(
+            'name, date, clubs(name, instagram_handle)'
+        ).gte('created_at', cutoff_time.isoformat()).order('created_at', desc=True).limit(10).execute()
+        
+        # Get recent posts (manually added ones)
+        recent_posts = db.supabase.table('posts').select(
+            'caption, created_at, clubs(name, instagram_handle)'
+        ).gte('created_at', cutoff_time.date().isoformat()).eq('scrapped', True).order('created_at', desc=True).limit(10).execute()
+        
+        embed = discord.Embed(
+            title=f"📈 Recent Activity (Last {hours} hours)",
+            description="Here's what's been happening with clubs recently:",
+            color=0x57F287,
+            timestamp=datetime.datetime.now()
+        )
+        
+        if recent_events.data:
+            events_text = ""
+            for event in recent_events.data[:5]:
+                club_name = event['clubs']['name']
+                events_text += f"• **{event['name']}** by {club_name}\n"
+            
+            embed.add_field(
+                name="📅 New Events Added",
+                value=events_text,
+                inline=False
+            )
+        
+        if recent_posts.data:
+            posts_text = ""
+            for post in recent_posts.data[:5]:
+                club_name = post['clubs']['name']
+                caption = post.get('caption', 'No caption')[:50]
+                posts_text += f"• **{caption}{'...' if len(post.get('caption', '')) > 50 else ''}** by {club_name}\n"
+            
+            embed.add_field(
+                name="📱 New Posts Added",
+                value=posts_text,
+                inline=False
+            )
+        
+        if not recent_events.data and not recent_posts.data:
+            embed.description = f"No new activity in the last {hours} hours... clubs are being quiet! 🤫"
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error getting recent activity: {e}")
+        await ctx.send(f"😭 Failed to get recent activity: {str(e)}")
+
+@aux_bot.command(name="bulkevent")
+@is_admin()
+async def bulk_event_cmd(ctx, instagram_handle: str):
+    """Add multiple events to a club (admin only) 📅✨"""
+    try:
+        # Find the club
+        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        
+        if not club_result.data:
+            await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
+            return
+        
+        club = club_result.data[0]
+        
+        await ctx.send(
+            f"📅 **Bulk Event Mode for {club['name']}**\n\n"
+            "Send events in this format (one per message):\n"
+            "```\n"
+            "Event Name | YYYY-MM-DD HH:MM | Location | Description | Link\n"
+            "```\n"
+            "**Example:**\n"
+            "```\n"
+            "Study Session | 2024-03-15 18:30 | Library Room 101 | Weekly study group | https://example.com\n"
+            "```\n"
+            "Send `done` when finished. Some fields are optional (separate with |)"
+        )
+        
+        # Wait for user input
+        def check(message):
+            return message.author == ctx.author and message.channel == ctx.channel
+        
+        events_added = 0
+        while True:
+            try:
+                message = await aux_bot.wait_for('message', check=check, timeout=300)
+                
+                if message.content.lower() == 'done':
+                    break
+                
+                # Parse the event format
+                parts = [part.strip() for part in message.content.split('|')]
+                
+                if len(parts) < 2:
+                    await ctx.send("❌ Invalid format! Need at least: Event Name | Date")
+                    continue
+                
+                event_name = parts[0]
+                event_date_str = parts[1]
+                event_location = parts[2] if len(parts) > 2 and parts[2] else None
+                event_description = parts[3] if len(parts) > 3 and parts[3] else None
+                event_link = parts[4] if len(parts) > 4 and parts[4] else None
+                
+                # Parse date
+                try:
+                    event_datetime = datetime.datetime.strptime(event_date_str, '%Y-%m-%d %H:%M')
+                except ValueError:
+                    await ctx.send("❌ Invalid date format! Use YYYY-MM-DD HH:MM")
+                    continue
+                
+                # Insert event
+                event_data = {
+                    'club_id': club['id'],
+                    'name': event_name,
+                    'date': event_datetime.isoformat(),
+                    'location': event_location,
+                    'details': event_description,
+                    'link': event_link,
+                    'created_at': datetime.datetime.now().isoformat()
+                }
+                
+                result = db.supabase.table('events').insert(event_data).execute()
+                
+                if result.data:
+                    events_added += 1
+                    await message.add_reaction('✅')
+                else:
+                    await message.add_reaction('❌')
+                
+            except Exception as e:
+                await ctx.send(f"❌ Error processing event: {str(e)}")
+                continue
+        
+        embed = discord.Embed(
+            title="✅ Bulk Event Import Complete!",
+            description=f"Successfully added **{events_added}** events to **{club['name']}**",
+            color=0x57F287,
+            timestamp=datetime.datetime.now()
+        )
+        
+        await ctx.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in bulk event command: {e}")
+        await ctx.send(f"😭 Bulk event import failed: {str(e)}")
 if __name__ == "__main__":
     aux_bot.run(AUX_BOT_TOKEN)

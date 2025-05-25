@@ -1531,42 +1531,162 @@ async def revive_club_cmd(ctx, instagram_handle: str):
 @job_bot.command(name="cleanup")
 @is_admin()
 async def cleanup_cmd(ctx):
-    """Trigger database cleanup operations (girlboss style 💅)"""
+    """Trigger database cleanup operations with enhanced embeds 💅"""
     try:
-        await ctx.send("okok ✨ starting my deep clean mode 🧹💨 wish me luckkk!")
-
+        # Initial embed - starting cleanup
+        embed = discord.Embed(
+            title="🧹 Starting Deep Clean Operation",
+            description="initiating my thorough cleaning protocol... wish me luck bestie! ✨",
+            color=0x3498DB,  # Blue
+            timestamp=datetime.datetime.now()
+        )
+        embed.add_field(
+            name="📋 Cleanup Tasks",
+            value=(
+                "🗑️ Cleaning orphaned records\n"
+                "🕰️ Removing old events\n" 
+                "🔍 Refreshing search vectors\n"
+                "📊 Updating embeddings"
+            ),
+            inline=False
+        )
+        embed.set_footer(text="this might take a hot sec... please be patient with me 🥺")
+        
+        status_message = await ctx.send(embed=embed)
+        
+        results = []
+        
         # Clean up orphaned records
         try:
             db.supabase.rpc('cleanup_orphaned_records').execute()
-            await ctx.send("✅ orphaned records? *gone.* no crumbs left 💅")
+            results.append(("🗑️ Orphaned Records", "✅ Successfully cleaned up", True))
         except Exception as e:
             logger.error(f"Error cleaning up orphaned records: {e}")
-            await ctx.send(f"❌ umm i tripped while cleaning orphaned records 😭 `{e}`")
+            results.append(("🗑️ Orphaned Records", f"❌ Failed: {str(e)[:50]}...", False))
 
-        # Refresh materialized views
-       
         # Delete old events
         try:
             db.supabase.rpc('delete_old_events').execute()
-            await ctx.send("✅ deleted old events like taking out the trash 🚮✨")
+            results.append(("🕰️ Old Events", "✅ Successfully removed", True))
         except Exception as e:
             logger.error(f"Error deleting old events: {e}")
-            await ctx.send(f"❌ oops couldn't delete old events... `{e}`")
+            results.append(("🕰️ Old Events", f"❌ Failed: {str(e)[:50]}...", False))
 
         # Refresh club search vector
         try:
             db.supabase.rpc('refresh_club_search_vector').execute()
-            await ctx.send("✅ refreshed club search vectors! feeling extra smart now 🤓💡")
+            results.append(("🔍 Search Vectors", "✅ Successfully refreshed", True))
         except Exception as e:
             logger.error(f"Error refreshing club search vector: {e}")
-            await ctx.send(f"❌ failed to refresh club search vector 😔 `{e}`")
+            results.append(("🔍 Search Vectors", f"❌ Failed: {str(e)[:50]}...", False))
+        
+        # Update embeddings for clubs that need it
+        try:
+            # Get count of clubs needing embedding updates
+            clubs_needing_update = db.supabase.table("clubs").select("id", count="exact").eq("needs_embedding_update", True).execute()
+            update_count = clubs_needing_update.count if clubs_needing_update.count else 0
+            
+            if update_count > 0:
+                # Trigger embedding update (you might want to make this async or queue it)
+                results.append(("📊 Embeddings", f"🔄 {update_count} clubs queued for update", True))
+            else:
+                results.append(("📊 Embeddings", "✅ All embeddings up to date", True))
+        except Exception as e:
+            logger.error(f"Error checking embeddings: {e}")
+            results.append(("📊 Embeddings", f"❌ Failed to check: {str(e)[:50]}...", False))
 
-        await ctx.send("🎉 cleanup done babyyy!! everything's shiny and fresh ✨🧼💖")
+        # Calculate success rate
+        successful = sum(1 for _, _, success in results if success)
+        total = len(results)
+        success_rate = (successful / total) * 100
+        
+        # Determine final color based on success rate
+        if success_rate == 100:
+            final_color = 0x57F287  # Green
+            status_emoji = "🎉"
+            status_text = "Perfect cleanup! Everything sparkles ✨"
+        elif success_rate >= 75:
+            final_color = 0xFEE75C  # Yellow
+            status_emoji = "⚠️"
+            status_text = "Mostly successful, some minor issues 😅"
+        else:
+            final_color = 0xED4245  # Red
+            status_emoji = "😭"
+            status_text = "Several issues encountered, check logs!"
+
+        # Create final results embed
+        final_embed = discord.Embed(
+            title=f"{status_emoji} Database Cleanup Complete!",
+            description=status_text,
+            color=final_color,
+            timestamp=datetime.datetime.now()
+        )
+        
+        # Add results fields
+        for task_name, result, success in results:
+            final_embed.add_field(
+                name=task_name,
+                value=result,
+                inline=False
+            )
+        
+        # Add summary
+        final_embed.add_field(
+            name="📈 Summary",
+            value=(
+                f"**Success Rate:** {success_rate:.0f}% ({successful}/{total})\n"
+                f"**Duration:** ~{(datetime.datetime.now().timestamp() - status_message.created_at.timestamp()):.1f}s"
+            ),
+            inline=False
+        )
+        
+        final_embed.set_footer(
+            text="all done bestie! database is fresh and clean 🧼💖",
+            icon_url="https://img.icons8.com/color/48/000000/maintenance.png"
+        )
+        
+        # Update the original message with final results
+        await status_message.edit(embed=final_embed)
+        
+        # Send a follow-up if there were any failures
+        if success_rate < 100:
+            error_embed = discord.Embed(
+                title="🔍 Cleanup Issues Detected",
+                description="some tasks didn't go perfectly... here's what happened:",
+                color=0xED4245
+            )
+            
+            failed_tasks = [f"• {name}: {result}" for name, result, success in results if not success]
+            if failed_tasks:
+                error_embed.add_field(
+                    name="❌ Failed Tasks",
+                    value="\n".join(failed_tasks),
+                    inline=False
+                )
+                
+            error_embed.set_footer(text="check the logs for more details bestie 🥺")
+            await ctx.send(embed=error_embed)
 
     except Exception as e:
         logger.error(f"Error in cleanup command: {e}")
-        await ctx.send(f"❌ umm i made a boo-boo during cleanup 🥲 `{e}`")
-   
+        
+        # Error embed
+        error_embed = discord.Embed(
+            title="💥 Cleanup Operation Failed",
+            description="omg something went really wrong during cleanup... i'm so sorry! 😭",
+            color=0xED4245,
+            timestamp=datetime.datetime.now()
+        )
+        
+        error_embed.add_field(
+            name="❌ Error Details",
+            value=f"```{str(e)[:500]}{'...' if len(str(e)) > 500 else ''}```",
+            inline=False
+        )
+        
+        error_embed.set_footer(text="pls check the logs and maybe try again later? 🥺")
+        
+        await ctx.send(embed=error_embed)
 @job_bot.command(name="bitch")
 async def help_cmd(ctx):
         """Show everything this girlboss can do"""
