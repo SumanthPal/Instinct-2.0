@@ -105,17 +105,25 @@ export default function Home() {
           Instinct at UC Irvine
         </h1>
 
-        <TypingAnimation
+        
+        {/* <TypingAnimation
           text={["Find your people.", "Join your passion.", "Fuel your curiosity."]}
           className="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-dark-text-white mb-12"
-        />
+        /> */}
+
+
+
 
         <div className="flex flex-col md:flex-row gap-6">
-          <a href="/clubs">
+        <div className=" flex justify-center bg-white dark:bg-dark-profile-card px-12 py-5 rounded-xl shadow-lg text-xl sm:text-base font-medium text-black dark:text-dark-text-white">
+        🚧 🚧 Instinct is on pause for the summer and will be back in September. Stay tuned!
+
+      </div>
+          {/* <a href="/clubs">
             <button className="px-12 py-5 text-lg font-bold bg-white/40 backdrop-blur-md dark:bg-dark-profile-card/40 rounded-2xl shadow-xl hover:scale-105 hover:bg-white/60 dark:hover:bg-dark-profile-card/60 transition-all duration-300">
               Explore Clubs
             </button>
-          </a>
+          </a> */}
         </div>
       </div>
 
