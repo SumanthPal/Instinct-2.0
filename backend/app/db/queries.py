@@ -73,7 +73,7 @@ class SupabaseQueries:
     
     def get_all_clubs(self) -> List[Dict]:
         """Fetch all clubs with their categories and prepend CDN URL to profile images"""
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         response = self.supabase.table("clubs").select("*, categories(name)").execute()
 
         clubs = response.data if response.data else []
@@ -646,7 +646,7 @@ class SupabaseQueries:
 
     def get_clubs_paginated(self, offset: int, limit: int, category: Optional[str] = None) -> Dict:
         """Fetch clubs with database-level pagination and optional category filtering"""
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         
         try:
             # Build the query with only essential fields to reduce data transfer
@@ -688,7 +688,7 @@ class SupabaseQueries:
 
     def _get_clubs_paginated_fallback(self, offset: int, limit: int, category: Optional[str] = None) -> Dict:
         """Fallback method using client-side filtering (less efficient)"""
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         
         # Get only essential fields
         query = self.supabase.table("clubs")\
@@ -730,7 +730,7 @@ class SupabaseQueries:
         
     def search_clubs_optimized(self, query: str, offset: int, limit: int, category: Optional[str] = None) -> Dict:
         """Optimized search with database-level pagination"""
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         logger.info(f"CDN prefix: {cdn_prefix}")  # Debug log
         
         try:
@@ -800,7 +800,7 @@ class SupabaseQueries:
         if cached_result:
             return cached_result
         
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         
         query = self.supabase.table("clubs").select(select_fields).limit(limit)
         
@@ -875,7 +875,7 @@ class SupabaseQueries:
         
         logger.warning("get_all_clubs called - consider using pagination instead")
         
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         response = self.supabase.table("clubs").select("*, categories(name)").execute()
         clubs = response.data if response.data else []
 

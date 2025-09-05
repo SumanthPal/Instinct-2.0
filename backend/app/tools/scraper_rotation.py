@@ -8,19 +8,16 @@ import threading
 import signal
 from typing import List, Dict, Optional, Any, Union
 import schedule
-from concurrent.futures import ThreadPoolExecutor
-from queue import Queue
 import json
 
 # Import your existing tools
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tools.logger import logger
 from db.queries import SupabaseQueries
-from tools.insta_scraper import InstagramScraper, scrape_sequence, RateLimitDetected
+from tools.insta_scraper import RateLimitDetected
 from tools.ai_validation import EventParser
 from tools.calendar_connection import CalendarConnection
 from tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
-import redis
 
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))

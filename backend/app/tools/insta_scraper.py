@@ -1,10 +1,10 @@
-from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import random
-import re
 import time
 import sys
+from typing import Dict, List
+from typing_extensions import Tuple
 import dotenv
 import base64
 from bs4 import BeautifulSoup
@@ -22,13 +22,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ))
 from tools.logger import logger
 
 from db.queries import SupabaseQueries
-import boto3
 import datetime
-import tempfile
 
-# Create a random temporary directory
 
-#import chromedriver_binary  # This automatically sets up ChromeDriver
 
 class RateLimitDetected(Exception):
     """Raised when a potential rate limit is detected during scraping."""
@@ -315,7 +311,7 @@ class InstagramScraper:
             return False
         
 
-    def get_club_info(self, club_username: str) -> dict:
+    def get_club_info(self, club_username: str) -> Dict[str, any]:
         """Main scraper method to get club info
         :param club_username: the instagram tag of the club
         :return club_info: a dictionary containing the club's information
@@ -346,7 +342,7 @@ class InstagramScraper:
                     "Following": following_count,
                     "Post Count": posts_count,
                     "Club Links": club_links,
-                    "Recent Posts": post_links},
+                    "Recent Posts": post_links}
 
         except WebDriverException as e:
             logger.error(f"Error fetching club info: {e}")
@@ -452,29 +448,7 @@ class InstagramScraper:
                 
         except Exception as e:
             logger.error(f"Error in save_post_info: {str(e)}")
-                
-    # def get_club_categories(self, instagram_handle: str) -> list:
-    #     """Get the club's categories from the manifest file"""
-    #     try:
-    #         manifest_path = os.path.join(self.working_path, 'club_manifest.json')
-            
-    #         if not os.path.exists(manifest_path):
-    #             logger.warning(f"Manifest file not found: {manifest_path}")
-    #             return []
-                
-    #         with open(manifest_path, 'r') as f:
-    #             manifest = json.load(f)
-                
-    #         for club in manifest:
-    #             if club.get("instagram") == instagram_handle:
-    #                 return club.get("categories", [])
-                    
-    #         logger.warning(f"Club {instagram_handle} not found in manifest")
-    #         return []
-    #     except Exception as e:
-    #         logger.error(f"Error getting club categories: {str(e)}")
-    #         return []
-
+     
     def save_club_info(self, club_info: dict):
         """Save the club information and post links to the database"""
         try:
@@ -557,11 +531,8 @@ class InstagramScraper:
             # Handle other driver-related errors
             logger.info(f"WebDriver error: {e}")
             return False
-    def _handle_instagram_links_button(self):
-        #TODO: fix this shitter
+    def _handle_instagram_links_button(self) -> List[Dict[str, str]]:
         try:
-            # Wait for the button to be present, but allow for a possible timeout
-            # check if there is only one link:
             try:
                 link_element = self._wait.until(EC.presence_of_element_located(
                     (By.XPATH, "//a[@rel='me nofollow noopener noreferrer' and @target='_blank']")))
@@ -603,7 +574,7 @@ class InstagramScraper:
             # Catch any other unexpected exceptions
             logger.error(f"An error occurred while trying to interact with the links button: {e}")
 
-    def _handle_instagram_more_button(self):
+    def _handle_instagram_more_button(self) -> None:
         try:
             self._wait.until(EC.presence_of_all_elements_located((By.XPATH, "//a[contains(@href, '/p/')]")))
             button_element = self._wait.until(EC.presence_of_element_located(
@@ -614,7 +585,7 @@ class InstagramScraper:
         except (NoSuchElementException, TimeoutException):
             logger.info("More... button not found / timeout error.")
 
-    def _find_club_name_pfp(self, profile_soup: BeautifulSoup, club_username: str):
+    def _find_club_name_pfp(self, profile_soup: BeautifulSoup, club_username: str) -> Tuple[str, str]:
         club_name = profile_soup.find("span", class_="x1lliihq x1plvlek xryxfnj x1n2onr6 x1ji0vk5 x18bv5gf "
                                                      "x193iq5w xeuugli x1fj9vlw x13faqbe x1vvkbs x1s928wv xhkezso "
                                                      "x1gmr53x x1cpjm7i x1fgarty x1943h6x x1i0vuye xvs91rp "
@@ -625,7 +596,7 @@ class InstagramScraper:
         pfp_url = club_tag.get("src")
         return club_name, pfp_url
 
-    def _find_club_description(self, profile_soup: BeautifulSoup):
+    def _find_club_description(self, profile_soup: BeautifulSoup) -> Tuple[str, int, int, int]:
         meta_tag = profile_soup.find('meta', {'name': 'description'})
         if not meta_tag:
             raise Exception("Description not found.")
@@ -694,7 +665,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--headless",  # Run in headless mode for better speed
+            # "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
@@ -801,23 +772,6 @@ class InstagramScraper:
             # If no error message is found, return None (indicating no error)
             return None
 
-
-
-def _chunk_list(lst, n):
-    """Divide a list into n chunks, prioritizing evenly-sized distributions."""
-    avg = len(lst) // n
-    remainder = len(lst) % n
-    chunks = []
-    start = 0
-
-    for i in range(n):
-        extra = 1 if i < remainder else 0  # Distribute the remainder
-        end = start + avg + extra
-        chunks.append(lst[start:end])
-        start = end
-
-    return chunks
-
 def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
     for attempt in range(max_retries):
         try:
@@ -890,32 +844,3 @@ def scrape_sequence(username_list: list[str]) -> None:
             logger.info("Quitting scraper driver...")
             scraper._driver_quit()
             logger.info("Driver quit successfully.")
-
-    
-
-    
-def multi_threaded_scrape(clubs: list[str], max_threads: int) -> None:
-    club_chunks = _chunk_list(clubs, max_threads)
-    logger.info(f"Launching multi-threaded scrape: {len(clubs)} clubs across {max_threads} threads.")
-    
-    with ThreadPoolExecutor(max_threads) as executor:
-        futures = []
-        for chunk in club_chunks:
-            futures.append(executor.submit(scrape_sequence, chunk))
-
-        for future in futures:
-            try:
-                future.result()
-            except Exception as e:
-                logger.error(f"An error occurred inside a thread: {e}")
-
-    logger.info("All threads completed scraping.")
-
-if __name__ == "__main__":
-
-        dotenv.load_dotenv()
-        starttime = time.time()
-        
-    
-
-

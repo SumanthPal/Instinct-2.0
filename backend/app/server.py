@@ -1,30 +1,24 @@
-from io import BytesIO, StringIO
-from tools.ai_validation import EventParser, get_embedding
+from tools.ai_validation import get_embedding
 from tools.calendar_connection import CalendarConnection
 from tools.scraper_rotation import ScraperRotation
 from db.supabase_client import supabase
 from db.queries import SupabaseQueries
 import os
-import time
-import uuid
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
-from io import StringIO
-import requests
+from typing import  List, Optional
+from datetime import datetime 
 import dotenv
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, Query, Request, APIRouter, Depends
+from fastapi import FastAPI, HTTPException, Query, Request, APIRouter 
 from fastapi.responses import JSONResponse, Response
 
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, EmailStr
-import multiprocessing
+from pydantic import BaseModel, EmailStr
 import os
 
 # Load environment variables
 dotenv.load_dotenv()
 from tools.logger import logger
-azure_blob_cdn = os.getenv("AZURE_CDN")
+azure_blob_cdn = os.getenv("GCP_URL")
 # Initialize dependencies
 calendar = CalendarConnection()
 app = FastAPI(
@@ -98,7 +92,6 @@ class ClubSubmission(BaseModel):
     captcha_token: str
     honeypot: Optional[str] = ""  # should be empty if real user
 
-HCAPTCHA_SECRET = os.getenv("HCAPTCHA_SECRET") 
 @router.post("/club/add")
 async def submit_pending_club(new_club: PendingClubSubmission, request: Request):
     # 1. Validate user auth
@@ -600,7 +593,7 @@ async def hybrid_search(
         
         # Manually paginate results
         total_matches = len(matches)
-        cdn_prefix = os.getenv("AZURE_CDN", "")
+        cdn_prefix = os.getenv("GCP_URL", "")
         start = (page - 1) * limit
         end = start + limit
         paginated_matches = matches[start:end]
