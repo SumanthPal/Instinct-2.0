@@ -34,7 +34,7 @@ ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
 OWNER_USER_ID = int(os.getenv("USER_ID"))  # 👈  Discord user ID
 
 # API Configuration
-API_URL = os.getenv('BOT_API_URL')
+API_URL = "https://web-45256917921.us-west2.run.app"
 API_AUTH_TOKEN = os.getenv('SUPABASE_KEY')
 
 # Initialize bot with intents
