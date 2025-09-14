@@ -410,34 +410,19 @@ class InstagramScraper:
             logger.info(f"Fetching Instagram post: {post_url}")
 
             # --- Caption ---
+
             try:
-                # Broaden the XPath to find span with multiple classes or text content
+                # Fallback: Look for any span with substantial text content
                 caption_element = self._wait.until(
                     EC.presence_of_element_located(
-                        (
-                            By.XPATH,
-                            "//article//span[contains(@class, 'x193iq5w') and contains(@class, 'x1vvkbs') and contains(@class, 'xt0psk2') and contains(@class, 'x1i0vuye')]",
-                        )
+                        (By.XPATH, "//span[string-length(text()) > 20]")
                     )
                 )
                 description = caption_element.text.strip()
                 logger.info(f"Caption found: {description[:80]}...")
             except TimeoutException:
-                logger.warning(
-                    "Caption not found with primary XPath, trying alternative..."
-                )
-                try:
-                    # Fallback: Look for any span with substantial text content
-                    caption_element = self._wait.until(
-                        EC.presence_of_element_located(
-                            (By.XPATH, "//span[string-length(text()) > 20]")
-                        )
-                    )
-                    description = caption_element.text.strip()
-                    logger.info(f"Caption found with fallback: {description[:80]}...")
-                except TimeoutException:
-                    logger.warning("Caption not found in post.")
-                    description = None
+                logger.warning("Caption not found in post.")
+                description = None
 
             # --- Date ---
             try:
@@ -859,7 +844,7 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            # "--headless",  # Run in headless mode for better speed
+            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
