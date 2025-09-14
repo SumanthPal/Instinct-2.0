@@ -3,7 +3,7 @@ import os
 import random
 import time
 import sys
-from typing import Dict, List
+from typing import Dict, List, Optional
 from typing_extensions import Tuple
 import dotenv
 import base64
@@ -397,61 +397,88 @@ class InstagramScraper:
             logger.error(f"Error fetching club info: {e}")
             self._driver_quit()
 
-    def get_post_info(self, post_url: str) -> tuple:
-        """Main method to scrape post information."""
-        description = ""
-        date = ""
-        img_src = None  # <-- default
+    def get_post_info(
+        self, post_url: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """
+        Extracts the caption, date, and image URL from a given Instagram post.
+        """
+        description, date, img_src = None, None, None
 
         try:
             self._driver.get(post_url)
-            if not self.safe_get_page(post_url):
-                raise Exception(f"Failed to access post {post_url}")
+            logger.info(f"Fetching Instagram post: {post_url}")
 
-            self._wait.until(
-                EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        "//h1[contains(@class, '_ap3a') and contains(@class, '_aaco') and contains(@class, '_aacu')]",
+            # --- Caption ---
+            try:
+                # Broaden the XPath to find span with multiple classes or text content
+                caption_element = self._wait.until(
+                    EC.presence_of_element_located(
+                        (
+                            By.XPATH,
+                            "//article//span[contains(@class, 'x193iq5w') and contains(@class, 'x1vvkbs') and contains(@class, 'xt0psk2') and contains(@class, 'x1i0vuye')]",
+                        )
                     )
                 )
-            )
-
-            post_source = self._driver.page_source
-            post_soup = BeautifulSoup(post_source, "html.parser")
-
-            # Looks for post description
-            h1_element = post_soup.find(
-                "h1", class_="_ap3a _aaco _aacu _aacx _aad7 _aade"
-            )
-            description = h1_element.text if h1_element else ""
-            (
-                logger.info(f"description found!: {description}")
-                if description
-                else logger.info(f"no description found!")
-            )
-
-            # looks for post time
-            post_time = post_soup.find("time", class_="_a9ze _a9zf")
-            date = post_time["datetime"] if post_time else ""
-            (
-                logger.info(f"date found!: {date}")
-                if date
-                else logger.info(f"no date found!")
-            )
-
-            # look for post pic
-            img_tag = post_soup.find(
-                "img", class_="x5yr21d xu96u03 x10l6tqk x13vifvy x87ps6o xh8yej3"
-            )
-
-            if img_tag:
-                img_src = img_tag.get("src", "http://www.w3.org/2000/svg")
-            else:
-                logger.warning("Image source missing, possible rate limit.")
-                raise RateLimitDetected(
-                    "Instagram rate limit suspected: no image found."
+                description = caption_element.text.strip()
+                logger.info(f"Caption found: {description[:80]}...")
+            except TimeoutException:
+                logger.warning(
+                    "Caption not found with primary XPath, trying alternative..."
                 )
+                try:
+                    # Fallback: Look for any span with substantial text content
+                    caption_element = self._wait.until(
+                        EC.presence_of_element_located(
+                            (By.XPATH, "//span[string-length(text()) > 20]")
+                        )
+                    )
+                    description = caption_element.text.strip()
+                    logger.info(f"Caption found with fallback: {description[:80]}...")
+                except TimeoutException:
+                    logger.warning("Caption not found in post.")
+                    description = None
+
+            # --- Date ---
+            try:
+                date_element = self._wait.until(
+                    EC.presence_of_element_located((By.XPATH, "//time[@datetime]"))
+                )
+                date = date_element.get_attribute("datetime")
+                logger.info(f"Date found: {date}")
+            except TimeoutException:
+                logger.warning("Date not found in post.")
+                date = None
+
+            # --- Image ---
+            try:
+                # Broaden the XPath to find img with specific classes or src attribute
+                img_element = self._wait.until(
+                    EC.presence_of_element_located(
+                        (
+                            By.XPATH,
+                            "//img[contains(@class, 'x5yr21d') or contains(@class, 'x87ps6o') or @src[contains(., 'cdninstagram.com')]]",
+                        )
+                    )
+                )
+                img_src = img_element.get_attribute("src")
+                logger.info(f"Image found: {img_src[:80]}...")
+            except TimeoutException:
+                logger.warning(
+                    "Image not found with primary XPath, trying alternative..."
+                )
+                try:
+                    # Fallback: Look for any img with a src containing 'cdninstagram'
+                    img_element = self._wait.until(
+                        EC.presence_of_element_located(
+                            (By.XPATH, "//img[@src[contains(., 'cdninstagram.com')]]")
+                        )
+                    )
+                    img_src = img_element.get_attribute("src")
+                    logger.info(f"Image found with fallback: {img_src[:80]}...")
+                except TimeoutException:
+                    logger.warning("Image not found in post.")
+                    img_src = None
 
         except WebDriverException as e:
             logger.error(f"Error fetching post info: {str(e)}")
@@ -463,6 +490,7 @@ class InstagramScraper:
         try:
             # Get club ID from database
             club_id = self.db.get_club_by_instagram_handle(club_username)
+            logger.info(f"Club ID for {club_username}: {club_id}")
             if not club_id:
                 logger.error(f"Club {club_username} not found in database")
                 return
@@ -477,6 +505,8 @@ class InstagramScraper:
             for post_data in post_links_response:
                 post_url = post_data["post_url"]
                 post_id = post_data["id"]
+
+                print("Processing post:", post_url)
 
                 if self.db.check_if_post_is_scrapped(post_id):
                     logger.info(f"Post {post_id} already scrapped, skipping...")
@@ -515,30 +545,30 @@ class InstagramScraper:
         try:
             # Get club categories from manifest
 
-            instagram_handle = club_info[0]["Instagram Handle"]
+            instagram_handle = club_info["Instagram Handle"]
 
             logger.info("inserted data")
 
-            club_pfp_url = club_info[0]["Profile Picture"]
+            club_pfp_url = club_info["Profile Picture"]
             pfp_path = f"pfps/{instagram_handle}.jpg"
             storage_path = self.db.download_and_upload_img(club_pfp_url, pfp_path)
 
-            club_info[0]["profile_image_path"] = storage_path
+            club_info["profile_image_path"] = storage_path
 
-            club_id = self.db.upsert_club(club_info[0])
+            club_id = self.db.upsert_club(club_info)
 
             # Store post links in the database
             logger.info(club_info)
-            if club_info[0]["Recent Posts"] and club_id:
+            if club_info["Recent Posts"] and club_id:
                 self._store_post_links(
-                    club_id, instagram_handle, club_info[0]["Recent Posts"]
+                    club_id, instagram_handle, club_info["Recent Posts"]
                 )
 
             logger.info(f"Club info for {instagram_handle} saved to database.")
             return club_id
         except Exception as e:
             logger.error(
-                f"Error saving club info to database: {str(e)}\n type of error {type(e)}"
+                f"Error saving club info for {club_info[0]['Instagram Handle']}: {str(e)}"
             )
             return None
 
@@ -602,6 +632,7 @@ class InstagramScraper:
 
     def _handle_instagram_links_button(self) -> List[Dict[str, str]]:
         try:
+            # First check if links are already visible
             try:
                 link_element = self._wait.until(
                     EC.presence_of_element_located(
@@ -611,28 +642,45 @@ class InstagramScraper:
                         )
                     )
                 )
-
                 return [
                     {
-                        "text": link_element.get_attribute("text"),
+                        "text": link_element.text,  # Fixed: use .text property
                         "url": link_element.get_attribute("href"),
                     }
                 ]
             except TimeoutException:
                 pass
-            self._wait.until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "button._acan._acao._acas._aj1-._ap30")
-                )
-            )
 
-            # Find the button and click it if it's found
-            button = self._driver.find_element(
-                By.CSS_SELECTOR, "button._acan._acao._acas._aj1-._ap30"
-            )
-            button.click()
-            logger.info("Links button clicked successfully.")
+            # Look for the trigger div (updated selectors)
+            trigger_selectors = [
+                "div._ap3a._aaco._aacw._aacz._aada._aade",  # Your specific class
+                "//div[contains(text(), 'more')]",
+                "//div[contains(text(), ' and ')]",
+            ]
 
+            button_found = False
+            for selector in trigger_selectors:
+                try:
+                    if selector.startswith("//"):
+                        button = self._wait.until(
+                            EC.element_to_be_clickable((By.XPATH, selector))
+                        )
+                    else:
+                        button = self._wait.until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                        )
+                    button.click()
+                    logger.info("Links trigger clicked successfully.")
+                    button_found = True
+                    break
+                except TimeoutException:
+                    continue
+
+            if not button_found:
+                logger.warning("No links trigger found.")
+                return []
+
+            # Wait for links to appear (they might be in buttons now)
             self._wait.until(
                 EC.presence_of_element_located(
                     (
@@ -641,36 +689,51 @@ class InstagramScraper:
                     )
                 )
             )
+
+            # Get all link elements (whether direct or in buttons)
             links = self._driver.find_elements(
                 By.XPATH,
                 "//a[@rel='me nofollow noopener noreferrer' and @target='_blank']",
             )
             logger.info("Links found successfully.")
+
             urls = []
             for link in links:
                 text = link.text.strip().replace("Link icon", "").strip()
                 url = link.get_attribute("href")
-                urls.append({"text": text, "url": url})
+                urls.append({"text": text or "Link", "url": url})
 
             logger.info("URLs extracted successfully.")
 
-            close_button = self._driver.find_element(
-                By.CSS_SELECTOR, 'div[aria-label="Close"]'
-            )
-            close_button.click()
-            logger.info("Close button clicked successfully.")
+            # Close modal
+            try:
+                close_button = self._driver.find_element(
+                    By.CSS_SELECTOR, 'div[aria-label="Close"]'
+                )
+                close_button.click()
+                logger.info("Close button clicked successfully.")
+            except:
+                # Try escape key as fallback
+                try:
+                    from selenium.webdriver.common.keys import Keys
+
+                    self._driver.find_element(By.TAG_NAME, "body").send_keys(
+                        Keys.ESCAPE
+                    )
+                    logger.info("Closed modal with Escape key.")
+                except:
+                    logger.warning("Could not close modal.")
 
             return urls
 
         except TimeoutException:
-            # This will catch the case where the element is not found within the timeout
             logger.warning("Links button not found within the timeout.")
-
+            return []
         except Exception as e:
-            # Catch any other unexpected exceptions
             logger.error(
                 f"An error occurred while trying to interact with the links button: {e}"
             )
+            return []
 
     def _handle_instagram_more_button(self) -> None:
         try:
@@ -693,16 +756,29 @@ class InstagramScraper:
     def _find_club_name_pfp(
         self, profile_soup: BeautifulSoup, club_username: str
     ) -> Tuple[str, str]:
-        club_name = profile_soup.find(
-            "span",
-            class_="x1lliihq x1plvlek xryxfnj x1n2onr6 x1ji0vk5 x18bv5gf "
-            "x193iq5w xeuugli x1fj9vlw x13faqbe x1vvkbs x1s928wv xhkezso "
-            "x1gmr53x x1cpjm7i x1fgarty x1943h6x x1i0vuye xvs91rp "
-            "x1s688f x5n08af x10wh9bi x1wdrske x8viiok x18hxmgj",
-        ).text
+        """Extract club name and profile picture with simple robust selectors."""
+
+        # Find club name - look for span with dir="auto" attribute (more reliable than classes)
+        club_name = None
+        span_elements = profile_soup.find_all("span", {"dir": "auto"})
+        for span in span_elements:
+            text = span.text.strip()
+            # Look for meaningful text (not just numbers or common UI text)
+            if text and len(text) > 2 and not text.isdigit():
+                skip_words = ["followers", "following", "posts", "more"]
+                if not any(word in text.lower() for word in skip_words):
+                    club_name = text
+                    break
+
+        # Fallback: use username if name not found
+        if not club_name:
+            club_name = club_username
+
+        # Find profile picture - use alt text (more reliable than classes)
         club_tag = profile_soup.find("img", alt=f"{club_username}'s profile picture")
         if not club_tag:
             raise Exception("Profile picture not found.")
+
         pfp_url = club_tag.get("src")
         return club_name, pfp_url
 
@@ -985,5 +1061,5 @@ def scrape_sequence(username_list: list[str]) -> None:
 
 if __name__ == "__main__":
     # Example usage
-    username_list = ["icssc.uci"]  # Replace with actual usernames
+    username_list = ["dspuci"]  # Replace with actual usernames
     scrape_sequence(username_list)
