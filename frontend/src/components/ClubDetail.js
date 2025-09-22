@@ -728,7 +728,7 @@ export default function ClubDetail({
 				)}
 
 				{/* Calendar Widget - Fully responsive */}
-				<div className="backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+				<div className="backdrop-blur-sm bg-gray-100/80 dark:bg-dark-card/40 rounded-lg border border-gray-300/40 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive">
 					<h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white text-center sm:text-left">
 						Activity Calendar
 					</h2>
