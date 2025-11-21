@@ -115,6 +115,9 @@ export default function Navbar() {
 					<Link href="/clubs" className={navLinkClass("/clubs")}>
 						Clubs
 					</Link>
+					<Link href="/events" className={navLinkClass("/events")}>
+						Events
+					</Link>
 					<Link href="/news" className={navLinkClass("/news")}>
 						News
 					</Link>
@@ -209,6 +212,9 @@ export default function Navbar() {
 						</NavLink>
 						<NavLink href="/clubs" active={pathname === "/clubs"}>
 							Clubs
+						</NavLink>
+						<NavLink href="/events" active={pathname === "/events"}>
+							Events
 						</NavLink>
 						<NavLink href="/news" active={pathname === "/news"}>
 							News

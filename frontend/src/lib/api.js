@@ -3,280 +3,316 @@ import { createClient } from "@/lib/supabase";
 const supabase = createClient();
 
 //const API_BASE_URL = 'https://web2.gentlemeadow-727fb9e6.westus.azurecontainerapps.io'; // or your production API URL
-// const API_BASE_URL = 'http://127.0.0.1:8000'
-const API_BASE_URL = "https://web-45256917921.us-west2.run.app";
+const API_BASE_URL = "http://127.0.0.1:8000";
+//const API_BASE_URL = "https://web-45256917921.us-west2.run.app";
 export const fetchClubManifest = async (
-	page = 1,
-	limit = 20,
-	category = null,
+  page = 1,
+  limit = 20,
+  category = null,
 ) => {
-	try {
-		// Build the query string with pagination and optional category filter
-		let queryParams = `page=${page}&limit=${limit}`;
-		if (category) {
-			queryParams += `&category=${encodeURIComponent(category)}`;
-		}
+  try {
+    // Build the query string with pagination and optional category filter
+    let queryParams = `page=${page}&limit=${limit}`;
+    if (category) {
+      queryParams += `&category=${encodeURIComponent(category)}`;
+    }
 
-		const response = await fetch(`${API_BASE_URL}/club?${queryParams}`);
+    const response = await fetch(`${API_BASE_URL}/club?${queryParams}`);
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`Failed to fetch clubs: ${response.status} - ${errorText}`,
-			);
-		}
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to fetch clubs: ${response.status} - ${errorText}`,
+      );
+    }
 
-		const data = await response.json();
+    const data = await response.json();
 
-		console.log("Fetched club manifest:", data);
+    console.log("Fetched club manifest:", data);
 
-		return {
-			results: data.results || [],
-			totalCount: data.total || 0,
-			hasMore: data.hasMore || false,
-			page: data.page || page,
-			totalPages: data.pages || 1,
-		};
-	} catch (error) {
-		console.error("Error fetching club manifest:", error);
-		// Return a safe fallback value
-		return {
-			results: [],
-			totalCount: 0,
-			hasMore: false,
-			page: 1,
-			totalPages: 1,
-		};
-	}
+    return {
+      results: data.results || [],
+      totalCount: data.total || 0,
+      hasMore: data.hasMore || false,
+      page: data.page || page,
+      totalPages: data.pages || 1,
+    };
+  } catch (error) {
+    console.error("Error fetching club manifest:", error);
+    // Return a safe fallback value
+    return {
+      results: [],
+      totalCount: 0,
+      hasMore: false,
+      page: 1,
+      totalPages: 1,
+    };
+  }
 };
 
 // Function to fetch more clubs with pagination
 export const fetchMoreClubs = async (page, limit = 20, category = null) => {
-	return fetchClubManifest(page, limit, category);
+  return fetchClubManifest(page, limit, category);
 };
 
 // Function to fetch clubs with specific category
 export const fetchClubsByCategory = async (category, page = 1, limit = 20) => {
-	return fetchClubManifest(page, limit, category);
+  return fetchClubManifest(page, limit, category);
 };
 
 export const fetchClubData = async (username) => {
-	try {
-		const url = `${API_BASE_URL}/club/${username}`;
-		console.log(`Fetching data for club ${username} from:`, url);
+  try {
+    const url = `${API_BASE_URL}/club/${username}`;
+    console.log(`Fetching data for club ${username} from:`, url);
 
-		const response = await fetch(url);
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`Failed to fetch club data: ${response.status} ${response.statusText} - ${errorText}`,
-			);
-		}
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to fetch club data: ${response.status} ${response.statusText} - ${errorText}`,
+      );
+    }
 
-		const data = await response.json();
-		console.log(`Fetched data for club ${username}:`, data);
-		return data;
-	} catch (error) {
-		console.error(`Error fetching club data for ${username}:`, error);
-		throw error;
-	}
+    const data = await response.json();
+    console.log(`Fetched data for club ${username}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching club data for ${username}:`, error);
+    throw error;
+  }
 };
 export const fetchSmartSearch = async (
-	query,
-	page = 1,
-	limit = 20,
-	category = null,
+  query,
+  page = 1,
+  limit = 20,
+  category = null,
 ) => {
-	try {
-		let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
-		if (category) {
-			queryParams += `&category=${encodeURIComponent(category)}`;
-		}
+  try {
+    let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+    if (category) {
+      queryParams += `&category=${encodeURIComponent(category)}`;
+    }
 
-		const response = await fetch(`${API_BASE_URL}/smart-search?${queryParams}`);
+    const response = await fetch(`${API_BASE_URL}/smart-search?${queryParams}`);
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`Failed to fetch smart search: ${response.status} - ${errorText}`,
-			);
-		}
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to fetch smart search: ${response.status} - ${errorText}`,
+      );
+    }
 
-		const data = await response.json();
-		return {
-			results: data.results || [],
-			totalCount: data.count || 0,
-			hasMore: data.hasMore || false,
-			page: data.page || page,
-		};
-	} catch (error) {
-		console.error("Error fetching smart search:", error);
-		return { results: [], totalCount: 0, hasMore: false, page: 1 };
-	}
+    const data = await response.json();
+    return {
+      results: data.results || [],
+      totalCount: data.count || 0,
+      hasMore: data.hasMore || false,
+      page: data.page || page,
+    };
+  } catch (error) {
+    console.error("Error fetching smart search:", error);
+    return { results: [], totalCount: 0, hasMore: false, page: 1 };
+  }
 };
 
 export const fetchClubPosts = async (username, page = 1, limit = 10) => {
-	try {
-		const url = `${API_BASE_URL}/club/${username}/posts?page=${page}&limit=${limit}`;
-		const response = await fetch(url);
+  try {
+    const url = `${API_BASE_URL}/club/${username}/posts?page=${page}&limit=${limit}`;
+    const response = await fetch(url);
 
-		if (!response.ok) {
-			const text = await response.text();
-			throw new Error(`Failed to fetch posts: ${response.status} - ${text}`);
-		}
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to fetch posts: ${response.status} - ${text}`);
+    }
 
-		const json = await response.json();
-		return {
-			results: json.results || [],
-			hasMore: json.hasMore || false,
-			page: json.page || page,
-			totalPages: json.pages || 1,
-		};
-	} catch (error) {
-		console.error(`Error fetching posts for ${username}:`, error);
-		return { results: [], hasMore: false, page: 1, totalPages: 1 };
-	}
+    const json = await response.json();
+    return {
+      results: json.results || [],
+      hasMore: json.hasMore || false,
+      page: json.page || page,
+      totalPages: json.pages || 1,
+    };
+  } catch (error) {
+    console.error(`Error fetching posts for ${username}:`, error);
+    return { results: [], hasMore: false, page: 1, totalPages: 1 };
+  }
 };
 
 export const fetchClubEvents = async (username, page = 1, limit = 10) => {
-	try {
-		const url = `${API_BASE_URL}/club/${username}/events?page=${page}&limit=${limit}`;
-		const response = await fetch(url);
+  try {
+    const url = `${API_BASE_URL}/club/${username}/events?page=${page}&limit=${limit}`;
+    const response = await fetch(url);
 
-		if (!response.ok) {
-			const text = await response.text();
-			throw new Error(`Failed to fetch events: ${response.status} - ${text}`);
-		}
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Failed to fetch events: ${response.status} - ${text}`);
+    }
 
-		const json = await response.json();
-		return {
-			results: json.results || [],
-			hasMore: json.hasMore || false,
-			page: json.page || page,
-			totalPages: json.pages || 1,
-		};
-	} catch (error) {
-		console.error(`Error fetching events for ${username}:`, error);
-		return { results: [], hasMore: false, page: 1, totalPages: 1 };
-	}
+    const json = await response.json();
+    return {
+      results: json.results || [],
+      hasMore: json.hasMore || false,
+      page: json.page || page,
+      totalPages: json.pages || 1,
+    };
+  } catch (error) {
+    console.error(`Error fetching events for ${username}:`, error);
+    return { results: [], hasMore: false, page: 1, totalPages: 1 };
+  }
 };
 
 export const getCalendarUrl = (username) => {
-	return `${API_BASE_URL}/club/${username}/calendar.ics`;
+  return `${API_BASE_URL}/club/${username}/calendar.ics`;
+};
+
+export const fetchCampusWideEvents = async (
+  startDate = null,
+  endDate = null,
+  limit = 100,
+  offset = 0,
+) => {
+  try {
+    let queryParams = `limit=${limit}&offset=${offset}`;
+    if (startDate) {
+      queryParams += `&start_date=${startDate}`;
+    }
+    if (endDate) {
+      queryParams += `&end_date=${endDate}`;
+    }
+
+    const url = `${API_BASE_URL}/events/campus-wide?${queryParams}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `Failed to fetch campus-wide events: ${response.status} - ${text}`,
+      );
+    }
+
+    const json = await response.json();
+    return {
+      results: json.results || [],
+      count: json.count || 0,
+    };
+  } catch (error) {
+    console.error("Error fetching campus-wide events:", error);
+    return { results: [], count: 0 };
+  }
 };
 
 export const submitNewClub = async (clubData) => {
-	try {
-		// ✅ Get the current session
-		const {
-			data: { session },
-		} = await supabase.auth.getSession();
+  try {
+    // ✅ Get the current session
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-		if (!session) {
-			throw new Error("User is not authenticated");
-		}
+    if (!session) {
+      throw new Error("User is not authenticated");
+    }
 
-		const token = session.access_token;
+    const token = session.access_token;
 
-		// ✅ Attach Authorization header with Bearer token
-		const response = await fetch(`${API_BASE_URL}/club/add`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${token}`, // <-- Add this
-			},
-			body: JSON.stringify(clubData),
-		});
+    // ✅ Attach Authorization header with Bearer token
+    const response = await fetch(`${API_BASE_URL}/club/add`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // <-- Add this
+      },
+      body: JSON.stringify(clubData),
+    });
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`Failed to submit new club: ${response.status} - ${errorText}`,
-			);
-		}
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to submit new club: ${response.status} - ${errorText}`,
+      );
+    }
 
-		const data = await response.json();
-		console.log("Successfully submitted new club:", data);
-		return data;
-	} catch (error) {
-		console.error("Error submitting new club:", error);
-		throw error;
-	}
+    const data = await response.json();
+    console.log("Successfully submitted new club:", data);
+    return data;
+  } catch (error) {
+    console.error("Error submitting new club:", error);
+    throw error;
+  }
 };
 export const fetchHybridSearch = async (
-	query,
-	page = 1,
-	limit = 20,
-	category = null,
-	semanticWeight = 0.5,
+  query,
+  page = 1,
+  limit = 20,
+  category = null,
+  semanticWeight = 0.5,
 ) => {
-	try {
-		// Check for authentication first
-		const {
-			data: { session },
-		} = await supabase.auth.getSession();
+  try {
+    // Check for authentication first
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-		if (!session) {
-			throw new Error("Authentication required for hybrid search");
-		}
+    if (!session) {
+      throw new Error("Authentication required for hybrid search");
+    }
 
-		const token = session.access_token;
+    const token = session.access_token;
 
-		// Build the query string with all parameters
-		let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+    // Build the query string with all parameters
+    let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
 
-		// Add optional parameters if provided
-		if (category) {
-			queryParams += `&category=${encodeURIComponent(category)}`;
-		}
+    // Add optional parameters if provided
+    if (category) {
+      queryParams += `&category=${encodeURIComponent(category)}`;
+    }
 
-		// Add semantic weight parameter
-		queryParams += `&semantic_weight=${semanticWeight}`;
+    // Add semantic weight parameter
+    queryParams += `&semantic_weight=${semanticWeight}`;
 
-		const response = await fetch(
-			`${API_BASE_URL}/hybrid-search?${queryParams}`,
-			{
-				headers: {
-					Authorization: `Bearer ${token}`,
-				},
-			},
-		);
+    const response = await fetch(
+      `${API_BASE_URL}/hybrid-search?${queryParams}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`Failed to fetch hybrid search: ${response.status} - ${errorText}`,
-			);
-		}
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to fetch hybrid search: ${response.status} - ${errorText}`,
+      );
+    }
 
-		const data = await response.json();
+    const data = await response.json();
 
-		console.log("Fetched hybrid search results:", data);
+    console.log("Fetched hybrid search results:", data);
 
-		return {
-			results: data.results || [],
-			totalCount: data.count || 0,
-			hasMore: data.hasMore || false,
-			page: data.page || page,
-		};
-	} catch (error) {
-		console.error("Error fetching hybrid search:", error);
-		// We'll rethrow to handle in the component
-		throw error;
-	}
+    return {
+      results: data.results || [],
+      totalCount: data.count || 0,
+      hasMore: data.hasMore || false,
+      page: data.page || page,
+    };
+  } catch (error) {
+    console.error("Error fetching hybrid search:", error);
+    // We'll rethrow to handle in the component
+    throw error;
+  }
 };
 
 export const checkApiHealth = async () => {
-	try {
-		const response = await fetch(`${API_BASE_URL}/health`);
-		if (response.ok) {
-			const data = await response.json();
-			return data.status === "healthy" ? "Online" : "Offline";
-		} else {
-			return "Systems Offline";
-		}
-	} catch (error) {
-		console.error("Health check failed:", error);
-		return "Systems Offline";
-	}
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.status === "healthy" ? "Online" : "Offline";
+    } else {
+      return "Systems Offline";
+    }
+  } catch (error) {
+    console.error("Health check failed:", error);
+    return "Systems Offline";
+  }
 };
