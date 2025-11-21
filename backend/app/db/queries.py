@@ -538,6 +538,68 @@ class SupabaseQueries:
 
         return response.data if response.data else []
 
+    def get_all_campus_events(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[Dict]:
+        """
+        Get all events from all clubs campus-wide with pagination and date filtering
+
+        Args:
+            start_date: Filter events after this date
+            end_date: Filter events before this date
+            limit: Maximum number of events to return (use very high number for all)
+            offset: Pagination offset
+
+        Returns:
+            List[Dict]: List of event records with club information
+        """
+        cdn_prefix = os.getenv("GCP_URL", "")
+
+        # Fetch events with club info in a single efficient query
+        query = self.supabase.from_("events").select(
+            "*, clubs(id, name, instagram_handle, profile_image_path)"
+        )
+
+        # Apply date filters at database level for efficiency
+        if start_date:
+            query = query.gte("date", start_date.isoformat())
+        if end_date:
+            query = query.lte("date", end_date.isoformat())
+
+        # Order by date (upcoming events first)
+        query = query.order("date", desc=False)
+
+        # Apply pagination - if limit is very high, we want all events
+        # Note: Supabase postgrest has a max-rows config, default is often 1000
+        # For production, you may need to increase this in Supabase settings
+        if limit >= 10000:
+            # When requesting all events, use a very high limit
+            # This will return up to the Supabase max-rows limit
+            response = query.limit(100000).execute()
+        elif offset > 0 or limit < 1000:
+            # Use range for traditional pagination
+            response = query.range(offset, offset + limit - 1).execute()
+        else:
+            # Use limit for mid-range requests
+            response = query.limit(limit).execute()
+
+        events = response.data if response.data else []
+
+        # Log the count for debugging
+        print(f"Fetched {len(events)} events (limit={limit}, offset={offset})")
+
+        # Add CDN prefix to club profile images
+        for event in events:
+            if event.get("clubs") and event["clubs"].get("profile_image_path"):
+                image_path = event["clubs"]["profile_image_path"]
+                event["clubs"]["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+
+        return events
+
     def check_if_post_is_scrapped(self, post_id: str) -> bool:
         """Check if a post has already been scrapped"""
         response = (

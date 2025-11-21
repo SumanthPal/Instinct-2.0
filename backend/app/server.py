@@ -329,11 +329,6 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
-from fastapi import FastAPI, Query
-from typing import Optional
-from fastapi.responses import JSONResponse
-
-
 @app.get("/club")
 async def list_clubs(
     page: int = Query(1, description="Page number, starting from 1"),
@@ -526,6 +521,30 @@ async def get_club_calendar(instagram_handle: str):
         )
 
 
+@app.get("/events/campus-wide")
+async def get_all_campus_events(
+    start_date: Optional[datetime] = Query(
+        None, description="Filter events after this date"
+    ),
+    end_date: Optional[datetime] = Query(
+        None, description="Filter events before this date"
+    ),
+    limit: int = Query(100, description="Maximum number of events to return"),
+    offset: int = Query(0, description="Pagination offset"),
+):
+    """Get all events from all clubs campus-wide with pagination and date filtering."""
+    try:
+        # Get all campus events in a single efficient query
+        events = db.get_all_campus_events(start_date, end_date, limit, offset)
+
+        return {"count": len(events), "results": events}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error fetching campus events: {str(e)}"},
+        )
+
+
 @app.get("/club-manifest")
 async def get_club_manifest(
     category: Optional[str] = Query(None),
@@ -567,21 +586,6 @@ async def get_categories():
     except Exception as e:
         return JSONResponse(
             status_code=500, content={"message": f"Error fetching categories: {str(e)}"}
-        )
-
-
-@app.get("/club/{instagram_handle}/next_scrape")
-async def next_scrape(
-    instagram_handle: str,
-):
-    try:
-        date = ScraperRotation().calculate_next_scrape(instagram_handle)
-        return {"next_scrape": date}
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error obtianing next scrape: {str(e)}"},
         )
 
 
