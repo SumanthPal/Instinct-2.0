@@ -55,7 +55,7 @@ export const likesService = {
         // Determine which profile picture field to use
 
         const profilePicture =
-          "https://storage.googleapis.com/uci-club-bucket/pfps/" +
+          "https://storage.googleapis.com/uci-club-bucket/" +
           club.profile_image_path;
 
         // Extract categories from club_links if available
