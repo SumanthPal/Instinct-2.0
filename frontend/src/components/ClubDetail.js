@@ -397,338 +397,8 @@ export default function ClubDetail({
 					</div>
 				</div>
 
-				{/* Posts Grid - Enhanced mobile layout */}
-				<div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
-					<h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white">
-						Recent Posts
-					</h2>
-					{clubPosts.length > 0
-						? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-								{clubPosts.map((post, index) => (
-									<div
-										key={index}
-										className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
-									>
-										{post.image_url
-											? <div
-													className="relative w-full h-48 sm:h-56 lg:h-64 cursor-pointer touch-manipulation"
-													onClick={() => handleImageClick(post.image_url, post)}
-												>
-													<Image
-														src={post.image_url}
-														alt="Post Image"
-														fill
-														className="object-cover hover:scale-105 transition-transform duration-300"
-														sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-														loading="lazy"
-														unoptimized
-													/>
-												</div>
-											: <div className="w-full h-48 sm:h-56 lg:h-64 bg-white/20 dark:bg-dark-card/20 flex items-center justify-center">
-													<svg
-														className="w-12 h-12 sm:w-16 sm:h-16 text-dark-base/40 dark:text-dark-text/40"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-														xmlns="http://www.w3.org/2000/svg"
-													>
-														<path
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															strokeWidth="2"
-															d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-														/>
-													</svg>
-												</div>}
-										<div className="p-3 sm:p-4">
-											{post.caption && (
-												<p className="text-xs sm:text-sm text-dark-base dark:text-dark-text line-clamp-3 mb-2">
-													{post.caption}
-												</p>
-											)}
-											{post.posted && (
-												<p className="text-xs text-dark-base/60 dark:text-dark-text/60">
-													{new Date(post.posted).toLocaleDateString()}
-												</p>
-											)}
-										</div>
-									</div>
-								))}
-							</div>
-						: <div className="flex flex-col items-center justify-center h-48 sm:h-64 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									className="h-12 w-12 sm:h-16 sm:w-16 text-dark-base/40 dark:text-dark-text/40 mb-3 sm:mb-4"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth="2"
-										d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"
-									/>
-								</svg>
-								<p className="text-base sm:text-lg text-dark-base dark:text-dark-text font-medium">
-									No posts available
-								</p>
-								<p className="text-xs sm:text-sm text-dark-base/60 dark:text-dark-text/60 mt-1">
-									Check back later for updates
-								</p>
-							</div>}
-				</div>
-
-				{/* Modal for Enlarged Image - Fully responsive */}
-				{isModalOpen && (
-					<div
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-2 sm:p-4"
-						onClick={closeModal}
-					>
-						<div
-							className="relative w-full h-full max-w-6xl max-h-full overflow-hidden"
-							onClick={(e) => e.stopPropagation()}
-						>
-							{/* Header with controls - Enhanced mobile layout */}
-							<div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-black/50 to-transparent">
-								<div className="flex items-center gap-2">
-									{/* Download button */}
-									<button
-										onClick={() => {
-											const link = document.createElement("a");
-											link.href = selectedImage;
-											link.download = "club-image.jpg";
-											link.click();
-										}}
-										className="backdrop-blur-sm bg-black/50 hover:bg-black/70 text-white p-2.5 sm:p-3 rounded-full transition-all duration-200 hover:scale-110 min-w-[44px] min-h-[44px] flex items-center justify-center"
-										title="Download image"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											className="h-4 w-4 sm:h-5 sm:w-5"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-											/>
-										</svg>
-									</button>
-
-									{/* Share button */}
-									<button
-										onClick={() => {
-											if (navigator.share) {
-												navigator.share({
-													title: "Club Image",
-													url: selectedImage,
-												});
-											} else {
-												navigator.clipboard.writeText(selectedImage);
-											}
-										}}
-										className="backdrop-blur-sm bg-black/50 hover:bg-black/70 text-white p-2.5 sm:p-3 rounded-full transition-all duration-200 hover:scale-110 min-w-[44px] min-h-[44px] flex items-center justify-center"
-										title="Share image"
-									>
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											className="h-4 w-4 sm:h-5 sm:w-5"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth={2}
-												d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
-											/>
-										</svg>
-									</button>
-								</div>
-
-								{/* Close button */}
-								<button
-									onClick={closeModal}
-									className="backdrop-blur-sm bg-black/50 hover:bg-red-500/70 text-white p-2.5 sm:p-3 rounded-full transition-all duration-200 hover:scale-110 hover:rotate-90 min-w-[44px] min-h-[44px] flex items-center justify-center"
-									title="Close (ESC)"
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										className="h-5 w-5 sm:h-6 sm:w-6"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M6 18L18 6M6 6l12 12"
-										/>
-									</svg>
-								</button>
-							</div>
-
-							{/* Main content container - Better mobile layout */}
-							<div className="bg-white dark:bg-gray-900 rounded-none sm:rounded-lg lg:rounded-xl overflow-hidden shadow-2xl h-full flex flex-col">
-								{/* Image section - Responsive heights */}
-								<div className="relative w-full h-[60vh] sm:h-[65vh] lg:h-[70vh] bg-black">
-									<Image
-										src={selectedImage}
-										alt="Enlarged Post"
-										fill
-										className="object-contain"
-										sizes="100vw"
-										loading="eager"
-										priority
-										unoptimized
-									/>
-								</div>
-
-								{/* Description section - Better mobile scrolling */}
-								{selectedImageData && (
-									<div className="p-3 sm:p-4 lg:p-6 max-h-[40vh] sm:max-h-[35vh] lg:max-h-[30vh] overflow-y-auto overscroll-contain">
-										{/* Event title */}
-										{(selectedImageData.parsed?.Name ||
-											selectedImageData.name) && (
-											<h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-2 break-words">
-												{selectedImageData.parsed?.Name ||
-													selectedImageData.name}
-											</h3>
-										)}
-
-										{/* Caption/Description */}
-										{(selectedImageData.caption ||
-											selectedImageData.details ||
-											selectedImageData.parsed?.Details) && (
-											<p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 leading-relaxed mb-3 break-words">
-												{selectedImageData.caption ||
-													selectedImageData.details ||
-													selectedImageData.parsed?.Details}
-											</p>
-										)}
-
-										{/* Metadata - Better mobile stacking */}
-										<div className="flex flex-col gap-2 pt-3 border-t border-gray-200 dark:border-gray-700 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-											{/* Date */}
-											{(selectedImageData.posted ||
-												selectedImageData.date ||
-												selectedImageData.parsed?.Date) && (
-												<span className="flex items-center gap-2">
-													<svg
-														className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															strokeWidth={2}
-															d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-														/>
-													</svg>
-													<span className="break-words">
-														{new Date(
-															selectedImageData.posted ||
-																selectedImageData.date ||
-																selectedImageData.parsed?.Date,
-														).toLocaleDateString("en-US", {
-															year: "numeric",
-															month: "short",
-															day: "numeric",
-														})}
-													</span>
-												</span>
-											)}
-
-											{/* Location */}
-											{(selectedImageData.location ||
-												selectedImageData.parsed?.Location) && (
-												<span className="flex items-center gap-2">
-													<svg
-														className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															strokeWidth={2}
-															d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-														/>
-														<path
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															strokeWidth={2}
-															d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-														/>
-													</svg>
-													<span className="break-words">
-														{selectedImageData.location ||
-															selectedImageData.parsed?.Location}
-													</span>
-												</span>
-											)}
-
-											{/* Link to original post */}
-											{selectedImageData.post_url && (
-												<a
-													href={selectedImageData.post_url}
-													target="_blank"
-													rel="noopener noreferrer"
-													className="flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors font-medium min-h-[44px] w-fit"
-												>
-													<svg
-														className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															strokeWidth={2}
-															d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-														/>
-													</svg>
-													<span>View on Instagram</span>
-												</a>
-											)}
-										</div>
-									</div>
-								)}
-
-								{/* Fallback if no description data */}
-								{!selectedImageData && (
-									<div className="p-4 sm:p-6 text-center text-gray-500 dark:text-gray-400">
-										<p className="text-sm sm:text-base">
-											No additional information available for this image.
-										</p>
-									</div>
-								)}
-							</div>
-
-							{/* Keyboard shortcut hint - Hidden on mobile */}
-							<div className="absolute bottom-4 right-4 text-white/60 text-xs backdrop-blur-sm bg-black/30 rounded-lg px-2 py-1 hidden sm:block">
-								Press{" "}
-								<kbd className="bg-white/20 px-1 py-0.5 rounded text-xs">
-									ESC
-								</kbd>{" "}
-								to close
-							</div>
-						</div>
-					</div>
-				)}
-
 				{/* Calendar Widget - Fully responsive */}
-				<div className="backdrop-blur-sm bg-gray-100/80 dark:bg-dark-card/40 rounded-lg border border-gray-300/40 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive">
+				<div className="mb-6 sm:mb-8 backdrop-blur-sm bg-gray-100/80 dark:bg-dark-card/40 rounded-lg border border-gray-300/40 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive">
 					<h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white text-center sm:text-left">
 						Activity Calendar
 					</h2>
@@ -791,8 +461,8 @@ export default function ClubDetail({
 					</div>
 				</div>
 
-				{/* Posts and Events on Selected Date - Enhanced mobile layout */}
-				<div className="backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
+				{/* Posts and Events on Selected Date */}
+				<div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
 					<h3 className="text-lg sm:text-xl lg:text-2xl font-bold mb-3 sm:mb-4 text-dark-base dark:text-white">
 						{format(selectedDate, "MMMM d, yyyy")}
 					</h3>
@@ -1002,6 +672,143 @@ export default function ClubDetail({
 						return null;
 					})()}
 				</div>
+
+				{/* Posts Grid - Instagram-style 3 column layout */}
+				<div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
+					<h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white">
+						Recent Posts
+					</h2>
+					{clubPosts.length > 0
+						? <div className="grid grid-cols-3 gap-1 sm:gap-2">
+								{clubPosts.map((post, index) => (
+									<div
+										key={index}
+										className="relative aspect-square cursor-pointer overflow-hidden group"
+										onClick={() => handleImageClick(post.image_url, post)}
+									>
+										{post.image_url
+											? <>
+													<Image
+														src={post.image_url}
+														alt="Post"
+														fill
+														className="object-cover group-hover:scale-105 transition-transform duration-300"
+														sizes="(max-width: 640px) 33vw, (max-width: 1024px) 33vw, 33vw"
+														loading="lazy"
+														unoptimized
+													/>
+													<div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
+												</>
+											: <div className="w-full h-full bg-white/20 dark:bg-dark-card/20 flex items-center justify-center">
+													<svg
+														className="w-8 h-8 text-dark-base/40 dark:text-dark-text/40"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth="2"
+															d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+														/>
+													</svg>
+												</div>}
+									</div>
+								))}
+							</div>
+						: <div className="flex flex-col items-center justify-center h-48 sm:h-64 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									className="h-12 w-12 sm:h-16 sm:w-16 text-dark-base/40 dark:text-dark-text/40 mb-3 sm:mb-4"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth="2"
+										d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z"
+									/>
+								</svg>
+								<p className="text-base sm:text-lg text-dark-base dark:text-dark-text font-medium">
+									No posts available
+								</p>
+								<p className="text-xs sm:text-sm text-dark-base/60 dark:text-dark-text/60 mt-1">
+									Check back later for updates
+								</p>
+							</div>}
+				</div>
+
+				{/* Instagram-style Modal */}
+				{isModalOpen && (
+					<div
+						className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2 sm:p-4"
+						onClick={closeModal}
+					>
+						<div
+							className="relative w-full max-w-lg mx-auto"
+							onClick={(e) => e.stopPropagation()}
+						>
+							{/* Close button */}
+							<button
+								onClick={closeModal}
+								className="absolute -top-12 right-0 text-white/80 hover:text-white p-2 transition-colors"
+								title="Close (ESC)"
+							>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									className="h-6 w-6"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M6 18L18 6M6 6l12 12"
+									/>
+								</svg>
+							</button>
+
+							{/* Image container - Square aspect ratio like Instagram */}
+							<div className="relative w-full aspect-square bg-black rounded-t-lg overflow-hidden">
+								<Image
+									src={selectedImage}
+									alt="Post"
+									fill
+									className="object-contain"
+									sizes="(max-width: 512px) 100vw, 512px"
+									loading="eager"
+									priority
+									unoptimized
+								/>
+							</div>
+
+							{/* Caption section - Simple and minimal */}
+							{selectedImageData && (
+								<div className="bg-white dark:bg-dark-card rounded-b-lg p-4">
+									{selectedImageData.caption && (
+										<p className="text-sm text-dark-base dark:text-dark-text leading-relaxed">
+											{selectedImageData.caption}
+										</p>
+									)}
+									{selectedImageData.posted && (
+										<p className="text-xs text-dark-base/50 dark:text-dark-text/50 mt-2">
+											{new Date(selectedImageData.posted).toLocaleDateString("en-US", {
+												year: "numeric",
+												month: "long",
+												day: "numeric",
+											})}
+										</p>
+									)}
+								</div>
+							)}
+						</div>
+					</div>
+				)}
 
 				{/* Enhanced CSS for mobile responsiveness */}
 				<style jsx global>{`
