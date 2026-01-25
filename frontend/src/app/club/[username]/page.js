@@ -5,7 +5,7 @@ import Footer from '@/components/ui/Footer';
 import Navbar from '@/components/ui/Navbar';
 
 export default async function ClubPage({ params }) {
-  const username = params.username;
+  const { username } = await params;
 
   const [clubData, clubPosts, clubEvents] = await Promise.all([
     fetchClubData(username),
