@@ -367,71 +367,7 @@ export default function ClubDetail({
         </div>
 
         {/* Header Section - Improved mobile layout */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md p-4 sm:p-6 lg:p-8 relative">
-          {/* Activity Badge - Top Right Corner */}
-          {activityInfo.level && (
-            <div className="absolute top-4 right-4 flex items-center gap-2">
-              <div className="relative">
-                <div
-                  className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-sm border shadow-lg relative overflow-hidden ${
-                    activityInfo.level === "high"
-                      ? "bg-gradient-to-r from-lavender/30 to-sky-blue/30 border-lavender/50 text-indigo-700 dark:text-lavender"
-                      : activityInfo.level === "medium"
-                        ? "bg-gradient-to-r from-sky-blue/30 to-lavender/30 border-sky-blue/50 text-blue-700 dark:text-sky-blue"
-                        : "bg-gradient-to-r from-pastel-pink/30 to-lavender/30 border-pastel-pink/50 text-purple-700 dark:text-pastel-pink"
-                  }`}
-                >
-                  {/* Animated background gradient */}
-                  <div
-                    className={`absolute inset-0 opacity-30 animate-pulse-slow ${
-                      activityInfo.level === "high"
-                        ? "bg-gradient-to-r from-lavender/0 via-lavender/50 to-sky-blue/0"
-                        : activityInfo.level === "medium"
-                          ? "bg-gradient-to-r from-sky-blue/0 via-sky-blue/50 to-lavender/0"
-                          : "bg-gradient-to-r from-pastel-pink/0 via-pastel-pink/50 to-lavender/0"
-                    }`}
-                  ></div>
-                  <span className="font-bold text-xs sm:text-sm relative z-10">
-                    {activityInfo.label}
-                  </span>
-                </div>
-              </div>
-              <div className="relative group">
-                <button
-                  className="text-dark-base/60 dark:text-dark-text/60 hover:text-dark-base dark:hover:text-dark-text transition-colors p-1"
-                  aria-label="Activity score information"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 sm:h-5 sm:w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </button>
-                {/* Tooltip */}
-                <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-20 w-64 sm:w-80">
-                  <div className="backdrop-blur-sm bg-dark-base/90 dark:bg-white/90 text-white dark:text-dark-base text-xs rounded-lg p-3 shadow-xl border border-white/20 dark:border-dark-base/20">
-                    <p className="leading-relaxed">
-                      This is an automated metric and may not reflect all
-                      aspects of club activity.
-                    </p>
-                    <div className="absolute bottom-full right-4 mb-[-1px]">
-                      <div className="border-8 border-transparent border-b-dark-base/90 dark:border-b-white/90"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
+        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col items-center space-y-4 sm:space-y-6">
             {/* Profile Image - Responsive sizing */}
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full overflow-hidden border-4 border-white/30 dark:border-dark-text/10 shadow-lg shrink-0">
@@ -457,6 +393,72 @@ export default function ClubDetail({
                 <span>{clubData.followers} followers</span>
                 <span>{clubData.following} following</span>
               </div>
+
+              {/* Activity Badge */}
+              {activityInfo.level && (
+                <div className="flex flex-col items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <div
+                        className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-sm border shadow-lg relative overflow-hidden ${
+                          activityInfo.level === "high"
+                            ? "bg-gradient-to-r from-lavender/30 to-sky-blue/30 border-lavender/50 text-indigo-700 dark:text-lavender"
+                            : activityInfo.level === "medium"
+                              ? "bg-gradient-to-r from-sky-blue/30 to-lavender/30 border-sky-blue/50 text-blue-700 dark:text-sky-blue"
+                              : "bg-gradient-to-r from-pastel-pink/30 to-lavender/30 border-pastel-pink/50 text-purple-700 dark:text-pastel-pink"
+                        }`}
+                      >
+                        {/* Animated background gradient */}
+                        <div
+                          className={`absolute inset-0 opacity-30 animate-pulse-slow ${
+                            activityInfo.level === "high"
+                              ? "bg-gradient-to-r from-lavender/0 via-lavender/50 to-sky-blue/0"
+                              : activityInfo.level === "medium"
+                                ? "bg-gradient-to-r from-sky-blue/0 via-sky-blue/50 to-lavender/0"
+                                : "bg-gradient-to-r from-pastel-pink/0 via-pastel-pink/50 to-lavender/0"
+                          }`}
+                        ></div>
+                        <span className="font-bold text-sm sm:text-base relative z-10">
+                          {activityInfo.label}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <button
+                        className="text-dark-base/60 dark:text-dark-text/60 hover:text-dark-base dark:hover:text-dark-text transition-colors p-1"
+                        aria-label="Activity score information"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </button>
+                      {/* Tooltip */}
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-20 w-64 sm:w-80">
+                        <div className="backdrop-blur-sm bg-dark-base/90 dark:bg-white/90 text-white dark:text-dark-base text-xs rounded-lg p-3 shadow-xl border border-white/20 dark:border-dark-base/20">
+                          <p className="leading-relaxed">
+                            This is an automated metric that may not reflect all
+                            aspects of a club's activity.
+                          </p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+                            <div className="border-8 border-transparent border-t-dark-base/90 dark:border-t-white/90"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Instagram Link - Full width on mobile */}
               <div className="flex justify-center mb-3 sm:mb-4">
