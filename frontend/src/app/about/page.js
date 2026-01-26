@@ -83,183 +83,23 @@ const About = () => {
 					</div>
 				</section>
 
-				{/* Our Team */}
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-md">
-					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
-						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-							Meet the Creator
-						</h2>
-						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
-					</div>
-
-					<div className="flex flex-col items-center">
-						<div className="relative group">
-							<div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 group-hover:opacity-100 blur-sm transition duration-200"></div>
-							<img
-								src="/sumanth.jpg"
-								alt="Sumanth Pallamreddy"
-								className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover border-2 border-white dark:border-gray-800"
-							/>
-						</div>
-						<p className="mt-6 text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
-							Sumanth Pallamreddy
-						</p>
-						<p className="text-base sm:text-lg text-gray-700 dark:text-gray-400">
-							Founder • Developer • Engineer
-						</p>
-
-						<div className="mt-4 flex space-x-6">
-							<a
-								href="https://www.linkedin.com/in/sumanth-p-88271b239"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="transform transition-transform hover:scale-110"
-							>
-								<FaLinkedin className="w-6 h-6 text-gray-900 dark:text-white hover:text-blue-700 dark:hover:text-blue-400 transition-colors" />
-							</a>
-							<a
-								href="https://github.com/SumanthPal"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="transform transition-transform hover:scale-110"
-							>
-								<FaGithub className="w-6 h-6 text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 transition-colors" />
-							</a>
-							<a
-								href="https://x.com/lifeofsumpal_"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="transform transition-transform hover:scale-110"
-							>
-								<FaXTwitter className="w-6 h-6 text-gray-900 dark:text-white hover:text-blue-500 transition-colors" />
-							</a>
-						</div>
-					</div>
-				</section>
-
-				{/* DevOps & Bots */}
+				{/* How It Works */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
 						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-							DevOps & Operations
+							How It Works
 						</h2>
 						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
 					</div>
 
-					<div className="flex flex-wrap justify-center gap-8 sm:gap-12">
-						{/* Queuetie */}
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 flex flex-col items-center max-w-xs shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
-							<div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center shadow-lg">
-								<span className="text-3xl sm:text-4xl font-bold text-white">
-									Q
-								</span>
-							</div>
-							<p className="mt-4 text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
-								Queuetie
-							</p>
-							<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 text-center">
-								Task Orchestrator
-								<br />
-								and Queue Manager
-							</p>
-						</div>
-
-						{/* Fixie Bixie */}
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 flex flex-col items-center max-w-xs shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
-							<div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-r from-green-400 to-green-600 flex items-center justify-center shadow-lg">
-								<span className="text-3xl sm:text-4xl font-bold text-white">
-									F
-								</span>
-							</div>
-							<p className="mt-4 text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
-								Fixie Bixie
-							</p>
-							<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 text-center">
-								Moderation Workflow
-								<br />
-								and Infrastructure Monitoring Bot
-							</p>
-						</div>
+					<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
+						<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-center">
+							Instinct automatically scrapes and indexes UCI club Instagram accounts, processes events and posts,
+							and powers an intelligent search system. Everything stays up-to-date through automated task queues
+							and smart prioritization—so you always see the latest club activity.
+						</p>
 					</div>
-				</section>
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-md">
-					{/* Header */}
-					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent w-12 sm:w-16 mr-4"></div>
-						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-							Read More About It
-						</h2>
-						<div className="h-px bg-gradient-to-r from-purple-300 via-blue-300 to-transparent w-12 sm:w-16 ml-4"></div>
-					</div>
-
-					{/* Medium Link Preview */}
-					<a
-						href="https://medium.com/@sumanthpal21/my-first-and-greatest-project-a4c56a1c2e03"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="block max-w-3xl mx-auto rounded-xl overflow-hidden shadow-md bg-white border border-gray-200 hover:shadow-lg hover:scale-[1.01] transition-all duration-200"
-					>
-						<img
-							src="https://miro.medium.com/v2/resize:fit:960/format:webp/1*g6Ohnmgper7H6Tyx1Z8x3A.png"
-							alt="My First and Greatest Project"
-							className="w-full h-48 sm:h-56 object-cover"
-						/>
-						<div className="p-6">
-							<div className="flex items-center gap-2 mb-3">
-								<svg
-									className="w-5 h-5 text-gray-700"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-								>
-									<path d="M13.54 12a6.8 6.8 0 01-6.77 6.82A6.8 6.8 0 010 12a6.8 6.8 0 016.77-6.82A6.8 6.8 0 0113.54 12zM20.96 12c0 3.54-1.51 6.42-3.38 6.42s-3.38-2.88-3.38-6.42 1.51-6.42 3.38-6.42 3.38 2.88 3.38 6.42zM24 12c0 3.17-.53 5.75-1.19 5.75-.66 0-1.19-2.58-1.19-5.75s.53-5.75 1.19-5.75C23.47 6.25 24 8.83 24 12z" />
-								</svg>
-								<span className="text-sm font-medium text-gray-600">
-									Medium
-								</span>
-							</div>
-
-							<h3 className="text-xl font-semibold text-gray-900 mb-2 hover:text-green-600 transition-colors">
-								My First and Greatest Project
-							</h3>
-
-							<p className="text-gray-600 text-sm mb-4 leading-relaxed">
-								An article I wrote on Medium about my biggest solo project and
-								what I learned along the way.
-							</p>
-
-							<div className="flex items-center justify-between text-xs text-gray-500">
-								<div className="flex items-center gap-2">
-									<div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-										<span className="text-green-700 font-semibold text-xs">
-											S
-										</span>
-									</div>
-									<span className="font-medium">Sumanth Pal</span>
-									<span>•</span>
-									<span>Dec 12, 2024</span>
-								</div>
-
-								<div className="flex items-center gap-1">
-									<svg
-										className="w-4 h-4"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
-									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-									<span>5 min read</span>
-								</div>
-							</div>
-						</div>
-					</a>
 				</section>
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-md">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
