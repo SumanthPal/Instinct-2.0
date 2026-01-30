@@ -19,7 +19,7 @@ const About = () => {
 					</h1>
 					<p className="text-lg sm:text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8 text-center leading-relaxed">
 						Instinct helps UCI students discover and connect with the right
-						clubs through automation, intelligent search, and a beautifully
+						clubs and events through automation, intelligent search, and a beautifully
 						simple platform.
 					</p>
 
@@ -61,10 +61,11 @@ const About = () => {
 								For Students
 							</h3>
 							<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
-								UCI has hundreds of clubs—but no good way to find the ones that
+								UCI has hundreds of clubs and countless events—but no good way to find the ones that
 								actually match your interests. Instinct makes this intuitive. We
-								surface clubs by vibe, activity, and relevance. You can track
-								real Instagram updates, find events, and get a feel for each
+								surface clubs by vibe, activity, and relevance, while helping you discover
+								upcoming events tailored to your preferences. Track
+								real Instagram updates, browse events by category, and get a feel for each
 								org's personality.
 							</p>
 						</div>
@@ -75,9 +76,9 @@ const About = () => {
 							</h3>
 							<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
 								Instinct gives your org a platform where students are actually
-								looking. We analyze social engagement and let you highlight what
+								looking. We analyze social engagement, showcase your events, and let you highlight what
 								makes your club special. With smart scraping and effortless info
-								updates, you'll never get overlooked again.
+								updates, your events and activities will reach the right audience.
 							</p>
 						</div>
 					</div>
@@ -96,8 +97,9 @@ const About = () => {
 					<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
 						<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-center">
 							Instinct automatically scrapes and indexes UCI club Instagram accounts, processes events and posts,
-							and powers an intelligent search system. Everything stays up-to-date through automated task queues
-							and smart prioritization—so you always see the latest club activity.
+							and powers an intelligent search system. Whether you're looking for clubs or upcoming events,
+							everything stays up-to-date through automated task queues
+							and smart prioritization—so you never miss what matters to you.
 						</p>
 					</div>
 				</section>
