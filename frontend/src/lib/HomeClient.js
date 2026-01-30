@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { createClient } from '@/lib/supabase';
+import { createClient } from "@/lib/supabase";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
 import SearchSection from "@/components/SearchSection";
@@ -9,14 +9,19 @@ import ClubGrid from "@/components/ClubGrid";
 import { useClubsData } from "@/lib/useClubData";
 import "../../styles/globals.css";
 
-export default function HomeClient({ initialClubs, totalCount, hasMore, currentPage }) {
+export default function HomeClient({
+  initialClubs,
+  totalCount,
+  hasMore,
+  currentPage,
+}) {
   const supabase = createClient();
   const clubsRef = useRef(null);
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('all');
-  const [viewMode, setViewMode] = useState('grid');
+  const [activeTab, setActiveTab] = useState("all");
+  const [viewMode, setViewMode] = useState("grid");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  
+
   // Use custom hook for clubs data management
   const {
     filteredClubs,
@@ -27,24 +32,26 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
     totalClubCount,
     setSearchInput,
     handleCategoryChange, // Use the handler from the hook
-    handleLoadMore
+    handleLoadMore,
   } = useClubsData(initialClubs, totalCount, hasMore, currentPage, user);
 
   // Check authentication status
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUser(session?.user || null);
-      
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setUser(session?.user || null);
-        }
-      );
-      
+
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user || null);
+      });
+
       return () => subscription?.unsubscribe();
     };
-    
+
     checkUser();
   }, []);
 
@@ -56,14 +63,14 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
           handleLoadMore();
         }
       },
-      { threshold: 1.0 }
+      { threshold: 1.0 },
     );
-    
-    const loadMoreTrigger = document.getElementById('load-more-trigger');
+
+    const loadMoreTrigger = document.getElementById("load-more-trigger");
     if (loadMoreTrigger) {
       observer.observe(loadMoreTrigger);
     }
-    
+
     return () => {
       if (loadMoreTrigger) {
         observer.unobserve(loadMoreTrigger);
@@ -93,17 +100,19 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
   return (
     <div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
-      
+
       <main className="container mx-auto px-3 sm:px-4 pt-[100px] sm:pt-[120px] pb-10 sm:pb-16 md:pb-20 text-center">
         {/* Heading */}
         <div className="mb-8 sm:mb-12">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 sm:mb-3 text-dark-base dark:text-white">
-            ANTEATER CLUBS
+            Clubs & Organizations
           </h1>
-          <p className="text-dark-base dark:text-dark-subtext text-base sm:text-lg">Find and connect with campus organizations</p>
+          <p className="text-dark-base dark:text-dark-subtext text-base sm:text-lg">
+            Find and connect with campus organizations
+          </p>
         </div>
 
-        <SearchSection 
+        <SearchSection
           searchInput={searchInput}
           onSearchChange={handleSearchChange}
           onSearch={handleSearch}
@@ -133,7 +142,7 @@ export default function HomeClient({ initialClubs, totalCount, hasMore, currentP
           />
         </div>
       </main>
-      
+
       <Footer />
 
       <style jsx global>{`

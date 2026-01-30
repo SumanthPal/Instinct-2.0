@@ -331,15 +331,21 @@ export default function ClubDetail({
 
     // Determine level
     let level, label;
-    if (finalScore >= 70) {
+    if (finalScore >= 80) {
+      level = "very-high";
+      label = "Very Active";
+    } else if (finalScore >= 60) {
       level = "high";
       label = "Highly Active";
-    } else if (finalScore >= 50) {
+    } else if (finalScore >= 40) {
       level = "medium";
       label = "Active";
-    } else {
+    } else if (finalScore >= 20) {
       level = "low";
       label = "Moderately Active";
+    } else {
+      level = "very-low";
+      label = "Low Activity";
     }
 
     return { level, score: Math.round(finalScore), label };
@@ -396,65 +402,38 @@ export default function ClubDetail({
 
               {/* Activity Badge */}
               {activityInfo.level && (
-                <div className="flex flex-col items-center gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <div
-                        className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-sm border shadow-lg relative overflow-hidden ${
-                          activityInfo.level === "high"
+                <div className="flex justify-center mb-3">
+                  <div className="relative">
+                    <div
+                      className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-sm border shadow-lg relative overflow-hidden ${
+                        activityInfo.level === "very-high"
+                          ? "bg-gradient-to-r from-green-400/30 to-emerald-400/30 border-green-500/50 text-green-700 dark:text-green-300"
+                          : activityInfo.level === "high"
                             ? "bg-gradient-to-r from-lavender/30 to-sky-blue/30 border-lavender/50 text-indigo-700 dark:text-lavender"
                             : activityInfo.level === "medium"
                               ? "bg-gradient-to-r from-sky-blue/30 to-lavender/30 border-sky-blue/50 text-blue-700 dark:text-sky-blue"
-                              : "bg-gradient-to-r from-pastel-pink/30 to-lavender/30 border-pastel-pink/50 text-purple-700 dark:text-pastel-pink"
-                        }`}
-                      >
-                        {/* Animated background gradient */}
-                        <div
-                          className={`absolute inset-0 opacity-30 animate-pulse-slow ${
-                            activityInfo.level === "high"
+                              : activityInfo.level === "low"
+                                ? "bg-gradient-to-r from-pastel-pink/30 to-lavender/30 border-pastel-pink/50 text-purple-700 dark:text-pastel-pink"
+                                : "bg-gradient-to-r from-gray-400/30 to-gray-500/30 border-gray-500/50 text-gray-700 dark:text-gray-400"
+                      }`}
+                    >
+                      {/* Animated background gradient */}
+                      <div
+                        className={`absolute inset-0 opacity-30 animate-pulse-slow ${
+                          activityInfo.level === "very-high"
+                            ? "bg-gradient-to-r from-green-400/0 via-green-400/50 to-emerald-400/0"
+                            : activityInfo.level === "high"
                               ? "bg-gradient-to-r from-lavender/0 via-lavender/50 to-sky-blue/0"
                               : activityInfo.level === "medium"
                                 ? "bg-gradient-to-r from-sky-blue/0 via-sky-blue/50 to-lavender/0"
-                                : "bg-gradient-to-r from-pastel-pink/0 via-pastel-pink/50 to-lavender/0"
-                          }`}
-                        ></div>
-                        <span className="font-bold text-sm sm:text-base relative z-10">
-                          {activityInfo.label}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <button
-                        className="text-dark-base/60 dark:text-dark-text/60 hover:text-dark-base dark:hover:text-dark-text transition-colors p-1"
-                        aria-label="Activity score information"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-5 w-5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </button>
-                      {/* Tooltip */}
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-20 w-64 sm:w-80">
-                        <div className="backdrop-blur-sm bg-dark-base/90 dark:bg-white/90 text-white dark:text-dark-base text-xs rounded-lg p-3 shadow-xl border border-white/20 dark:border-dark-base/20">
-                          <p className="leading-relaxed">
-                            This is an automated metric that may not reflect all
-                            aspects of a club's activity.
-                          </p>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
-                            <div className="border-8 border-transparent border-t-dark-base/90 dark:border-t-white/90"></div>
-                          </div>
-                        </div>
-                      </div>
+                                : activityInfo.level === "low"
+                                  ? "bg-gradient-to-r from-pastel-pink/0 via-pastel-pink/50 to-lavender/0"
+                                  : "bg-gradient-to-r from-gray-400/0 via-gray-400/50 to-gray-500/0"
+                        }`}
+                      ></div>
+                      <span className="font-bold text-sm sm:text-base relative z-10">
+                        {activityInfo.label}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -999,7 +978,7 @@ export default function ClubDetail({
                         {club.categories && club.categories.length > 0 && (
                           <div className="flex flex-wrap gap-1 justify-center mt-2">
                             {club.categories
-                              .slice(0, 2)
+                              .slice(0, 5)
                               .map((category, idx) => (
                                 <span
                                   key={idx}
@@ -1010,9 +989,9 @@ export default function ClubDetail({
                                     : category.name}
                                 </span>
                               ))}
-                            {club.categories.length > 2 && (
+                            {club.categories.length > 5 && (
                               <span className="inline-block px-2 py-0.5 text-xs bg-white/50 dark:bg-dark-card/50 border border-white/30 dark:border-dark-text/20 rounded-full text-dark-base/60 dark:text-dark-text/60">
-                                +{club.categories.length - 2}
+                                +{club.categories.length - 5}
                               </span>
                             )}
                           </div>

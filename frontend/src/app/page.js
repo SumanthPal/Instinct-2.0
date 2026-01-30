@@ -2,94 +2,31 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Navbar from "../components/ui/Navbar";
 import Footer from "../components/ui/Footer";
 import TypingAnimation from "../components/ui/TypingAnimation";
 
-const UCIBackground = () => {
-	const [currentImageIndex, setCurrentImageIndex] = useState(0);
-	const [prevImageIndex, setPrevImageIndex] = useState(null);
-	const [isTransitioning, setIsTransitioning] = useState(false);
-	const timerRef = useRef(null);
-	const intervalRef = useRef(null);
-
-	const uciImages = [
-		"campus_1.jpeg",
-		"campus_2.jpeg",
-		"campus_3.jpeg",
-		"campus_4.jpeg",
-	];
-
-	// Preload images for smoother transitions
-	useEffect(() => {
-		uciImages.forEach((src) => {
-			const img = new Image();
-			img.src = src;
-		});
-	}, []);
-
-	useEffect(() => {
-		const startSlideshow = () => {
-			// Clear any existing interval/timeout
-			if (intervalRef.current) clearInterval(intervalRef.current);
-			if (timerRef.current) clearTimeout(timerRef.current);
-
-			intervalRef.current = setInterval(() => {
-				// Save current as previous
-				setPrevImageIndex(currentImageIndex);
-
-				// Set next image
-				const nextIndex = (currentImageIndex + 1) % uciImages.length;
-				setCurrentImageIndex(nextIndex);
-
-				// Start transition
-				setIsTransitioning(true);
-
-				// Reset transition state after animation completes
-				timerRef.current = setTimeout(() => {
-					setIsTransitioning(false);
-				}, 1000);
-			}, 6000);
-		};
-
-		startSlideshow();
-
-		return () => {
-			if (intervalRef.current) clearInterval(intervalRef.current);
-			if (timerRef.current) clearTimeout(timerRef.current);
-		};
-	}, [currentImageIndex, uciImages.length]);
-
+const InstinctBackground = () => {
 	return (
 		<div className="fixed inset-0 overflow-hidden z-5">
-			{/* Background images */}
-			<div className="absolute inset-0">
-				{/* Current image (always visible) */}
-				<div
-					className="absolute inset-0 w-full h-full bg-cover bg-center"
-					style={{
-						//fix for rotation better
-						backgroundImage: `url(${uciImages[0]})`,
-						opacity: isTransitioning ? 0 : 1,
-						transition: "opacity 1000ms ease-in-out",
-					}}
-				/>
+			{/* Gradient background */}
+			<div className="absolute inset-0 bg-gradient-to-br from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end"></div>
 
-				{/* Previous image (fading out) */}
-				{prevImageIndex !== null && (
-					<div
-						className="absolute inset-0 w-full h-full bg-cover bg-center"
-						style={{
-							backgroundImage: `url(${uciImages[prevImageIndex]})`,
-							opacity: isTransitioning ? 1 : 0,
-							transition: "opacity 1000ms ease-in-out",
-						}}
-					/>
-				)}
+			{/* Logo */}
+			<div className="absolute inset-0 flex items-center justify-center opacity-30">
+				<Image
+					src="/logo.svg"
+					alt="Instinct Logo"
+					width={1600}
+					height={1600}
+					priority
+					className="object-contain max-w-6xl"
+				/>
 			</div>
 
-			{/* White overlay for readability */}
-			<div className="absolute inset-0 bg-white opacity-40" />
+			{/* Overlay for readability */}
+			<div className="absolute inset-0 bg-white/10 dark:bg-black/10" />
 		</div>
 	);
 };
@@ -97,12 +34,12 @@ const UCIBackground = () => {
 export default function Home() {
 	return (
 		<div className="min-h-screen flex flex-col justify-between items-center text-gray-900 dark:text-dark-text relative overflow-hidden">
-			<UCIBackground />
+			<InstinctBackground />
 			<Navbar />
 
 			{/* Hero Section */}
 			<div className="flex flex-col items-center justify-center text-center flex-1 px-6 pt-24 sm:pt-32 pb-24 sm:pb-32 z-10">
-				<h1 className="text-8xl md:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-sky-blue to-lavender dark:from-dark-text-white dark:to-dark-subtext mb-8 drop-shadow-lg">
+				<h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-dark-text-white dark:to-dark-subtext mb-8 drop-shadow-lg">
 					Instinct at UC Irvine
 				</h1>
 				<TypingAnimation
@@ -111,12 +48,17 @@ export default function Home() {
 						"Join your passion.",
 						"Fuel your curiosity.",
 					]}
-					className="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-dark-text-white mb-12"
+					className="text-3xl md:text-4xl lg:text-5xl font-semibold text-gray-900 dark:text-white mb-12 drop-shadow-lg dark:drop-shadow-[0_4px_8px_rgba(255,255,255,0.3)]"
 				/>
 				<div className="flex flex-col md:flex-row gap-6">
 					<a href="/clubs">
-						<button className="px-12 py-5 text-lg font-bold bg-white/40 backdrop-blur-md dark:bg-dark-profile-card/40 rounded-2xl shadow-xl hover:scale-105 hover:bg-white/60 dark:hover:bg-dark-profile-card/60 transition-all duration-300">
+						<button className="px-14 py-6 text-xl md:text-2xl font-bold bg-white/40 backdrop-blur-md dark:bg-dark-profile-card/40 rounded-2xl shadow-xl hover:scale-105 hover:bg-white/60 dark:hover:bg-dark-profile-card/60 transition-all duration-300">
 							Explore Clubs
+						</button>
+					</a>
+					<a href="/events">
+						<button className="px-14 py-6 text-xl md:text-2xl font-bold bg-white/40 backdrop-blur-md dark:bg-dark-profile-card/40 rounded-2xl shadow-xl hover:scale-105 hover:bg-white/60 dark:hover:bg-dark-profile-card/60 transition-all duration-300">
+							Explore Events
 						</button>
 					</a>
 				</div>

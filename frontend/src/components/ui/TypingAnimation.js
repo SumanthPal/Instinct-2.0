@@ -10,15 +10,18 @@ const phrases = [
   "Make a difference",
 ];
 
-export default function TypingAnimation() {
+export default function TypingAnimation({ text, className = "" }) {
   const [currentPhrase, setCurrentPhrase] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [typingSpeed, setTypingSpeed] = useState(50); // Speed of typing/deleting
 
+  // Use custom text if provided, otherwise use default phrases
+  const displayPhrases = text || phrases;
+
   useEffect(() => {
     const handleTyping = () => {
-      const currentText = phrases[phraseIndex];
+      const currentText = displayPhrases[phraseIndex];
       if (!isDeleting) {
         // Typing logic
         setCurrentPhrase(currentText.substring(0, currentPhrase.length + 1));
@@ -32,17 +35,17 @@ export default function TypingAnimation() {
         if (currentPhrase === "") {
           // Move to the next phrase
           setIsDeleting(false);
-          setPhraseIndex((phraseIndex + 1) % phrases.length);
+          setPhraseIndex((phraseIndex + 1) % displayPhrases.length);
         }
       }
     };
 
     const timer = setTimeout(handleTyping, typingSpeed);
     return () => clearTimeout(timer);
-  }, [currentPhrase, isDeleting, phraseIndex, typingSpeed]);
+  }, [currentPhrase, isDeleting, phraseIndex, typingSpeed, displayPhrases]);
 
   return (
-    <div className="text-2xl sm:text-4xl md:text-5xl text-gray-700 mb-8 font-bold">
+    <div className={className}>
       <span>{currentPhrase}</span>
       <span className="blinking-cursor">|</span>
     </div>
