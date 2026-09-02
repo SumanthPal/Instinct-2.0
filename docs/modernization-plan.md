@@ -43,8 +43,18 @@ key handling). The prior Azure Container Apps bill came from keeping the scraper
 warm 24/7 — this topology removes that structurally. Tracked in #54.
 
 **Known consequence:** the scraper now produces to Redis from a home network while the API
-consumes from Oracle Cloud. Redis must be reachable by both — see #54 for the options
-(Upstash recommended to start).
+consumes from Oracle Cloud. Redis must be reachable by both.
+
+Settled on **Redis Cloud free tier** (30 MB, 1 DB) over Upstash: Upstash bills per command
+and the scraper is chatty, whereas measured Redis usage is only ~2–5 MB because every key
+is `ltrim`-capped (`tools/logger.py:100`, `tools/redis_queue.py:834`). The binding
+constraint is **connections, not memory** — four processes each open an unbounded
+`redis-py` pool. Bounded in #55. Use the `rediss://` TLS endpoint.
+
+**Oracle Always Free is ARM64 (Ampere A1).** Images must be `linux/arm64` or they fail with
+`exec format error`; CI runners default to amd64. Tracked in #56, which also flags that ARM
+capacity is often exhausted — provision the instance early. The scraper running locally
+means Chromium-on-ARM never has to be solved.
 
 ### Images: ~19,000 objects lost with the GCP bucket
 
