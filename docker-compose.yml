@@ -1,9 +1,15 @@
-version: "3.9"
-
-# Note on REDIS_URL override: services define REDIS_URL=${REDIS_URL:-redis://redis:6379}
-# in environment, which takes precedence over env_file: backend/.env. To use an external
-# Redis, either: (1) export REDIS_URL in your shell before docker compose up, or
-# (2) remove the REDIS_URL line from each service and set it in backend/.env.
+# Local development stack.
+#
+# Env: services read the repo-root `.env` (see .env.example / #30).
+# REDIS_URL is set per-service and takes precedence over `.env`; to use an
+# external Redis, export REDIS_URL in your shell before `docker compose up`.
+#
+# `docker compose up` starts only redis + web — the stack you need for local
+# development. Optional services are behind profiles:
+#   docker compose --profile scraper up    # builds Chromium; per #54 the
+#                                          # scraper normally runs on a local
+#                                          # machine, not in this stack
+#   docker compose --profile discord up    # requires AUX_BOT_TOKEN/JOB_BOT_TOKEN
 
 services:
   redis:
@@ -13,8 +19,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
-    networks:
-      - instinct-net
+    networks: [instinct-net]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -26,48 +31,44 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile.web
-    entrypoint: /entrypoint.sh
-    command: python server.py
-    env_file: backend/.env
+    command: ["python", "-m", "instinct.server"]
+    env_file: .env
     environment:
       - PORT=8000
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     ports:
       - "8000:8000"
-    networks:
-      - instinct-net
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  scraper:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile.scraper
-    entrypoint: /entrypoint.sh
-    command: python app/tools/scraper_rotation.py
-    env_file: backend/.env
-    environment:
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-    networks:
-      - instinct-net
+    networks: [instinct-net]
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
 
   discord:
+    profiles: [discord]
     build:
       context: .
       dockerfile: backend/Dockerfile.discord
-    entrypoint: /entrypoint.sh
-    command: python app/tools/discord_bot.py
-    env_file: backend/.env
+    command: ["python", "-m", "instinct.tools.discord_bot"]
+    env_file: .env
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-    networks:
-      - instinct-net
+    networks: [instinct-net]
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  scraper:
+    profiles: [scraper]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.scraper
+    command: ["python", "-m", "instinct.tools.scraper_rotation"]
+    env_file: .env
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    networks: [instinct-net]
     restart: unless-stopped
     depends_on:
       redis:

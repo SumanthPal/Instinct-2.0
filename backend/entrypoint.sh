@@ -1,14 +1,15 @@
 #!/bin/bash
 set -e
 
-echo "=== CONTAINER STARTUP ==="
-echo "Current directory: $(pwd)"
-echo "Directory contents:"
-ls -la
-echo "Python version: $(python --version)"
-echo "Environment variables:"
-env | grep -v PASSWORD | grep -v SECRET | sort
-echo "=== STARTING APPLICATION ==="
+echo "=== instinct container startup ==="
+echo "python:  $(python --version 2>&1)"
+echo "workdir: $(pwd)"
+echo "command: $*"
+echo "=================================="
+
+# Deliberately does NOT dump the environment. It previously ran
+#   env | grep -v PASSWORD | grep -v SECRET
+# which still wrote OPENAI, INTERNAL_API_TOKEN, COOKIE_1/2 and
+# GC_CREDENTIAL to container logs in cleartext.
 
 exec "$@"
- 
