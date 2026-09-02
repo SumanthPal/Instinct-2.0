@@ -2,23 +2,19 @@ FROM python:3.14-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
-COPY backend/app ./backend/app
+COPY backend/src ./backend/src
 RUN uv sync --frozen --no-dev --no-editable
 
 FROM python:3.14-slim
 WORKDIR /app
-
+EXPOSE 8000
 COPY --from=builder /app/.venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Copy the CONTENTS of backend/app directly into /app
-# Result: /app/server.py, /app/tools/, /app/db/
-COPY backend/app /app
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Cloud Run expects 8080
-EXPOSE 8080
-
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    LOG_DIR=/app/logs
+RUN mkdir -p /app/logs
+COPY backend/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["python", "-m", "instinct.server"]
