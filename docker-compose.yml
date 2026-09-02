@@ -25,6 +25,7 @@ services:
     env_file: backend/.env
     environment:
       - PORT=8000
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     ports:
       - "8000:8000"
     networks:
@@ -41,6 +42,8 @@ services:
     entrypoint: /entrypoint.sh
     command: python app/tools/scraper_rotation.py
     env_file: backend/.env
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     networks:
       - instinct-net
     restart: unless-stopped
@@ -55,6 +58,8 @@ services:
     entrypoint: /entrypoint.sh
     command: python app/tools/discord_bot.py
     env_file: backend/.env
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     networks:
       - instinct-net
     restart: unless-stopped
