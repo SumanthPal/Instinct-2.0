@@ -1,28 +1,43 @@
 // middleware.js (should be at the root of your project)
 
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 export async function middleware(req) {
   try {
-    const res = NextResponse.next()
-    
+    let res = NextResponse.next({ request: req })
+
     // Create a Supabase client configured to use cookies
-    const supabase = createMiddlewareClient({ req, res })
-    
-    // Refresh session if expired & still valid
-    await supabase.auth.getSession()
-    
-    // Check if we have a session
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
+            res = NextResponse.next({ request: req })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              res.cookies.set(name, value, options),
+            )
+          },
+        },
+      },
+    )
+
+    // Refresh the session if it expired and read the authenticated user.
+    // getUser() revalidates the token with Supabase; getSession() does not.
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+    } = await supabase.auth.getUser()
 
     // Check if the user is trying to access a protected route
     if ((req.nextUrl.pathname.startsWith('/dashboard') || 
          req.nextUrl.pathname.startsWith('/club') ||
          req.nextUrl.pathname.startsWith('/clubs')) && 
-        !session) {
+        !user) {
       // Redirect unauthenticated users to home page
       return NextResponse.redirect(new URL('/', req.url))
     }
