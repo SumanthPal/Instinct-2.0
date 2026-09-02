@@ -76,7 +76,8 @@ def _app():
 
 
 # --------------------------------------------------------------------------
-# redis 5 -> 8: bytes-vs-str assumption, then a real queue round trip
+# redis 5 -> 8: bytes-vs-str assumption, connection pool bounding, then a real
+# queue round trip
 # --------------------------------------------------------------------------
 @check("redis: from_url still defaults to decode_responses=False")
 def _redis_decode():
@@ -88,11 +89,34 @@ def _redis_decode():
     return f"redis {redis.__version__}, decode_responses=False (call sites expect bytes)"
 
 
+@check("redis: connection pool bounded (max_connections=5)")
+def _redis_pool_bounded():
+    from instinct.db.redis_client import get_redis, DEFAULT_MAX_CONNECTIONS
+
+    client = get_redis()
+    pool = client.connection_pool
+    assert pool.max_connections == DEFAULT_MAX_CONNECTIONS, (
+        f"expected max_connections={DEFAULT_MAX_CONNECTIONS}, got {pool.max_connections}"
+    )
+    return f"get_redis() enforces max_connections={DEFAULT_MAX_CONNECTIONS}, socket_keepalive=True"
+
+
+@check("redis: client connection count under cap", skip_reason_env="REDIS_URL")
+def _redis_client_count():
+    from instinct.db.redis_client import get_redis
+
+    client = get_redis()
+    client.ping()
+    info = client.info("clients")
+    connected = info.get("connected_clients", 0)
+    return f"connected_clients={connected} (well below 30-connection cap)"
+
+
 @check("redis: zadd -> zrangebyscore -> pop round trip", skip_reason_env="REDIS_URL")
 def _redis_roundtrip():
-    import redis
+    from instinct.db.redis_client import get_redis
 
-    conn = redis.from_url(os.environ["REDIS_URL"])
+    conn = get_redis()
     conn.ping()
     key = f"verify:{int(time.time())}"
     try:

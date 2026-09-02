@@ -15,6 +15,7 @@ from typing import Dict, List, Optional
 # Import custom modules
 from instinct.tools.logger import logger
 from instinct.db.queries import SupabaseQueries
+from instinct.db.redis_client import get_redis
 from instinct.utils.env import (
     env_int,
     redis_url as get_redis_url,
@@ -94,10 +95,8 @@ def get_db() -> SupabaseQueries:
     return _db
 
 
-# Redis connection (shared resource). from_url() does not connect, so this is
-# safe at module scope as long as the URL always has a default.
-redis_url = get_redis_url()
-redis_conn = redis.from_url(redis_url)
+# Redis connection (shared resource). get_redis() uses a bounded pool (max_connections=5).
+redis_conn = get_redis()
 
 # Redis queue key names (for status checks)
 QUEUE_KEYS = {

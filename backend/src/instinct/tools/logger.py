@@ -8,6 +8,8 @@ from pathlib import Path
 import redis
 import dotenv
 
+from instinct.db.redis_client import get_redis
+
 def _default_log_dir() -> str:
     """Where logs go when LOG_DIR is unset.
 
@@ -63,7 +65,7 @@ class RedisLogHandler(logging.Handler):
             return None
         if self.redis_conn is None:
             try:
-                self.redis_conn = redis.from_url(self.redis_url)
+                self.redis_conn = get_redis(self.redis_url)
             except Exception as e:
                 self._disable(f"bad REDIS_URL: {e}")
                 return None
