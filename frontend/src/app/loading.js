@@ -3,9 +3,9 @@
 export default function Loading() {
   return (
     <div className="flex items-center justify-center min-h-screen 
-      bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue 
+      bg-linear-to-r from-pastel-pink via-lavender to-sky-blue 
       dark:from-dark-gradient-start dark:to-dark-gradient-end 
-      animate-gradient bg-[length:400%_400%]">
+      animate-gradient bg-size-[400%_400%]">
       
       <div className="relative w-16 h-16">
         {/* Outer Pulsing Ring */}

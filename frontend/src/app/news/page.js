@@ -85,7 +85,7 @@ export default function NewsPage() {
 	};
 
 	return (
-		<div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+		<div className="min-h-screen overflow-hidden bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
 			<Navbar />
 
 			<main className="container mx-auto px-3 sm:px-4 pt-[100px] sm:pt-[120px] pb-10 sm:pb-16 md:pb-20 text-center">
@@ -101,7 +101,7 @@ export default function NewsPage() {
 
 				{/* View Toggle */}
 				<div className="flex justify-end mb-6">
-					<div className="inline-flex backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
+					<div className="inline-flex backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
 						<button
 							onClick={() => setViewMode("grid")}
 							className={`p-2 rounded ${viewMode === "grid" ? "bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white" : "text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10"}`}
@@ -146,7 +146,7 @@ export default function NewsPage() {
 				</div>
 
 				{/* Glass Tabs */}
-				<div className="inline-flex mb-8 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
+				<div className="inline-flex mb-8 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
 					{["categories", "schools"].map((tab) => (
 						<button
 							key={tab}
@@ -183,14 +183,14 @@ export default function NewsPage() {
 				{/* Main Feed */}
 				<section className="mb-20">
 					<div className="flex items-center justify-center mb-8">
-						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
+						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
 						<h2 className="text-3xl font-bold text-dark-base dark:text-white flex items-center">
 							<span className="mr-2">
 								{categoryEmojis[selectedCategory] || "📄"}
 							</span>
 							{selectedCategory}
 						</h2>
-						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
+						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
 					</div>
 
 					<RssFeed

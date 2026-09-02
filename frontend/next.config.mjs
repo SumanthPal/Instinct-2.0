@@ -1,12 +1,3 @@
-import nextPWA from "next-pwa";
-
-const withPWA = nextPWA({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-  register: true,
-  skipWaiting: true,
-});
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
@@ -24,4 +15,6 @@ const nextConfig = {
   },
 };
 
-export default withPWA(nextConfig);
+// Serwist runs in configurator mode (see serwist.config.mjs + the `build`
+// script), so no Next.js plugin wrapper is needed here.
+export default nextConfig;

@@ -8,13 +8,13 @@ import Link from "next/link";
 
 const About = () => {
 	return (
-		<div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text overflow-hidden">
+		<div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text overflow-hidden">
 			<Navbar />
 
 			<main className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
 				{/* Hero Section */}
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-3xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-xl">
-					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-center">
+				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-3xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-xl">
+					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-center">
 						About Instinct
 					</h1>
 					<p className="text-lg sm:text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8 text-center leading-relaxed">
@@ -48,15 +48,15 @@ const About = () => {
 				{/* Why Instinct */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
 							Why Instinct?
 						</h2>
-						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
 							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
 								For Students
 							</h3>
@@ -70,7 +70,7 @@ const About = () => {
 							</p>
 						</div>
 
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
 							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
 								For Clubs
 							</h3>
@@ -87,14 +87,14 @@ const About = () => {
 				{/* How It Works */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
 							How It Works
 						</h2>
-						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
 					</div>
 
-					<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
+					<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
 						<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-center">
 							Instinct automatically scrapes and indexes UCI club Instagram accounts, processes events and posts,
 							and powers an intelligent search system. Whether you're looking for clubs or upcoming events,
@@ -103,13 +103,13 @@ const About = () => {
 						</p>
 					</div>
 				</section>
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-md">
+				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-md">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
 							Listen More About It
 						</h2>
-						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
 					</div>
 					<div className="max-w-3xl mx-auto rounded-xl overflow-hidden shadow-md">
 						<iframe
@@ -127,15 +127,15 @@ const About = () => {
 
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
 							FAQs
 						</h2>
-						<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
-						<details className="group backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
+						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
@@ -161,7 +161,7 @@ const About = () => {
 							</p>
 						</details>
 
-						<details className="group backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
+						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
@@ -187,7 +187,7 @@ const About = () => {
 							</p>
 						</details>
 
-						<details className="group backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
+						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
@@ -214,7 +214,7 @@ const About = () => {
 							</p>
 						</details>
 
-						<details className="group backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
+						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg

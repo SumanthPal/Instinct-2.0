@@ -67,12 +67,12 @@ const TechnicalAbout = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
       <main className="container mx-auto px-4 py-12 md:py-20">
         {/* Hero Section */}
-        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-3xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-xl">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-3xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-xl">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-center mb-6 bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
             Technical Details
           </h1>
 
@@ -105,7 +105,7 @@ const TechnicalAbout = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
             
             {/* Frontend */}
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
               <div className="flex items-center mb-4">
                 <FaReact className="text-3xl text-indigo-600 dark:text-indigo-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Frontend</h3>
@@ -119,7 +119,7 @@ const TechnicalAbout = () => {
             </div>
 
             {/* Backend */}
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
               <div className="flex items-center mb-4">
                 <FaPython className="text-3xl text-blue-600 dark:text-blue-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Backend</h3>
@@ -133,7 +133,7 @@ const TechnicalAbout = () => {
             </div>
 
             {/* Search System */}
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
               <div className="flex items-center mb-4">
                 <FaSearch className="text-3xl text-green-600 dark:text-green-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Search System</h3>
@@ -146,7 +146,7 @@ const TechnicalAbout = () => {
             </div>
 
             {/* Scraper System */}
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-6 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md hover:shadow-lg transition duration-300">
               <div className="flex items-center mb-4">
                 <FaInstagram className="text-3xl text-pink-600 dark:text-pink-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Scraper System</h3>
@@ -176,7 +176,7 @@ const TechnicalAbout = () => {
           {/* Tech Categories */}
           <div className="space-y-16">
             {technologies.map((techCategory, index) => (
-              <div key={index} className="backdrop-blur-sm bg-white/20 dark:bg-dark-card/20 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md">
+              <div key={index} className="backdrop-blur-xs bg-white/20 dark:bg-dark-card/20 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md">
                 <h3 className="text-2xl font-bold mb-8 text-gray-900 dark:text-white">
                   {techCategory.category}
                 </h3>
@@ -185,7 +185,7 @@ const TechnicalAbout = () => {
                   {techCategory.tools.map((tool, toolIndex) => (
                     <div
                       key={toolIndex}
-                      className="relative p-4 flex flex-col items-center justify-center text-center group backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-sm hover:shadow-md transition duration-300"
+                      className="relative p-4 flex flex-col items-center justify-center text-center group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-xs hover:shadow-md transition duration-300"
                     >
                       <div className="text-4xl mb-3 text-gray-800 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
                         {tool.icon}
@@ -200,7 +200,7 @@ const TechnicalAbout = () => {
                       </p>
                       
                       {/* Desktop tooltip - Only shows on hover */}
-                      <div className="hidden md:block absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 rounded-xl backdrop-blur-sm bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-200 px-4 py-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 border border-white/20 dark:border-dark-text/10 pointer-events-none mt-2">
+                      <div className="hidden md:block absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 rounded-xl backdrop-blur-xs bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-200 px-4 py-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 border border-white/20 dark:border-dark-text/10 pointer-events-none mt-2">
                         <p className="text-sm leading-relaxed">{tool.description}</p>
                       </div>
                     </div>
@@ -212,11 +212,11 @@ const TechnicalAbout = () => {
         </div>
         
         {/* Cloud Infrastructure */}
-        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
+        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
           <h2 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white text-center">Cloud Infrastructure</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
               <div className="text-5xl text-blue-600 dark:text-blue-400 mb-4 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-300">
                 <VscAzure />
               </div>
@@ -226,7 +226,7 @@ const TechnicalAbout = () => {
               </p>
             </div>
             
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
               <div className="text-5xl text-green-600 dark:text-green-400 mb-4 hover:text-green-500 dark:hover:text-green-300 transition-colors duration-300">
                 <SiDocker />
               </div>
@@ -236,7 +236,7 @@ const TechnicalAbout = () => {
               </p>
             </div>
             
-            <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
+            <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
               <div className="text-5xl text-purple-600 dark:text-purple-400 mb-4 hover:text-purple-500 dark:hover:text-purple-300 transition-colors duration-300">
                 <SiGithubactions />
               </div>
@@ -249,7 +249,7 @@ const TechnicalAbout = () => {
         </div>
         
         {/* System Architecture */}
-        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
+        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
           <h2 className="text-3xl md:text-4xl font-bold mb-8 text-gray-900 dark:text-white text-center">
             System Architecture
           </h2>
@@ -281,15 +281,15 @@ const TechnicalAbout = () => {
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 p-4 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-sm">
+            <div className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 p-4 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-xs">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">99.9%</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Uptime</div>
             </div>
-            <div className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 p-4 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-sm">
+            <div className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 p-4 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-xs">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">&lt; 100ms</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">API Response</div>
             </div>
-            <div className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 p-4 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-sm">
+            <div className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 p-4 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-xs">
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">Multiple</div>
               <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">Deployment Regions</div>
             </div>
@@ -297,7 +297,7 @@ const TechnicalAbout = () => {
         </div>
 
         {/* In Progress/Future Section */}
-        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-sm bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
+        <div className="max-w-6xl mx-auto mb-20 backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
           <h2 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white text-center">
             In Progress & Coming Soon
           </h2>
@@ -310,7 +310,7 @@ const TechnicalAbout = () => {
               "Enhancing scraper speed and reliability through parallel processing",
               "Additional frontend polish and UI/UX improvements for a more engaging student experience"
             ].map((item, idx) => (
-              <div key={idx} className="flex items-start backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg p-3 border border-white/20 dark:border-dark-text/10">
+              <div key={idx} className="flex items-start backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg p-3 border border-white/20 dark:border-dark-text/10">
                 <span className="inline-block mr-3 mt-0.5 text-yellow-600 dark:text-yellow-400 shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

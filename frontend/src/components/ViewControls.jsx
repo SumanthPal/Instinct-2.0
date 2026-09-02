@@ -20,7 +20,7 @@ export default function ViewControls({
         
         {/* Mobile: Category dropdown toggle */}
         <button 
-          className="md:hidden inline-flex items-center gap-1 px-4 py-2 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 text-dark-base dark:text-dark-text"
+          className="md:hidden inline-flex items-center gap-1 px-4 py-2 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 text-dark-base dark:text-dark-text"
           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
         >
           <span>Categories</span>

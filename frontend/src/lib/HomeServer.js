@@ -42,10 +42,10 @@ export default function HomeServer() {
   // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+      <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
         <Navbar />
         <main className="container mx-auto px-4 py-24 flex items-center justify-center">
-          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg max-w-md w-full border border-white/20 dark:border-dark-text/10">
+          <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg max-w-md w-full border border-white/20 dark:border-dark-text/10">
             <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4 text-center">Error Loading Clubs</h2>
             <p className="text-dark-base dark:text-dark-text mb-6 text-center">{error}</p>
             <button 
@@ -64,10 +64,10 @@ export default function HomeServer() {
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+      <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
         <Navbar />
         <main className="container mx-auto px-4 py-24 flex items-center justify-center">
-          <div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg text-center border border-white/20 dark:border-dark-text/10">
+          <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg text-center border border-white/20 dark:border-dark-text/10">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-lavender dark:border-dark-gradient-start border-t-transparent dark:border-t-transparent mb-4"></div>
             <h2 className="text-xl font-medium text-dark-base dark:text-dark-text">Loading Anteater Clubs...</h2>
           </div>

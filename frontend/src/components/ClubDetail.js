@@ -365,7 +365,7 @@ export default function ClubDetail({
         <div className="mb-4 sm:mb-6">
           <Link
             href="/clubs"
-            className="inline-flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md hover:bg-white/40 dark:hover:bg-dark-card/40 transition-all text-dark-base dark:text-dark-text text-sm sm:text-base"
+            className="inline-flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md hover:bg-white/40 dark:hover:bg-dark-card/40 transition-all text-dark-base dark:text-dark-text text-sm sm:text-base"
           >
             <FaArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
             <span className="font-medium">Back</span>
@@ -373,7 +373,7 @@ export default function ClubDetail({
         </div>
 
         {/* Header Section - Improved mobile layout */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md p-4 sm:p-6 lg:p-8">
+        <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md p-4 sm:p-6 lg:p-8">
           <div className="flex flex-col items-center space-y-4 sm:space-y-6">
             {/* Profile Image - Responsive sizing */}
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full overflow-hidden border-4 border-white/30 dark:border-dark-text/10 shadow-lg shrink-0">
@@ -390,7 +390,7 @@ export default function ClubDetail({
 
             {/* Club Info - Better mobile spacing */}
             <div className="text-center w-full">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-2 sm:mb-3 text-dark-base dark:text-white break-words px-2">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold mb-2 sm:mb-3 text-dark-base dark:text-white wrap-break-word px-2">
                 {clubData["name"]}
               </h1>
 
@@ -405,30 +405,30 @@ export default function ClubDetail({
                 <div className="flex justify-center mb-3">
                   <div className="relative">
                     <div
-                      className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-sm border shadow-lg relative overflow-hidden ${
+                      className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-xs border shadow-lg relative overflow-hidden ${
                         activityInfo.level === "very-high"
-                          ? "bg-gradient-to-r from-green-400/30 to-emerald-400/30 border-green-500/50 text-green-700 dark:text-green-300"
+                          ? "bg-linear-to-r from-green-400/30 to-emerald-400/30 border-green-500/50 text-green-700 dark:text-green-300"
                           : activityInfo.level === "high"
-                            ? "bg-gradient-to-r from-lavender/30 to-sky-blue/30 border-lavender/50 text-indigo-700 dark:text-lavender"
+                            ? "bg-linear-to-r from-lavender/30 to-sky-blue/30 border-lavender/50 text-indigo-700 dark:text-lavender"
                             : activityInfo.level === "medium"
-                              ? "bg-gradient-to-r from-sky-blue/30 to-lavender/30 border-sky-blue/50 text-blue-700 dark:text-sky-blue"
+                              ? "bg-linear-to-r from-sky-blue/30 to-lavender/30 border-sky-blue/50 text-blue-700 dark:text-sky-blue"
                               : activityInfo.level === "low"
-                                ? "bg-gradient-to-r from-pastel-pink/30 to-lavender/30 border-pastel-pink/50 text-purple-700 dark:text-pastel-pink"
-                                : "bg-gradient-to-r from-gray-400/30 to-gray-500/30 border-gray-500/50 text-gray-700 dark:text-gray-400"
+                                ? "bg-linear-to-r from-pastel-pink/30 to-lavender/30 border-pastel-pink/50 text-purple-700 dark:text-pastel-pink"
+                                : "bg-linear-to-r from-gray-400/30 to-gray-500/30 border-gray-500/50 text-gray-700 dark:text-gray-400"
                       }`}
                     >
                       {/* Animated background gradient */}
                       <div
                         className={`absolute inset-0 opacity-30 animate-pulse-slow ${
                           activityInfo.level === "very-high"
-                            ? "bg-gradient-to-r from-green-400/0 via-green-400/50 to-emerald-400/0"
+                            ? "bg-linear-to-r from-green-400/0 via-green-400/50 to-emerald-400/0"
                             : activityInfo.level === "high"
-                              ? "bg-gradient-to-r from-lavender/0 via-lavender/50 to-sky-blue/0"
+                              ? "bg-linear-to-r from-lavender/0 via-lavender/50 to-sky-blue/0"
                               : activityInfo.level === "medium"
-                                ? "bg-gradient-to-r from-sky-blue/0 via-sky-blue/50 to-lavender/0"
+                                ? "bg-linear-to-r from-sky-blue/0 via-sky-blue/50 to-lavender/0"
                                 : activityInfo.level === "low"
-                                  ? "bg-gradient-to-r from-pastel-pink/0 via-pastel-pink/50 to-lavender/0"
-                                  : "bg-gradient-to-r from-gray-400/0 via-gray-400/50 to-gray-500/0"
+                                  ? "bg-linear-to-r from-pastel-pink/0 via-pastel-pink/50 to-lavender/0"
+                                  : "bg-linear-to-r from-gray-400/0 via-gray-400/50 to-gray-500/0"
                         }`}
                       ></div>
                       <span className="font-bold text-sm sm:text-base relative z-10">
@@ -445,7 +445,7 @@ export default function ClubDetail({
                   href={`https://instagram.com/${clubData["instagram_handle"]}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 hover:bg-white/60 dark:hover:bg-dark-card/60 transform transition-all duration-300 ease-in-out hover:scale-105 text-dark-base dark:text-dark-text text-sm sm:text-base max-w-full"
+                  className="flex items-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-full backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 hover:bg-white/60 dark:hover:bg-dark-card/60 transform transition-all duration-300 ease-in-out hover:scale-105 text-dark-base dark:text-dark-text text-sm sm:text-base max-w-full"
                 >
                   <FaInstagram className="w-4 h-4 sm:w-5 sm:h-5 mr-2 shrink-0" />
                   <span className="font-medium truncate">
@@ -460,7 +460,7 @@ export default function ClubDetail({
                   clubData.categories.map((category, index) => (
                     <span
                       key={index}
-                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10 rounded-full text-dark-base dark:text-dark-text font-medium"
+                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs sm:text-sm backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10 rounded-full text-dark-base dark:text-dark-text font-medium"
                     >
                       {category}
                     </span>
@@ -471,7 +471,7 @@ export default function ClubDetail({
         </div>
 
         {/* Description - Better mobile typography */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
+        <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
           <p className="text-dark-base dark:text-dark-text text-base sm:text-lg lg:text-xl leading-relaxed">
             {extractQuotedContent(clubData.description) ||
               clubData.description ||
@@ -480,7 +480,7 @@ export default function ClubDetail({
         </div>
 
         {/* Links and Calendar Card - Enhanced mobile layout */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
+        <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white">
             Links & Calendar
           </h2>
@@ -499,15 +499,15 @@ export default function ClubDetail({
                       href={linkData.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 hover:bg-white/60 dark:hover:bg-dark-card/60 transform transition-all duration-300 ease-in-out hover:scale-[1.01] sm:hover:scale-[1.02] text-dark-base dark:text-dark-text group min-h-[44px]"
+                      className="flex items-center space-x-3 p-3 sm:p-4 rounded-lg backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 hover:bg-white/60 dark:hover:bg-dark-card/60 transform transition-all duration-300 ease-in-out hover:scale-[1.01] sm:hover:scale-[1.02] text-dark-base dark:text-dark-text group min-h-[44px]"
                     >
-                      <FaLink className="w-4 h-4 flex-shrink-0 text-dark-base/60 dark:text-dark-text/60 group-hover:text-dark-base dark:group-hover:text-dark-text" />
+                      <FaLink className="w-4 h-4 shrink-0 text-dark-base/60 dark:text-dark-text/60 group-hover:text-dark-base dark:group-hover:text-dark-text" />
                       <span className="text-sm sm:text-base font-medium truncate flex-1">
                         {linkData.text.length > 40
                           ? `${linkData.text.substring(0, 40)}...`
                           : linkData.text}
                       </span>
-                      <FaExternalLinkAlt className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <FaExternalLinkAlt className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </a>
                   ))}
                 </div>
@@ -515,7 +515,7 @@ export default function ClubDetail({
             )}
 
           {/* Calendar Actions - Mobile-first design */}
-          <div className="mb-6 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-pastel-pink/20 via-lavender/20 to-sky-blue/20 dark:from-dark-card/60 dark:via-dark-profile-card/60 dark:to-dark-gradient-start/60 border-2 border-dashed border-lavender/50 dark:border-dark-gradient-end/50 backdrop-blur-sm">
+          <div className="mb-6 p-4 sm:p-6 rounded-xl bg-linear-to-br from-pastel-pink/20 via-lavender/20 to-sky-blue/20 dark:from-dark-card/60 dark:via-dark-profile-card/60 dark:to-dark-gradient-start/60 border-2 border-dashed border-lavender/50 dark:border-dark-gradient-end/50 backdrop-blur-xs">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white text-dark-base dark:bg-dark-subtext rounded-full mb-4 shadow-lg">
                 <svg
@@ -545,7 +545,7 @@ export default function ClubDetail({
                 onClick={() => window.open(calendarUrl)}
                 className="flex items-center justify-center space-x-3 px-6 py-4 sm:px-8 sm:py-5 rounded-2xl bg-white text-dark-base dark:bg-dark-card dark:text-white font-bold transform transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-xl shadow-lg text-base sm:text-lg min-h-[56px] relative overflow-hidden group border border-white/10"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-linear-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <FaDownload className="w-5 h-5 sm:w-6 sm:h-6 relative z-10" />
                 <span className="font-bold relative z-10">
                   Download Calendar
@@ -558,7 +558,7 @@ export default function ClubDetail({
                 }}
                 className="flex items-center justify-center space-x-3 px-6 py-4 sm:px-8 sm:py-5 rounded-2xl bg-white text-dark-base dark:bg-dark-card dark:text-white font-bold transform transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-xl shadow-lg text-base sm:text-lg min-h-[56px] relative overflow-hidden group border border-white/20"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-linear-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 <FaGlobe className="w-5 h-5 sm:w-6 sm:h-6 relative z-10" />
                 <span className="font-bold relative z-10">
                   Subscribe to Calendar
@@ -569,13 +569,13 @@ export default function ClubDetail({
         </div>
 
         {/* Calendar Widget - Fully responsive */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-gray-100/80 dark:bg-dark-card/40 rounded-lg border border-gray-300/40 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive">
+        <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-gray-100/80 dark:bg-dark-card/40 rounded-lg border border-gray-300/40 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white text-center sm:text-left">
             Activity Calendar
           </h2>
 
           {/* Calendar Legend - Enhanced mobile layout */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 p-3 sm:p-4 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 p-3 sm:p-4 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10">
             <div className="flex items-center">
               <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 lg:w-3 lg:h-3 rounded-full bg-blue-500 mr-1.5 sm:mr-2"></div>
               <span className="text-xs sm:text-sm font-medium text-dark-base dark:text-dark-text">
@@ -606,7 +606,7 @@ export default function ClubDetail({
                 onChange={handleDateChange}
                 value={selectedDate}
                 tileContent={tileContent}
-                className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive"
+                className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 p-2 sm:p-3 lg:p-4 shadow-md w-full calendar-responsive"
                 tileClassName={({ date, view }) => {
                   const hasPost = hasItemsOnDate(clubPosts, date, "post");
                   const hasEvent = hasItemsOnDate(clubEvents, date, "event");
@@ -633,7 +633,7 @@ export default function ClubDetail({
         </div>
 
         {/* Posts and Events on Selected Date */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
+        <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl lg:text-2xl font-bold mb-3 sm:mb-4 text-dark-base dark:text-white">
             {format(selectedDate, "MMMM d, yyyy")}
           </h3>
@@ -657,10 +657,10 @@ export default function ClubDetail({
                     {postsForDate.map((post, index) => (
                       <div
                         key={`post-${index}`}
-                        className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 p-3 sm:p-4"
+                        className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 p-3 sm:p-4"
                       >
                         {post.caption && (
-                          <p className="text-sm sm:text-base text-dark-base dark:text-dark-text mb-3 break-words">
+                          <p className="text-sm sm:text-base text-dark-base dark:text-dark-text mb-3 wrap-break-word">
                             {post.caption.length > 150
                               ? post.caption.substring(0, 150) + "..."
                               : post.caption}
@@ -713,9 +713,9 @@ export default function ClubDetail({
                     {eventsForDate.map((event, index) => (
                       <div
                         key={`event-${index}`}
-                        className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 p-3 sm:p-4"
+                        className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-lg border border-white/20 dark:border-dark-text/10 p-3 sm:p-4"
                       >
-                        <h5 className="text-base sm:text-lg font-bold mb-2 text-dark-base dark:text-dark-text break-words">
+                        <h5 className="text-base sm:text-lg font-bold mb-2 text-dark-base dark:text-dark-text wrap-break-word">
                           {event.parsed?.Name || event.name || "Event"}
                         </h5>
                         {event.image_url && (
@@ -736,7 +736,7 @@ export default function ClubDetail({
                             />
                           </div>
                         )}
-                        <p className="text-sm sm:text-base text-dark-base dark:text-dark-text mb-3 break-words">
+                        <p className="text-sm sm:text-base text-dark-base dark:text-dark-text mb-3 wrap-break-word">
                           {event.parsed?.Details ||
                             event.details ||
                             event.caption ||
@@ -745,7 +745,7 @@ export default function ClubDetail({
                         <div className="flex flex-col gap-2 text-xs sm:text-sm text-dark-base/60 dark:text-dark-text/60">
                           <span className="flex items-center">
                             <svg
-                              className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0"
+                              className="w-3 h-3 sm:w-4 sm:h-4 mr-2 shrink-0"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -757,7 +757,7 @@ export default function ClubDetail({
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                               ></path>
                             </svg>
-                            <span className="break-words">
+                            <span className="wrap-break-word">
                               {event.parsed?.Date
                                 ? format(new Date(event.parsed.Date), "PPp")
                                 : event.date
@@ -768,7 +768,7 @@ export default function ClubDetail({
                           {(event.parsed?.Location || event.location) && (
                             <span className="flex items-center">
                               <svg
-                                className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0"
+                                className="w-3 h-3 sm:w-4 sm:h-4 mr-2 shrink-0"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -786,7 +786,7 @@ export default function ClubDetail({
                                   d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                                 ></path>
                               </svg>
-                              <span className="break-words">
+                              <span className="wrap-break-word">
                                 {event.parsed?.Location || event.location}
                               </span>
                             </span>
@@ -816,7 +816,7 @@ export default function ClubDetail({
 
             if (postsForDate.length === 0 && eventsForDate.length === 0) {
               return (
-                <div className="flex flex-col items-center justify-center py-8 sm:py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10">
+                <div className="flex flex-col items-center justify-center py-8 sm:py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-12 w-12 sm:h-16 sm:w-16 text-dark-base/40 dark:text-dark-text/40 mb-3 sm:mb-4"
@@ -845,7 +845,7 @@ export default function ClubDetail({
         </div>
 
         {/* Posts Grid - Instagram-style 3 column layout */}
-        <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
+        <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md p-4 sm:p-6">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-dark-base dark:text-white">
             Recent Posts
           </h2>
@@ -891,7 +891,7 @@ export default function ClubDetail({
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-48 sm:h-64 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+            <div className="flex flex-col items-center justify-center h-48 sm:h-64 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-12 w-12 sm:h-16 sm:w-16 text-dark-base/40 dark:text-dark-text/40 mb-3 sm:mb-4"
@@ -918,7 +918,7 @@ export default function ClubDetail({
 
         {/* Similar Clubs Carousel - Instagram style */}
         {similarClubs.length > 0 && (
-          <div className="mb-6 sm:mb-8 backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md overflow-hidden">
+          <div className="mb-6 sm:mb-8 backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-md overflow-hidden">
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 text-dark-base dark:text-white px-4 sm:px-6 pt-4 sm:pt-6">
               Similar Clubs
             </h2>
@@ -930,10 +930,10 @@ export default function ClubDetail({
                   <Link
                     key={club.instagram_handle || index}
                     href={`/club/${club.instagram_handle}`}
-                    className="flex-shrink-0 w-40 sm:w-48 group"
+                    className="shrink-0 w-40 sm:w-48 group"
                   >
                     {/* Card Box */}
-                    <div className="backdrop-blur-sm bg-white/60 dark:bg-dark-card/60 rounded-lg border border-white/30 dark:border-dark-text/20 shadow-md p-3 group-hover:shadow-xl group-hover:scale-[1.02] transition-all duration-200 h-full flex flex-col">
+                    <div className="backdrop-blur-xs bg-white/60 dark:bg-dark-card/60 rounded-lg border border-white/30 dark:border-dark-text/20 shadow-md p-3 group-hover:shadow-xl group-hover:scale-[1.02] transition-all duration-200 h-full flex flex-col">
                       {/* Profile Image */}
                       <div className="flex justify-center mb-2">
                         <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-white/40 dark:border-dark-text/20 shadow-md">
@@ -948,7 +948,7 @@ export default function ClubDetail({
                               unoptimized
                             />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-pastel-pink/50 to-lavender/50 dark:from-dark-card dark:to-dark-profile-card flex items-center justify-center">
+                            <div className="w-full h-full bg-linear-to-br from-pastel-pink/50 to-lavender/50 dark:from-dark-card dark:to-dark-profile-card flex items-center justify-center">
                               <span className="text-2xl font-bold text-dark-base dark:text-dark-text">
                                 {club.name?.charAt(0) || "?"}
                               </span>
@@ -958,7 +958,7 @@ export default function ClubDetail({
                       </div>
 
                       {/* Club Info */}
-                      <div className="text-center flex-grow">
+                      <div className="text-center grow">
                         <h3 className="text-xs sm:text-sm font-bold text-dark-base dark:text-white mb-1 line-clamp-2 group-hover:text-lavender dark:group-hover:text-lavender transition-colors">
                           {club.name}
                         </h3>
@@ -1301,7 +1301,7 @@ export default function ClubDetail({
   }
   
   /* Better text wrapping */
-  .break-words {
+  .wrap-break-word {
     word-break: break-word;
     overflow-wrap: break-word;
     hyphens: auto;

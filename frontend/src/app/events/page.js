@@ -181,10 +181,10 @@ export default function CampusEventsPage() {
 	// Loading state
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+			<div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
 				<Navbar />
 				<main className="container mx-auto px-4 py-24 flex items-center justify-center">
-					<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg text-center border border-white/20 dark:border-dark-text/10">
+					<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-8 rounded-xl shadow-lg text-center border border-white/20 dark:border-dark-text/10">
 						<div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-lavender dark:border-dark-gradient-start border-t-transparent dark:border-t-transparent mb-4"></div>
 						<h2 className="text-xl font-medium text-dark-base dark:text-dark-text">
 							Loading Upcoming Events...
@@ -204,7 +204,7 @@ export default function CampusEventsPage() {
 	const categories = ["Social", "Academic", "Sports", "Service", "Career", "Cultural", "Meeting", "Other"];
 
 	return (
-		<div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+		<div className="min-h-screen overflow-hidden bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
 			<Navbar />
 
 			<main className="container mx-auto px-3 sm:px-4 pt-[100px] sm:pt-[120px] pb-10 sm:pb-16 md:pb-20">
@@ -216,7 +216,7 @@ export default function CampusEventsPage() {
 					<p className="text-dark-base dark:text-dark-subtext text-base sm:text-lg mb-4">
 						Discover what's happening at UCI
 					</p>
-					<div className="inline-flex items-center gap-2 px-4 py-2 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10">
+					<div className="inline-flex items-center gap-2 px-4 py-2 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10">
 						<div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
 						<p className="text-sm sm:text-base font-semibold text-dark-base dark:text-dark-text">
 							{filteredEvents.length} of {allEvents.length} events
@@ -236,14 +236,14 @@ export default function CampusEventsPage() {
 								placeholder="Search events..."
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								className="w-full pl-11 pr-4 py-3 backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 rounded-xl text-dark-base dark:text-dark-text placeholder-dark-base/40 dark:placeholder-dark-text/40 focus:outline-none focus:ring-2 focus:ring-lavender dark:focus:ring-dark-gradient-start transition-all"
+								className="w-full pl-11 pr-4 py-3 backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 rounded-xl text-dark-base dark:text-dark-text placeholder-dark-base/40 dark:placeholder-dark-text/40 focus:outline-hidden focus:ring-2 focus:ring-lavender dark:focus:ring-dark-gradient-start transition-all"
 							/>
 						</div>
 
 						{/* Filter button */}
 						<button
 							onClick={() => setShowFilters(!showFilters)}
-							className={`px-4 py-3 backdrop-blur-sm border rounded-xl font-semibold transition-all flex items-center gap-2 ${
+							className={`px-4 py-3 backdrop-blur-xs border rounded-xl font-semibold transition-all flex items-center gap-2 ${
 								showFilters || hasActiveFilters
 									? "bg-lavender/30 dark:bg-dark-gradient-start/30 border-lavender dark:border-dark-gradient-start text-dark-base dark:text-dark-text"
 									: "bg-white/40 dark:bg-dark-card/40 border-white/20 dark:border-dark-text/10 text-dark-base dark:text-dark-text hover:bg-white/60 dark:hover:bg-dark-card/60"
@@ -257,7 +257,7 @@ export default function CampusEventsPage() {
 						</button>
 
 						{/* View toggle */}
-						<div className="flex backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 rounded-xl p-1">
+						<div className="flex backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 rounded-xl p-1">
 							<button
 								onClick={() => setViewMode("list")}
 								className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
@@ -285,7 +285,7 @@ export default function CampusEventsPage() {
 
 					{/* Filters panel */}
 					{showFilters && (
-						<div className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 rounded-xl p-4 sm:p-6">
+						<div className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 border border-white/20 dark:border-dark-text/10 rounded-xl p-4 sm:p-6">
 							<div className="flex items-center justify-between mb-4">
 								<h3 className="font-semibold text-dark-base dark:text-dark-text">Filter Events</h3>
 								{hasActiveFilters && (
@@ -307,7 +307,7 @@ export default function CampusEventsPage() {
 								<div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
 									<button
 										onClick={() => setSelectedClub("")}
-										className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+										className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
 											selectedClub === ""
 												? "bg-lavender/30 dark:bg-dark-gradient-start/30 border-lavender dark:border-dark-gradient-start text-dark-base dark:text-dark-text"
 												: "bg-white/40 dark:bg-dark-card/40 border-white/20 dark:border-dark-text/10 text-dark-base/60 dark:text-dark-text/60 hover:bg-white/60 dark:hover:bg-dark-card/60"
@@ -324,14 +324,14 @@ export default function CampusEventsPage() {
 											<button
 												key={club}
 												onClick={() => setSelectedClub(club)}
-												className={`flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+												className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
 													selectedClub === club
 														? "bg-lavender/30 dark:bg-dark-gradient-start/30 border-lavender dark:border-dark-gradient-start text-dark-base dark:text-dark-text"
 														: "bg-white/40 dark:bg-dark-card/40 border-white/20 dark:border-dark-text/10 text-dark-base/60 dark:text-dark-text/60 hover:bg-white/60 dark:hover:bg-dark-card/60"
 												}`}
 											>
 												{clubProfilePic && (
-													<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 flex-shrink-0 bg-gray-200 dark:bg-gray-700">
+													<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
 														<Image
 															src={clubProfilePic}
 															alt={club}
@@ -460,7 +460,7 @@ export default function CampusEventsPage() {
 						{viewMode === "list" ? (
 							/* List View - Grouped by Date */
 							groupedEvents.map((group, groupIndex) => (
-								<div key={groupIndex} className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg p-4 sm:p-6 lg:p-8">
+								<div key={groupIndex} className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg p-4 sm:p-6 lg:p-8">
 									{/* Date Header */}
 									<div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/20 dark:border-dark-text/10">
 										<div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-lavender/30 dark:bg-dark-gradient-start/30 border-2 border-lavender dark:border-dark-gradient-start">
@@ -506,7 +506,7 @@ export default function CampusEventsPage() {
 											return (
 												<div
 													key={`event-${eventId}`}
-													className="group backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/30 dark:border-dark-text/20 overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+													className="group backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/30 dark:border-dark-text/20 overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
 												>
 													{/* Event Image */}
 													{event.image_url && (
@@ -526,9 +526,9 @@ export default function CampusEventsPage() {
 																loading="lazy"
 																unoptimized
 															/>
-															<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+															<div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent"></div>
 															{/* Category badge on image */}
-															<div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-sm ${categoryColors[category]}`}>
+															<div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-xs ${categoryColors[category]}`}>
 																{category}
 															</div>
 														</div>
@@ -543,7 +543,7 @@ export default function CampusEventsPage() {
 																onClick={(e) => e.stopPropagation()}
 																className="inline-flex items-center gap-2 group/club hover:opacity-80 transition-opacity"
 															>
-																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/50 dark:border-dark-text/20 flex-shrink-0 bg-gray-200 dark:bg-gray-700">
+																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
 																	{clubProfilePic ? (
 																		<Image
 																			src={clubProfilePic}
@@ -598,7 +598,7 @@ export default function CampusEventsPage() {
 													<div className="space-y-2 text-sm text-dark-base/60 dark:text-dark-text/60">
 														{/* Time */}
 														<div className="flex items-center gap-2">
-															<FaClock className="w-4 h-4 flex-shrink-0" />
+															<FaClock className="w-4 h-4 shrink-0" />
 															<span className="truncate">
 																{event.parsed?.Date
 																	? format(new Date(event.parsed.Date), "p")
@@ -611,7 +611,7 @@ export default function CampusEventsPage() {
 														{/* Location */}
 														{(event.parsed?.Location || event.location) && (
 															<div className="flex items-center gap-2">
-																<FaMapMarkerAlt className="w-4 h-4 flex-shrink-0" />
+																<FaMapMarkerAlt className="w-4 h-4 shrink-0" />
 																<span className="truncate">
 																	{event.parsed?.Location || event.location}
 																</span>
@@ -670,7 +670,7 @@ export default function CampusEventsPage() {
 									return (
 										<div
 											key={`event-${eventId}`}
-											className="group backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/30 dark:border-dark-text/20 overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+											className="group backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/30 dark:border-dark-text/20 overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
 										>
 											{/* Event Image */}
 											{event.image_url && (
@@ -690,14 +690,14 @@ export default function CampusEventsPage() {
 														loading="lazy"
 														unoptimized
 													/>
-													<div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+													<div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent"></div>
 													{/* Category badge on image */}
-													<div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-sm ${categoryColors[category]}`}>
+													<div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-xs ${categoryColors[category]}`}>
 														{category}
 													</div>
 													{/* Date badge on image */}
 													{eventDate && (
-														<div className="absolute top-3 left-3 backdrop-blur-sm bg-white/90 dark:bg-dark-card/90 rounded-lg p-2 border border-white/20 dark:border-dark-text/10">
+														<div className="absolute top-3 left-3 backdrop-blur-xs bg-white/90 dark:bg-dark-card/90 rounded-lg p-2 border border-white/20 dark:border-dark-text/10">
 															<div className="text-center">
 																<div className="text-xs font-semibold text-dark-base dark:text-dark-text uppercase">
 																	{format(eventDate, "MMM")}
@@ -744,7 +744,7 @@ export default function CampusEventsPage() {
 														onClick={(e) => e.stopPropagation()}
 														className="inline-flex items-center gap-1.5 mb-2 group/club hover:opacity-80 transition-opacity"
 													>
-														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 flex-shrink-0 bg-gray-200 dark:bg-gray-700">
+														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
 															{clubProfilePic ? (
 																<Image
 																	src={clubProfilePic}
@@ -788,7 +788,7 @@ export default function CampusEventsPage() {
 												<div className="space-y-1 text-xs text-dark-base/60 dark:text-dark-text/60">
 													{/* Time */}
 													<div className="flex items-center gap-2">
-														<FaClock className="w-3 h-3 flex-shrink-0" />
+														<FaClock className="w-3 h-3 shrink-0" />
 														<span className="truncate">
 															{event.parsed?.Date
 																? format(new Date(event.parsed.Date), "p")
@@ -801,7 +801,7 @@ export default function CampusEventsPage() {
 													{/* Location */}
 													{(event.parsed?.Location || event.location) && (
 														<div className="flex items-center gap-2">
-															<FaMapMarkerAlt className="w-3 h-3 flex-shrink-0" />
+															<FaMapMarkerAlt className="w-3 h-3 shrink-0" />
 															<span className="truncate">
 																{event.parsed?.Location || event.location}
 															</span>
@@ -840,7 +840,7 @@ export default function CampusEventsPage() {
 							<div className="flex justify-center pt-4">
 								<button
 									onClick={loadMore}
-									className="inline-flex items-center gap-2 px-6 py-3 backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 hover:bg-white/60 dark:hover:bg-dark-card/60 rounded-full border border-white/20 dark:border-dark-text/10 shadow-lg hover:shadow-xl transition-all duration-300 text-dark-base dark:text-dark-text font-semibold"
+									className="inline-flex items-center gap-2 px-6 py-3 backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 hover:bg-white/60 dark:hover:bg-dark-card/60 rounded-full border border-white/20 dark:border-dark-text/10 shadow-lg hover:shadow-xl transition-all duration-300 text-dark-base dark:text-dark-text font-semibold"
 								>
 									<span>Load More Events</span>
 									<FaChevronDown className="w-4 h-4" />
@@ -849,7 +849,7 @@ export default function CampusEventsPage() {
 						)}
 					</div>
 				) : (
-					<div className="flex flex-col items-center justify-center py-16 sm:py-20 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg">
+					<div className="flex flex-col items-center justify-center py-16 sm:py-20 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg">
 						<FaCalendarAlt className="w-20 h-20 sm:w-24 sm:h-24 text-dark-base/40 dark:text-dark-text/40 mb-4" />
 						<p className="text-xl sm:text-2xl font-semibold text-dark-base dark:text-dark-text mb-2">
 							No Upcoming Events
@@ -863,17 +863,17 @@ export default function CampusEventsPage() {
 				{/* Modal for Enlarged Image */}
 				{isModalOpen && (
 					<div
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-2 sm:p-4"
+						className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xs p-2 sm:p-4"
 						onClick={closeModal}
 					>
 						<div
 							className="relative w-full h-full max-w-6xl max-h-full overflow-hidden"
 							onClick={(e) => e.stopPropagation()}
 						>
-							<div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-2 sm:p-4 bg-gradient-to-b from-black/50 to-transparent">
+							<div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-2 sm:p-4 bg-linear-to-b from-black/50 to-transparent">
 								<button
 									onClick={closeModal}
-									className="backdrop-blur-sm bg-black/50 hover:bg-red-500/70 text-white p-2.5 sm:p-3 rounded-full transition-all duration-200 hover:scale-110 min-w-[44px] min-h-[44px] flex items-center justify-center"
+									className="backdrop-blur-xs bg-black/50 hover:bg-red-500/70 text-white p-2.5 sm:p-3 rounded-full transition-all duration-200 hover:scale-110 min-w-[44px] min-h-[44px] flex items-center justify-center"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"

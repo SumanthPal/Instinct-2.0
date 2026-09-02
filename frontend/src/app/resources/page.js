@@ -152,13 +152,13 @@ const Resources = () => {
 	const groupedLibraries = groupLibrariesByName();
 
 	return (
-		<div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text overflow-hidden">
+		<div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text overflow-hidden">
 			<Navbar />
 
 			<main className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
 				{/* Hero Section */}
 				<section className="mb-12 sm:mb-16 max-w-6xl mx-auto">
-					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-center">
+					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-center">
 						Student Resources
 					</h1>
 					<p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto text-center">
@@ -176,11 +176,11 @@ const Resources = () => {
 					</div>
 
 					{loading.library ? (
-						<div className="flex justify-center items-center py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+						<div className="flex justify-center items-center py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
 							<FaSpinner className="animate-spin text-indigo-600 dark:text-indigo-400 text-3xl" />
 						</div>
 					) : errors.library ? (
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
 							<p className="text-gray-600 dark:text-gray-400">
 								{errors.library}
 							</p>
@@ -194,7 +194,7 @@ const Resources = () => {
 									return (
 										<div
 											key={libraryName}
-											className="backdrop-blur-sm bg-white/40 dark:bg-dark-card/40 rounded-2xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-lg transition-all duration-300"
+											className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-2xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-lg transition-all duration-300"
 										>
 											{/* Library Header - Clickable */}
 											<button
@@ -224,7 +224,7 @@ const Resources = () => {
 															</span>
 														</div>
 														{/* Library Name Overlay */}
-														<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+														<div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-6">
 															<div className="flex items-center justify-between">
 																<h3 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
 																	{libraryName}
@@ -311,17 +311,17 @@ const Resources = () => {
 					</div>
 
 					{loading.calendar ? (
-						<div className="flex justify-center items-center py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+						<div className="flex justify-center items-center py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
 							<FaSpinner className="animate-spin text-indigo-600 dark:text-indigo-400 text-3xl" />
 						</div>
 					) : errors.calendar ? (
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
 							<p className="text-gray-600 dark:text-gray-400">
 								{errors.calendar}
 							</p>
 						</div>
 					) : calendarData ? (
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6">
 							<div className="mb-6">
 								<h3 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
 									{calendarData.quarter || "Current Quarter"}
@@ -383,7 +383,7 @@ const Resources = () => {
 							</div>
 						</div>
 					) : (
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
 							<p className="text-gray-600 dark:text-gray-400">
 								No calendar data available
 							</p>
@@ -401,17 +401,17 @@ const Resources = () => {
 					</div>
 
 					{loading.studyRooms ? (
-						<div className="flex justify-center items-center py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+						<div className="flex justify-center items-center py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
 							<FaSpinner className="animate-spin text-indigo-600 dark:text-indigo-400 text-3xl" />
 						</div>
 					) : errors.studyRooms ? (
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
 							<p className="text-gray-600 dark:text-gray-400">
 								{errors.studyRooms}
 							</p>
 						</div>
 					) : (
-						<div className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6">
+						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6">
 							<div className="space-y-4">
 								{studyRooms.slice(0, 10).map((room) => (
 									<div

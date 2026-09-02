@@ -16,7 +16,7 @@ const ClubGrid = memo(function ClubGrid({
 	return (
 		<section className="mb-12 sm:mb-20">
 			<div className="flex items-center justify-center mb-6 sm:mb-8">
-				<div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-10 sm:w-16 mr-2 sm:mr-4"></div>
+				<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-10 sm:w-16 mr-2 sm:mr-4"></div>
 				<h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-dark-base dark:text-white flex items-center flex-wrap justify-center">
 					<span className="mr-2">
 						{selectedCategories.length === 1
@@ -32,7 +32,7 @@ const ClubGrid = memo(function ClubGrid({
 						({clubs.length} of {totalClubCount})
 					</span>
 				</h2>
-				<div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-10 sm:w-16 ml-2 sm:ml-4"></div>
+				<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-10 sm:w-16 ml-2 sm:ml-4"></div>
 			</div>
 
 			<div
@@ -50,7 +50,7 @@ const ClubGrid = memo(function ClubGrid({
 								viewMode === "grid"
 									? "transform transition-transform hover:scale-[1.02] hover:shadow-lg"
 									: "w-full"
-							} backdrop-blur-sm bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md fade-in`}
+							} backdrop-blur-xs bg-white/50 dark:bg-dark-card/50 rounded-xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-md fade-in`}
 							style={{
 								animationDelay: `${Math.min(index * 50, 1000)}ms`, // Cap delay to prevent too long waits
 							}}
@@ -70,7 +70,7 @@ const ClubGrid = memo(function ClubGrid({
 						</div>
 					))
 				) : (
-					<div className="col-span-full text-center py-8 sm:py-12 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
+					<div className="col-span-full text-center py-8 sm:py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
 						<p className="text-dark-base dark:text-dark-text text-lg sm:text-xl mb-2">
 							No clubs match your search criteria
 						</p>

@@ -9,7 +9,7 @@ backend/env/
 *.egg-info/
 dist/
 
-# Environment
+# Environment — never commit
 .env
 .env.*
 !.env.example
@@ -52,6 +52,10 @@ next-env.d.ts
 # Frontend build artifacts
 frontend/public/sw.js
 frontend/public/workbox-*.js
+
+# Worktrees (see docs/parallelization.md)
+/instinct-wt/
+/Instinct-2.0-wt/
 
 # Misc
 .vercel

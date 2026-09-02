@@ -114,7 +114,7 @@ const RSSViewerSSR = ({ initialFeedData, initialFeedType, initialFeedName, error
   };
 
   return (
-    <div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="min-h-screen overflow-hidden bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Head>
         <title>UCI News RSS Viewer | Instinct</title>
         <meta name="description" content="View the latest news from UCI across various categories and schools" />

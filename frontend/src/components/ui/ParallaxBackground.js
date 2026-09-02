@@ -2,7 +2,7 @@ import React from 'react';
 
 const ParallaxBackground = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
 
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
       <img 
