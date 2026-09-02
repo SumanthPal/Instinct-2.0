@@ -1,5 +1,0 @@
-steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-f', 'backend/Dockerfile.web', '-t', 'gcr.io/instinct-459021/instinct-web:latest', '.']
-images:
-- 'gcr.io/instinct-459021/instinct-web:latest'
