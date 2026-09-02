@@ -111,7 +111,7 @@ class InstagramScraper:
     def __exit__(self, exc_type, exc_value, traceback):
         self._driver_quit()
 
-    def detect_rate_limit(self):
+    def detect_rate_limit(self, *, check_page_content: bool = True):
         """
         Check for signs of Instagram rate limiting with optimized performance
 
@@ -170,17 +170,15 @@ class InstagramScraper:
                     logger.warning(f"Rate limit detected: '{indicator}' text found")
                     return True
 
-            # Use CSS selectors instead of XPath for faster element detection
-            if "/p/" in current_url:  # Post page
-                if not self._driver.find_elements(
-                    *selectors.POST_CONTENT
-                ):
+            # Content can render after navigation. Post extraction waits for its
+            # required locators explicitly, so do not mistake a slow render for a
+            # rate limit before those waits have had a chance to run.
+            if check_page_content and "/p/" in current_url:  # Post page
+                if not self._driver.find_elements(*selectors.POST_CONTENT):
                     logger.warning("Rate limit detected: Missing post content")
                     return True
-            elif "/stories/" in current_url:  # Stories page
-                if not self._driver.find_elements(
-                    *selectors.STORY_CONTENT
-                ):
+            elif check_page_content and "/stories/" in current_url:  # Stories page
+                if not self._driver.find_elements(*selectors.STORY_CONTENT):
                     logger.warning("Rate limit detected: Missing stories content")
                     return True
 
@@ -200,7 +198,7 @@ class InstagramScraper:
             )  # Limit log size
             return False
 
-    def safe_get_page(self, url, retry_count=0):
+    def safe_get_page(self, url, retry_count=0, *, check_page_content=True):
         """
         Safely access a page with rate limit detection
 
@@ -226,7 +224,7 @@ class InstagramScraper:
             time.sleep(0.5)
 
             # Check if we've been rate limited
-            if self.detect_rate_limit():
+            if self.detect_rate_limit(check_page_content=check_page_content):
                 raise RateLimitDetected(f"Rate limit detected when accessing {url}")
 
             return True
@@ -239,7 +237,9 @@ class InstagramScraper:
             if retry_count > 0:
                 logger.warning(f"Error accessing {url}: {e}. Retrying...")
                 time.sleep(2)
-                return self.safe_get_page(url, retry_count - 1)
+                return self.safe_get_page(
+                    url, retry_count - 1, check_page_content=check_page_content
+                )
             else:
                 logger.error(f"Failed to access {url} after retries: {e}")
                 return False
@@ -395,7 +395,7 @@ class InstagramScraper:
         self, post_url: str
     ) -> Tuple[Optional[str], str, str]:
         """Extract a post's caption, date, and image, failing on missing required data."""
-        if not self.safe_get_page(post_url):
+        if not self.safe_get_page(post_url, check_page_content=False):
             raise RuntimeError(f"Failed to access Instagram post: {post_url}")
         logger.info(f"Fetching Instagram post: {post_url}")
 
@@ -662,8 +662,8 @@ class InstagramScraper:
 
             button_element.click()
             logger.info("Button for more info clicked!")
-        except (NoSuchElementException, TimeoutException):
-            logger.info("More... button not found / timeout error.")
+        except (NoSuchElementException, TimeoutException, WebDriverException) as exc:
+            logger.info(f"More... button unavailable; continuing without it: {exc}")
 
     def _find_club_name_pfp(
         self, profile_soup: BeautifulSoup, club_username: str
