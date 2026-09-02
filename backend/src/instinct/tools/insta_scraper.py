@@ -421,8 +421,18 @@ class InstagramScraper:
             image_url = image_element.get_attribute("src")
             if not image_url:
                 raise SelectorNotFoundError("POST_IMAGE had no src value")
-        except TimeoutException as exc:
-            raise SelectorNotFoundError("POST_IMAGE did not match") from exc
+        except TimeoutException:
+            try:
+                video_element = self._wait.until(
+                    EC.presence_of_element_located(selectors.POST_VIDEO_POSTER)
+                )
+                image_url = video_element.get_attribute("poster")
+                if not image_url:
+                    raise SelectorNotFoundError("POST_VIDEO_POSTER had no poster value")
+            except TimeoutException as exc:
+                raise SelectorNotFoundError(
+                    "Neither POST_IMAGE nor POST_VIDEO_POSTER matched"
+                ) from exc
 
         return description, date, image_url
 
@@ -743,8 +753,12 @@ class InstagramScraper:
         return clubs_info["Recent Posts"]
 
     def _driver_quit(self):
-        if hasattr(self, "_driver") and self._driver:
-            self._driver.quit()
+        driver = getattr(self, "_driver", None)
+        if driver:
+            try:
+                driver.quit()
+            finally:
+                self._driver = None
 
     def _add_options(self, option: Options):
         """Add options to the Chrome WebDriver."""

@@ -29,6 +29,7 @@ STORY_CONTENT = (By.CSS_SELECTOR, "div[role='dialog'] img, div[role='presentatio
 POST_CAPTION = (By.XPATH, "//article//span[string-length(normalize-space()) > 20]")
 POST_DATETIME = (By.XPATH, "//article//time[@datetime]")
 POST_IMAGE = (By.XPATH, "//article//img[contains(@src, 'cdninstagram.com')]")
+POST_VIDEO_POSTER = (By.CSS_SELECTOR, "article video[poster]")
 
 # Profile
 INVALID_PROFILE = (
@@ -42,8 +43,8 @@ PROFILE_EXTERNAL_LINK = (
 PROFILE_LINK_TRIGGERS = (
     (
         By.XPATH,
-        "//*[@role='button' and (.//*[normalize-space()='more'] or "
-        "contains(normalize-space(), ' and '))]",
+        "//*[@role='button' and (normalize-space()='more' or "
+        ".//*[normalize-space()='more'] or contains(normalize-space(), ' and '))]",
     ),
     (By.XPATH, "//button[normalize-space()='more' or .//*[normalize-space()='more']]"),
 )
