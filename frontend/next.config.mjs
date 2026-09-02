@@ -10,11 +10,6 @@ const withPWA = nextPWA({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
-  env: {
-    NEXT_PUBLIC_SITE_URL: process.env.NODE_ENV === 'production' 
-      ? 'https://instinct-2-0.vercel.app' 
-      : 'http://localhost:3000'
-  },
   images: {
     domains: [
       "levelicytjtkbdvbflzv.supabase.co",

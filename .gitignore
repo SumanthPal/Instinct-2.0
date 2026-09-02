@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-env/
+backend/env/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
@@ -23,9 +23,9 @@ node_modules/
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-.next/
-out/
-build/
+frontend/.next/
+frontend/out/
+frontend/build/
 
 # IDE & OS
 .vscode/
@@ -43,20 +43,20 @@ yarn-error.log*
 *.rdb
 
 # Testing & Coverage
-coverage/
+frontend/coverage/
 
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
 # Frontend build artifacts
-public/sw.js
-public/workbox-*.js
+frontend/public/sw.js
+frontend/public/workbox-*.js
 
 # Misc
 .vercel
-data/
+backend/data/
 
 # GCP & Service Accounts
 *-service-account*.json
-instinct-*.json
+instinct-459021-c6c9b84da7c1.json
