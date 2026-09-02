@@ -13,6 +13,9 @@ it stays runnable. Two objectives, in order:
 Everything below is grounded in an audit of the tree as of `a8f5e30`. Findings
 are stated with the file that produced them so nothing here is guesswork.
 
+> **Contributing?** Read [workflow.md](./workflow.md) for how work enters this repo, and
+> [parallelization.md](./parallelization.md) for the file-ownership table.
+
 ---
 
 ## Decisions already made

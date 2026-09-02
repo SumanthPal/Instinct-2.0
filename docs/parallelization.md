@@ -1,7 +1,12 @@
 # Parallelizing the modernization work
 
-Companion to [modernization-plan.md](./modernization-plan.md). That document says
-*what* to do; this one says *who can do it at the same time as whom*, and why.
+Companion to [modernization-plan.md](./modernization-plan.md) (what to do) and
+[workflow.md](./workflow.md) (how work moves through the repo). This one says *who can do
+what at the same time as whom*, and why.
+
+**The ownership table below is authoritative.** One lane owns a file — check it before
+briefing any agent. Wave 1 shipped a brief that gave `Procfile` to two lanes at once; it
+only stayed cheap because it was caught mid-run.
 
 The constraint is not agent count. It is **file contention** — two worktrees
 editing `frontend/package.json` produce a conflict that costs more to resolve
