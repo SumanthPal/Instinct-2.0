@@ -11,6 +11,21 @@ from instinct.db.queries import SupabaseQueries
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 
+# LOAD-BEARING, DO NOT CHANGE: every vector currently stored in Supabase was
+# produced by this model. Swapping it silently invalidates the whole hybrid
+# search index and requires a full re-embed via scripts/populate_embeds.py.
+EMBEDDING_MODEL = "text-embedding-3-small"
+
+# Event parsing model. Undated alias on purpose: the previous pin
+# (gpt-4.1-mini-2025-04-14) was a snapshot that will be retired. Override with
+# OPENAI_EVENT_MODEL to test a different model without a code change.
+DEFAULT_EVENT_MODEL = "gpt-4.1-mini"
+
+
+def get_event_model() -> str:
+    """Model used for caption -> event JSON extraction."""
+    return os.getenv("OPENAI_EVENT_MODEL", DEFAULT_EVENT_MODEL)
+
 
 def get_embedding(text: str) -> list:
     """Get embedding from OpenAI API."""
@@ -19,8 +34,7 @@ def get_embedding(text: str) -> list:
         return None
 
     try:
-        # Using text-embedding-3-small model (newer and more cost-effective)
-        response = client.embeddings.create(model="text-embedding-3-small", input=text)
+        response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
         return response.data[0].embedding
     except Exception as e:
         print(f"Error getting embedding: {e}")
@@ -63,7 +77,7 @@ class EventParser:
 
                     # Send request to OpenAI API to extract dates
                     completion = self.client.chat.completions.create(
-                        model="gpt-4.1-mini-2025-04-14",  # Ensure the model name is correct
+                        model=get_event_model(),
                         messages=[
                             {
                                 "role": "system",
@@ -131,7 +145,7 @@ class EventParser:
         """
         try:
             response = self.client.embeddings.create(
-                model="text-embedding-3-small", input=text
+                model=EMBEDDING_MODEL, input=text
             )
             return response.data[0].embedding
         except Exception as e:

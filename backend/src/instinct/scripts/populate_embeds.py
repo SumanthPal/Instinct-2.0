@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 # Reuse the shared lazy client instead of building a second one from the same
 # credentials; it connects on first use, not at import.
 from instinct.db.supabase_client import supabase
+from instinct.tools.ai_validation import EMBEDDING_MODEL
 from instinct.utils.env import require_env
 
 # Load environment variables
@@ -29,9 +30,10 @@ def get_embedding(text: str) -> list:
         return None
     
     try:
-        # Using text-embedding-3-small model (newer and more cost-effective)
+        # LOAD-BEARING model pin, shared with tools/ai_validation.py: it must
+        # match whatever produced the vectors already in Supabase.
         response = get_openai_client().embeddings.create(
-            model="text-embedding-3-small",
+            model=EMBEDDING_MODEL,
             input=text
         )
         return response.data[0].embedding
