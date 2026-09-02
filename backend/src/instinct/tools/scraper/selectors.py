@@ -14,7 +14,7 @@ LOGIN_PASSWORD = (
     By.CSS_SELECTOR,
     "input[type='password'], input[name='pass'], input[name='password']",
 )
-LOGIN_SUBMIT = (By.CSS_SELECTOR, "input[type='submit']")
+LOGIN_SUBMIT = (By.CSS_SELECTOR, "input[type='submit'], button[type='submit']")
 AUTHENTICATED_AFFORDANCE = (By.CSS_SELECTOR, "a[href*='/direct/inbox']")
 LOGIN_ERROR = (
     By.XPATH,
@@ -23,14 +23,14 @@ LOGIN_ERROR = (
 )
 
 # Rate-limit / page-content checks
-POST_CONTENT = (By.CSS_SELECTOR, "article img, div[role='presentation'] img")
+POST_CONTENT = (By.CSS_SELECTOR, "main img, div[role='presentation'] img")
 STORY_CONTENT = (By.CSS_SELECTOR, "div[role='dialog'] img, div[role='presentation']")
 
 # Posts
-POST_CAPTION = (By.XPATH, "//article//span[string-length(normalize-space()) > 20]")
-POST_DATETIME = (By.XPATH, "//article//time[@datetime]")
-POST_IMAGE = (By.XPATH, "//article//img[contains(@src, 'cdninstagram.com')]")
-POST_VIDEO_POSTER = (By.CSS_SELECTOR, "article video[poster]")
+POST_CAPTION = (By.XPATH, "//main//span[string-length(normalize-space()) > 20]")
+POST_DATETIME = (By.XPATH, "//main//time[@datetime]")
+POST_IMAGE = (By.XPATH, "//main//img[contains(@src, 'cdninstagram.com')]")
+POST_VIDEO_POSTER = (By.CSS_SELECTOR, "main video[poster]")
 
 # Profile
 INVALID_PROFILE = (
