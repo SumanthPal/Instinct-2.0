@@ -1212,7 +1212,9 @@ def main() -> int:
             "logged-in browser session (Chrome DevTools > Application > Cookies). "
             "Refresh them in your secret manager, never in a repository file or logs. "
             "CHROME_BIN is the sole browser-binary setting; CHROMEDRIVER_PATH names "
-            "the matching driver binary. Docker supplies both defaults."
+            "the matching driver binary. Docker supplies both defaults. Set "
+            "HEADLESS=false only when the container has an X display available; "
+            "it runs headless by default."
         ),
     )
     parser.add_argument(

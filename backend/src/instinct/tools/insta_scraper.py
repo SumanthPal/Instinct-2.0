@@ -72,10 +72,8 @@ class InstagramScraper:
             logger.info("Running in Docker/CI environment. Using system ChromeDriver.")
 
             # Use environment variables if set, otherwise use defaults
-            chromedriver_path = os.environ.get(
-                "CHROMEDRIVER_PATH", "/usr/bin/chromedriver"
-            )
-            chrome_bin_path = os.environ.get("CHROME_BIN", "/usr/bin/chromium")
+            chromedriver_path = os.environ.get("CHROMEDRIVER_PATH") or "/usr/bin/chromedriver"
+            chrome_bin_path = os.environ.get("CHROME_BIN") or "/usr/bin/chromium"
 
             logger.info(f"ChromeDriver path: {chromedriver_path}")
             logger.info(f"Chrome binary path: {chrome_bin_path}")
@@ -779,7 +777,6 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
@@ -805,6 +802,9 @@ class InstagramScraper:
             "--disable-cache",
             "--aggressive-cache-discard",
         ]
+        if os.getenv("HEADLESS", "true").lower() not in {"0", "false", "no"}:
+            args.append("--headless=new")
+
         for arg in args:
             option.add_argument(arg)
 
