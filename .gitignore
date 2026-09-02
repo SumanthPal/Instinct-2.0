@@ -16,16 +16,16 @@ dist/
 
 # Node.js / Next.js
 node_modules/
-/.pnp
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-/.next/
-/out/
-/build
+.next/
+out/
+build/
 
 # IDE & OS
 .vscode/
@@ -43,7 +43,7 @@ yarn-error.log*
 *.rdb
 
 # Testing & Coverage
-/coverage
+coverage/
 
 # TypeScript
 *.tsbuildinfo
