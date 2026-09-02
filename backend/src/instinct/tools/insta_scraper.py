@@ -308,10 +308,16 @@ class InstagramScraper:
                 ).click()
                 time.sleep(5)
 
-            error_message = self._check_login_error()
+            # A rejected cookie can render the logged-out page without an alert.
+            # Check rate limits/challenges first, then require evidence of a session.
+            error_message = self._check_login_error(
+                include_login_page=not using_cookies
+            )
             if error_message:
                 raise InstagramLoginError(error_message)
-            if not using_cookies:
+            if using_cookies:
+                self._assert_authenticated_cookie_session()
+            else:
                 self._get_cookies()
         except InstagramLoginError:
             self._driver_quit()
@@ -856,7 +862,20 @@ class InstagramScraper:
         except Exception as e:
             logger.error(f"Cookies button not found or couldn't be clicked: {e}")
 
-    def _check_login_error(self) -> Optional[str]:
+    def _assert_authenticated_cookie_session(self) -> None:
+        """Require a logged-in affordance after loading session cookies."""
+        if self._driver.find_elements(*selectors.LOGIN_USERNAME):
+            raise InstagramLoginError("session cookie expired or rejected")
+        try:
+            self._wait.until(
+                lambda driver: bool(
+                    driver.find_elements(*selectors.AUTHENTICATED_AFFORDANCE)
+                )
+            )
+        except TimeoutException as exc:
+            raise InstagramLoginError("session cookie expired or rejected") from exc
+
+    def _check_login_error(self, *, include_login_page: bool = True) -> Optional[str]:
         """Return a categorized login failure without relying on obfuscated classes."""
         current_url = self._driver.current_url.lower()
         if any(path in current_url for path in ("/challenge/", "/checkpoint/", "/confirm/")):
@@ -882,7 +901,7 @@ class InstagramScraper:
             if message:
                 return f"Instagram login error: {message}"
 
-        if "/accounts/login" in current_url:
+        if include_login_page and "/accounts/login" in current_url:
             return "Instagram remained on the login page; credentials or verification may be required."
         return None
 

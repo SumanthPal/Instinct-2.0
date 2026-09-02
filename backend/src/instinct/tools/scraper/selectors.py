@@ -15,6 +15,7 @@ LOGIN_PASSWORD = (
     "input[type='password'], input[name='pass'], input[name='password']",
 )
 LOGIN_SUBMIT = (By.CSS_SELECTOR, "input[type='submit']")
+AUTHENTICATED_AFFORDANCE = (By.CSS_SELECTOR, "a[href*='/direct/inbox']")
 LOGIN_ERROR = (
     By.XPATH,
     "//form//*[@role='alert' or @aria-live='assertive'] | "
