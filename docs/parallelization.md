@@ -166,6 +166,33 @@ The split is not by difficulty but by **whether the task has a closed form**. A
 cheap model is reliable when the correct output is fully determined by the issue
 text; it degrades when the task requires holding the whole repo in mind.
 
+### Which models
+
+| Tier | Model | Use for |
+| --- | --- | --- |
+| **cheap** | `meta-ai/muse-spark-1.2-contributor` | mechanical lanes — explicit file list, deterministic acceptance |
+| **strong** | `anthropic/claude-sonnet-5` or `claude-opus-5` | judgment, cross-file reasoning, live external services |
+| **reviewer** | always a **strong** model, even on a cheap lane | a cheap reviewer rubber-stamps, which defeats the tiering |
+
+`muse-spark-1.2-contributor` verified working 2026-09-02:
+
+```
+$ pi --model meta-ai/muse-spark-1.2-contributor -p "Reply with exactly the word READY."
+READY
+```
+
+Two gotchas that will cost time otherwise:
+
+- The id uses **dots** — `muse-spark-1.2-contributor`, not `1-2`. A wrong id fails
+  at lane launch.
+- `pi auth check --provider meta-ai` reports **`not_ready` even though the model
+  works**. Do not gate on it; smoke-test with `pi -p` instead.
+
+Its 1M context is not the reason to choose it — issues here are written
+self-contained so a cold agent never needs half the tree — but it is comfortable
+for a lane like #36 that wants a 1,041-line file and its abandoned twin in view at
+once.
+
 **Cheap-model safe** — #29, #30, #33, #34, #35, #40, #41, #42, #43, #45, #46.
 Each has an explicit file list and a mechanical acceptance check. #40 in
 particular is a pure deletion against a list already enumerated in the issue.
