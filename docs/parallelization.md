@@ -116,6 +116,7 @@ cannot be verified from the issue text alone.
 | **H** lint | #43 | cheap | Keep the repo-wide format pass as its **own commit** |
 | **I** tests | #44 | strong | Possible only because #31 made modules importable |
 | **J** UI audit | #39 | strong | Bundle analysis + judgment on Chakra/Emotion |
+| **K** scraper refactor | #61 | strong | Structure-only move of `insta_scraper.py`; **needs #36 merged and a working scraper** |
 
 ### Wave 4 — deploy and close out · serial
 
@@ -292,3 +293,12 @@ Assessed before planning Wave 2, so #36 is not scoped blind:
   a plausible contributor to the original rate-limit trouble.
 
 So #36 is a **selector-hardening and dead-code-removal task**, not a rewrite.
+
+**Decided 2026-09-02:** `tools/scraper/` is deleted; `insta_scraper.py` survives and
+is refactored properly in **#61** — but *after* #36 proves the scraper runs. You
+cannot safely refactor code you cannot run, and with no tests yet (#44) any breakage
+during a 1,041-line move would be unattributable.
+
+#36 carries one down payment on that refactor: it touches every selector anyway, so
+it lands them all in a single `selectors.py`. The volatile surface gets confined
+immediately; the rest of the restructuring waits for a working baseline.
