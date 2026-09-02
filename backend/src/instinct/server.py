@@ -1,6 +1,7 @@
 from instinct.tools.ai_validation import get_embedding
 from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries
+import hmac
 import os
 from typing import List, Optional
 from datetime import datetime
@@ -70,6 +71,30 @@ def get_db() -> SupabaseQueries:
     if _db is None:
         _db = SupabaseQueries()
     return _db
+
+
+def require_internal_token(request: Request) -> None:
+    """Authenticate an internal caller (the Discord bot) on admin endpoints.
+
+    Uses INTERNAL_API_TOKEN, a secret whose only purpose is bot -> API auth.
+    This used to compare against the Supabase service_role key, which meant the
+    API bearer token doubled as full, RLS-bypassing database access and that
+    rotating the database key silently broke bot auth (#50).
+    """
+    expected = os.getenv("INTERNAL_API_TOKEN")
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="Server misconfigured: INTERNAL_API_TOKEN is not set",
+        )
+
+    auth_header = request.headers.get("authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Missing authorization token")
+
+    # Constant-time compare: a plain != leaks the token a byte at a time.
+    if not hmac.compare_digest(auth_header.strip(), f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="Invalid service token")
 
 
 class Club(BaseModel):
@@ -171,12 +196,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
 
 @router.delete("/pending-club/{pending_id}/reject")
 async def reject_pending_club(pending_id: str, request: Request):
-    auth_header = request.headers.get("authorization")
-    if not auth_header:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-
-    if auth_header != f"Bearer {get_db().SUPABASE_KEY}":
-        raise HTTPException(status_code=401, detail="Invalid service token")
+    require_internal_token(request)
 
     try:
         # Set approved = false
@@ -230,12 +250,7 @@ from datetime import datetime  # Make sure you have this imported!
 @router.post("/pending-club/{pending_id}/approve")
 async def approve_pending_club(pending_id: str, request: Request):
     # 1. Validate admin authentication
-    auth_header = request.headers.get("authorization")
-    if not auth_header:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-
-    if auth_header != f"Bearer {get_db().SUPABASE_KEY}":
-        raise HTTPException(status_code=401, detail="Invalid service token")
+    require_internal_token(request)
 
     # 2. Fetch pending club
     try:

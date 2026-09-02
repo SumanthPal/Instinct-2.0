@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 # Import custom modules
 from instinct.tools.logger import logger
 from instinct.db.queries import SupabaseQueries
-from instinct.utils.env import env_int, redis_url as get_redis_url
+from instinct.utils.env import env_int, redis_url as get_redis_url, require_env
 
 # Load environment variables
 load_dotenv()
@@ -32,7 +32,20 @@ OWNER_USER_ID = env_int("USER_ID")  # 👈  Discord user ID
 
 # API Configuration
 API_URL = "https://web-45256917921.us-west2.run.app"
-API_AUTH_TOKEN = os.getenv('SUPABASE_KEY')
+
+
+def api_auth_headers() -> dict:
+    """Authorization header for calls to our own API.
+
+    INTERNAL_API_TOKEN is a shared secret used only for bot -> API auth. It is
+    deliberately NOT the Supabase key: that key grants full service_role
+    database access, bypassing every RLS policy, and it was previously sent on
+    every bot request (#50).
+    """
+    token = require_env(
+        "INTERNAL_API_TOKEN", "authenticate the Discord bot to the Instinct API"
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 # Initialize bot with intents
 intents = discord.Intents.default()
@@ -191,16 +204,15 @@ def get_queue_status():
 def approve_club(pending_id):
     """Approve a pending club."""
     try:
-        # Make sure API_AUTH_TOKEN is properly set and in the expected format
-        # The server expects: Bearer <token>
-        headers = {"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+        # The server expects: Bearer <INTERNAL_API_TOKEN>
+        headers = api_auth_headers()
         
         # Log the request before sending
         logger.info(f"🔄 Sending approval request for club {pending_id}")
         
         response = requests.post(
             f"{API_URL}/pending-club/{pending_id}/approve",
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=headers
         )
         
         # Log the full response for debugging
@@ -223,7 +235,7 @@ def reject_club(pending_id):
     try:
         response = requests.delete(
             f"{API_URL}/pending-club/{pending_id}/reject",
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=api_auth_headers()
         )
         
         if response.status_code == 200:
@@ -412,7 +424,7 @@ async def check_pending_clubs():
         # Get pending clubs from API
         response = requests.get(
             f"{API_URL}/pending-clubs", 
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=api_auth_headers()
         )
         
         if response.status_code != 200:
@@ -571,7 +583,7 @@ async def check_pending_cmd(ctx):
         # Get pending clubs from API
         response = requests.get(
             f"{API_URL}/pending-clubs", 
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=api_auth_headers()
         )
         
         if response.status_code != 200:
