@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase";
 
 const supabase = createClient();
 
-//const API_BASE_URL = 'https://web2.gentlemeadow-727fb9e6.westus.azurecontainerapps.io'; // or your production API URL
-//const API_BASE_URL = "http://127.0.0.1:8000";
-//const API_BASE_URL = "https://web-45256917921.us-west2.run.app";
-const API_BASE_URL = "https://instinct-web-45256917921.us-central1.run.app";
+// Resolved from the environment (#33). Was hardcoded to a dead Cloud Run URL
+// with three more commented out above it, so pointing at a local backend meant
+// editing source. NEXT_PUBLIC_* is inlined at build time — on Vercel this is set
+// per-environment in project settings.
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 export const fetchClubManifest = async (
   page = 1,
   limit = 20,
