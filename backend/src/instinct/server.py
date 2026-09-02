@@ -93,7 +93,11 @@ def require_internal_token(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
     # Constant-time compare: a plain != leaks the token a byte at a time.
-    if not hmac.compare_digest(auth_header.strip(), f"Bearer {expected}"):
+    # Compare bytes, not str: Starlette decodes headers as latin-1, and
+    # hmac.compare_digest raises TypeError on non-ASCII str, which would turn a
+    # malformed header into a 500 instead of a 401.
+    provided = auth_header.strip().encode("latin-1", "replace")
+    if not hmac.compare_digest(provided, f"Bearer {expected}".encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid service token")
 
 
