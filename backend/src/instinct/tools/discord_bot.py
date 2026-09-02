@@ -1,5 +1,5 @@
-from bot.auxiliary_bot import aux_bot
-from bot.job_bot import job_bot
+from instinct.tools.bot.auxiliary_bot import aux_bot
+from instinct.tools.bot.job_bot import job_bot
 import threading
 import os
 

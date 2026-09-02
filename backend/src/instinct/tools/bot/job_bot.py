@@ -1,5 +1,4 @@
 import os
-import sys
 import discord
 import redis
 import json
@@ -21,17 +20,10 @@ import io
 from collections import deque
 import numpy as np
 
-# Path setup
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-# Set base directory for logs
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
-
 # Import custom modules
-from tools.logger import logger
-from db.queries import SupabaseQueries
-from redis_queue import RedisScraperQueue, QueueType
+from instinct.tools.logger import logger, LOG_FILE_PATH
+from instinct.db.queries import SupabaseQueries
+from instinct.tools.redis_queue import RedisScraperQueue, QueueType
 
 
 # Load environment variables

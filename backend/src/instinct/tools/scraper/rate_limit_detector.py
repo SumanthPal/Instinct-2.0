@@ -1,5 +1,5 @@
 from os import wait
-from .scraper_exceptions import RateLimitException
+from instinct.tools.scraper.scraper_exceptions import RateLimitException
 import time
 import random
 
@@ -44,7 +44,7 @@ class RateLimitDetector:
             return False
 
         except Exception:
-            return False:
+            return False
 
     def safe_get_page(self, url: str, retry_count: int = 1) -> bool:
         """Safely access a page with rate limit detection."""

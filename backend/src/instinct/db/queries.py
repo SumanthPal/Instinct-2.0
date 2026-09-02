@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 import uuid
 from pathlib import Path
-import sys
 import requests
 from io import BytesIO
 import httpx
@@ -15,11 +14,10 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from db.supabase_client import supabase
+from instinct.db.supabase_client import supabase
 from google.cloud import storage
 from google.oauth2 import service_account
-from tools.logger import logger
+from instinct.tools.logger import logger
 
 
 class SupabaseQueries:

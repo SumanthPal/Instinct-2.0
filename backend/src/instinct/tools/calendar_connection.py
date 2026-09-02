@@ -1,14 +1,12 @@
 import os
-import sys
 import uuid
 from datetime import datetime, timedelta
 import pytz
 from typing import Optional, List, Dict
 from ics import Calendar, Event
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from db.queries import SupabaseQueries
-from tools.logger import logger
+from instinct.db.queries import SupabaseQueries
+from instinct.tools.logger import logger
 import re
 
 def parse_duration_string(duration_str: str) -> timedelta:

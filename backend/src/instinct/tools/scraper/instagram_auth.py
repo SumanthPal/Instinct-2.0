@@ -6,9 +6,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
-from app.tools.scraper.scraper_exceptions import LoginFailedException
-from .config import ScraperConfig
-from ..logger import logger
+from instinct.tools.scraper.scraper_exceptions import LoginFailedException
+from instinct.tools.scraper.config import ScraperConfig
+from instinct.tools.logger import logger
 
 
 class InstagramAuth:

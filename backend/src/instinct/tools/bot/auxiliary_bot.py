@@ -1,5 +1,4 @@
 import os
-import sys
 import discord
 import redis
 import json
@@ -13,12 +12,9 @@ from discord import ButtonStyle
 from discord.ui import Button, View, Select
 from typing import Dict, List, Optional
 
-# Path setup
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
 # Import custom modules
-from tools.logger import logger
-from db.queries import SupabaseQueries
+from instinct.tools.logger import logger
+from instinct.db.queries import SupabaseQueries
 
 # Load environment variables
 load_dotenv()

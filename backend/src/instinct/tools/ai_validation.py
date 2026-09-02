@@ -5,12 +5,9 @@ from openai import OpenAI
 import json
 from typing import List, Dict, Optional
 import time
-import sys
-import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from tools.logger import logger
-from db.queries import SupabaseQueries
+from instinct.tools.logger import logger
+from instinct.db.queries import SupabaseQueries
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 

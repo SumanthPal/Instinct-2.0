@@ -1,11 +1,17 @@
 import logging
 import os
 import json
-import sys
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
 import redis
 import dotenv
+
+# Single source of truth for where logs go. Resolved from the package location
+# (backend/src/instinct/tools/logger.py -> backend/logs) so it does not depend on
+# the working directory, and overridable with LOG_DIR.
+LOG_DIR = os.getenv("LOG_DIR") or str(Path(__file__).resolve().parents[3] / "logs")
+LOG_FILE_PATH = os.path.join(LOG_DIR, "logfile.log")
 
 class RedisLogHandler(logging.Handler):
     """Simple Redis logging handler that pushes logs to a Redis list"""
@@ -63,14 +69,14 @@ def setup_logging(log_level=logging.INFO):
         The configured logger
     """
     # Define the log file directory
-    log_file_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+    log_file_dir = LOG_DIR
     
     # Create the log file directory if it doesn't exist
     if not os.path.exists(log_file_dir):
         os.makedirs(log_file_dir)
     
     # Define the log file path
-    log_file_path = os.path.join(log_file_dir, 'logfile.log')
+    log_file_path = LOG_FILE_PATH
     
     # Create a TimedRotatingFileHandler to rotate logs daily
     file_handler = TimedRotatingFileHandler(

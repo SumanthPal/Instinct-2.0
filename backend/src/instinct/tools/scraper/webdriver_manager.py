@@ -5,8 +5,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-from app.tools.scraper.config import ScraperConfig
-from tools.logger import logger
+from instinct.tools.scraper.config import ScraperConfig
+from instinct.tools.logger import logger
 import random
 
 

@@ -1,8 +1,8 @@
-from tools.ai_validation import get_embedding
-from tools.calendar_connection import CalendarConnection
-from tools.scraper_rotation import ScraperRotation
-from db.supabase_client import supabase
-from db.queries import SupabaseQueries
+from instinct.tools.ai_validation import get_embedding
+from instinct.tools.calendar_connection import CalendarConnection
+from instinct.tools.scraper_rotation import ScraperRotation
+from instinct.db.supabase_client import supabase
+from instinct.db.queries import SupabaseQueries
 import os
 from typing import List, Optional
 from datetime import datetime
@@ -17,7 +17,7 @@ import os
 
 # Load environment variables
 dotenv.load_dotenv()
-from tools.logger import logger
+from instinct.tools.logger import logger
 
 azure_blob_cdn = os.getenv("GCP_URL")
 # Initialize dependencies
@@ -700,4 +700,6 @@ app.include_router(router)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    uvicorn.run(
+        "instinct.server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000))
+    )

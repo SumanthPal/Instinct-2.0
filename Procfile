@@ -1,9 +1,13 @@
 # Procfile for the backend (server, scraper, and discord bot)
+#
+# Every process runs the installed `instinct` package, so no `cd` and no
+# PYTHONPATH juggling is required — `uv sync` installs the package from
+# backend/src/instinct (see pyproject.toml).
 
-# The web server process (e.g., FastAPI or Flask app)
-web: cd backend && python app/server.py
+# The web server process (FastAPI via uvicorn)
+web: uv run python -m instinct.server
 # The scraper rotation process
-scraper: cd backend && python app/tools/scraper_rotation.py
+scraper: uv run python -m instinct.tools.scraper_rotation
 
 # The discord bot process
-discord: cd backend && python app/tools/discord_bot.py
+discord: uv run python -m instinct.tools.discord_bot

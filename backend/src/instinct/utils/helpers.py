@@ -3,7 +3,7 @@ from datetime import datetime
 
 from dateutil.relativedelta import relativedelta
 
-import app.tools.logger as logger
+from instinct.tools.logger import logger
 
 def file_cleanup():
     """
