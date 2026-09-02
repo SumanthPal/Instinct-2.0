@@ -12,7 +12,6 @@ import {
   SiVercel,
   SiPython,
   SiGoogle,
-  SiOpenai,
   SiPostgresql,
   SiJavascript,
   SiDocker,
@@ -21,6 +20,7 @@ import {
 } from 'react-icons/si';
 import { FaGithub, FaDiscord } from 'react-icons/fa';
 import { FaReact, FaPython, FaSearch, FaInstagram } from 'react-icons/fa';
+import { RiOpenaiFill } from 'react-icons/ri';
 import { VscAzure } from 'react-icons/vsc';
 import Link from 'next/link';
 
@@ -51,7 +51,7 @@ const TechnicalAbout = () => {
         { icon: <SiSupabase />, name: "Supabase", description: "Supabase is our database choice for authentication, relational mapping, and semantic search." },
         { icon: <SiPostgresql />, name: "PostgreSQL", description: "Schema language of choice for the database." },
         { icon: <SiGoogle />, name: "Google", description: "Used for simple OAuth." },
-        { icon: <SiOpenai />, name: "OpenAI", description: "We use OpenAI to help with semantic/smart search and NLP processing." },
+        { icon: <RiOpenaiFill />, name: "OpenAI", description: "We use OpenAI to help with semantic/smart search and NLP processing." },
       ]
     },
     {
