@@ -14,7 +14,11 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-from instinct.db.supabase_client import supabase
+from instinct.db.supabase_client import (
+    supabase,
+    get_supabase_url,
+    get_supabase_secret_key,
+)
 from google.cloud import storage
 from google.oauth2 import service_account
 from instinct.tools.logger import logger
@@ -24,8 +28,6 @@ class SupabaseQueries:
     def __init__(self):
         """Initialize the Supabase client"""
         self.supabase = supabase
-        self.SUPABASE_URL = os.getenv("SUPABASE_URL")
-        self.SUPABASE_KEY = os.getenv("SUPABASE_KEY")
         self.BUCKET_NAME = os.getenv("BUCKET_NAME")
         self.gcp_container_name = "images"
 
@@ -35,6 +37,16 @@ class SupabaseQueries:
         # scraper, and only a handful of methods ever touch storage.
         self._storage_client = None
         self._bucket = None
+
+    @property
+    def SUPABASE_URL(self) -> Optional[str]:
+        """Supabase project URL, read at use time (see supabase_client)."""
+        return get_supabase_url()
+
+    @property
+    def SUPABASE_SECRET_KEY(self) -> Optional[str]:
+        """Supabase secret key (replaces the legacy `service_role` key, #50)."""
+        return get_supabase_secret_key()
 
     @property
     def client(self):
@@ -666,12 +678,23 @@ class SupabaseQueries:
         # Remove "Bearer " if present
         token = token.replace("Bearer ", "")
 
+        url = self.SUPABASE_URL
+        api_key = self.SUPABASE_SECRET_KEY
+        if not url or not api_key:
+            raise RuntimeError(
+                "Supabase is not configured: missing SUPABASE_URL and/or "
+                "SUPABASE_SECRET_KEY in the environment; cannot verify user "
+                "tokens."
+            )
+
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{self.SUPABASE_URL}/auth/v1/user",
+                f"{url}/auth/v1/user",
                 headers={
                     "Authorization": f"Bearer {token}",
-                    "apikey": self.SUPABASE_KEY,
+                    # `apikey` accepts the new sb_secret_… format unchanged; it
+                    # is forwarded verbatim, not parsed as a JWT.
+                    "apikey": api_key,
                 },
             )
 
