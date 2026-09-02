@@ -1,4 +1,10 @@
 version: "3.9"
+
+# Note on REDIS_URL override: services define REDIS_URL=${REDIS_URL:-redis://redis:6379}
+# in environment, which takes precedence over env_file: backend/.env. To use an external
+# Redis, either: (1) export REDIS_URL in your shell before docker compose up, or
+# (2) remove the REDIS_URL line from each service and set it in backend/.env.
+
 services:
   redis:
     image: redis:7-alpine
