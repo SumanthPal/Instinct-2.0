@@ -8,10 +8,25 @@ from pathlib import Path
 import redis
 import dotenv
 
-# Single source of truth for where logs go. Resolved from the package location
-# (backend/src/instinct/tools/logger.py -> backend/logs) so it does not depend on
-# the working directory, and overridable with LOG_DIR.
-LOG_DIR = os.getenv("LOG_DIR") or str(Path(__file__).resolve().parents[3] / "logs")
+def _default_log_dir() -> str:
+    """Where logs go when LOG_DIR is unset.
+
+    Running from the source tree (or an editable install) resolves
+    backend/src/instinct/tools/logger.py -> backend/logs, i.e. the same place as
+    before the package move and independent of the working directory. Installed
+    non-editable, the package lives in site-packages, where `parents[3]` would
+    be a path inside the venv — so fall back to ./logs. Containers should set
+    LOG_DIR explicitly.
+    """
+    package_parent = Path(__file__).resolve().parents[2]  # .../src or site-packages
+    if package_parent.name == "src":
+        return str(package_parent.parent / "logs")
+    return str(Path.cwd() / "logs")
+
+
+# Single source of truth for where logs go; every reader (job_bot's !logs,
+# scraper_rotation) imports LOG_FILE_PATH from here rather than recomputing it.
+LOG_DIR = os.getenv("LOG_DIR") or _default_log_dir()
 LOG_FILE_PATH = os.path.join(LOG_DIR, "logfile.log")
 
 class RedisLogHandler(logging.Handler):

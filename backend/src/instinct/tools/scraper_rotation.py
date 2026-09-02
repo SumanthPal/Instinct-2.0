@@ -1049,7 +1049,7 @@ class ScraperRotation:
                 )
 
                 # Create fresh scraper instance
-                from tools.insta_scraper import InstagramScraper
+                from instinct.tools.insta_scraper import InstagramScraper
 
                 scraper = InstagramScraper(
                     os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")

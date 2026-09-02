@@ -722,7 +722,7 @@ async def hybrid_search(
 
 
 def run_scraper_process():
-    from tools.scraper_rotation import ScraperRotation
+    from instinct.tools.scraper_rotation import ScraperRotation
 
     scraper = ScraperRotation()
     scraper.run()

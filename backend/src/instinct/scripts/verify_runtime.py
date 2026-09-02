@@ -17,6 +17,11 @@ import sys
 import time
 import traceback
 
+# (name, requires-this-env-var-or-skip, function). Checks are only *registered*
+# at import; nothing runs until main() is called. Importing this module must not
+# boot the app, talk to Redis or spend OpenAI calls — the same invariant #31
+# established for the rest of the package.
+checks: list[tuple[str, str | None, object]] = []
 results: list[tuple[str, str, str]] = []
 
 
@@ -26,12 +31,21 @@ def record(status: str, name: str, detail: str = "") -> None:
 
 
 def check(name: str, skip_reason_env: str | None = None):
-    """Decorator: run a check, turn a returned string into the PASS detail."""
+    """Decorator: register a check to be run by main()."""
 
     def wrap(fn):
+        checks.append((name, skip_reason_env, fn))
+        return fn
+
+    return wrap
+
+
+def run_checks() -> None:
+    """Run every registered check, recording PASS / FAIL / SKIP."""
+    for name, skip_reason_env, fn in checks:
         if skip_reason_env and not os.getenv(skip_reason_env):
             record("SKIP", name, f"{skip_reason_env} is not set")
-            return fn
+            continue
         try:
             detail = fn() or ""
         except Exception as e:
@@ -39,9 +53,6 @@ def check(name: str, skip_reason_env: str | None = None):
             traceback.print_exc()
         else:
             record("PASS", name, detail)
-        return fn
-
-    return wrap
 
 
 # --------------------------------------------------------------------------
@@ -217,6 +228,8 @@ def _supabase_key():
 
 
 def main() -> int:
+    run_checks()
+
     failed = [r for r in results if r[0] == "FAIL"]
     skipped = [r for r in results if r[0] == "SKIP"]
     print(
