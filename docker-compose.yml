@@ -1,5 +1,21 @@
 version: "3.9"
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: instinct-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - instinct-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   web:
     build:
       context: .
@@ -9,11 +25,15 @@ services:
     env_file: backend/.env
     environment:
       - PORT=8000
+      - REDIS_URL=redis://redis:6379
     ports:
       - "8000:8000"
     networks:
       - instinct-net
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
 
   scraper:
     build:
@@ -22,9 +42,14 @@ services:
     entrypoint: /entrypoint.sh
     command: python app/tools/scraper_rotation.py
     env_file: backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
     networks:
       - instinct-net
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
 
   discord:
     build:
@@ -33,9 +58,17 @@ services:
     entrypoint: /entrypoint.sh
     command: python app/tools/discord_bot.py
     env_file: backend/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
     networks:
       - instinct-net
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
 
 networks:
   instinct-net:
+
+volumes:
+  redis-data:
