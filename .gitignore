@@ -4,3 +4,11 @@ dump.rdb
 dist/
 __pycache__/
 *.pyc
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+
+# worktrees (see docs/parallelization.md)
+/instinct-wt/
