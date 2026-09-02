@@ -37,7 +37,7 @@ are stated with the file that produced them so nothing here is guesswork.
 | Web API + Discord bots | **Oracle Cloud Always Free** ARM VM | $0 |
 | Scraper | **Local machine** — Selenium is the expensive part | $0 |
 | AI agents (Phase 5) | **Local machine** | $0 |
-| Images | **Cloudflare R2** — zero egress (#53) | $0 under 10 GB |
+| Images | **Cloudflare R2** — zero egress (#53), served via `r2.dev` | $0 under 10 GB |
 | Database | **Supabase** — data intact, 451 clubs / 18,820 posts | $0–25 |
 | Frontend | **Vercel** hobby | $0 |
 
