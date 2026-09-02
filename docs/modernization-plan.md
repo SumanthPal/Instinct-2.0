@@ -27,6 +27,38 @@ are stated with the file that produced them so nothing here is guesswork.
 | Local Redis | Docker service in `docker-compose.yml` | — |
 | PWA layer | Migrate `next-pwa` → `@serwist/next` | — |
 
+### Deployment & storage — decided 2026-09-01
+
+| Concern | Decision | Cost |
+| --- | --- | --- |
+| Web API + Discord bots | **Oracle Cloud Always Free** ARM VM | $0 |
+| Scraper | **Local machine** — Selenium is the expensive part | $0 |
+| AI agents (Phase 5) | **Local machine** | $0 |
+| Images | **Cloudflare R2** — zero egress (#53) | $0 under 10 GB |
+| Database | **Supabase** — data intact, 451 clubs / 18,820 posts | $0–25 |
+| Frontend | **Vercel** hobby | $0 |
+
+Rejected: Supabase Storage (ingress/egress limits), GCS (egress billing + service-account
+key handling). The prior Azure Container Apps bill came from keeping the scraper and API
+warm 24/7 — this topology removes that structurally. Tracked in #54.
+
+**Known consequence:** the scraper now produces to Redis from a home network while the API
+consumes from Oracle Cloud. Redis must be reachable by both — see #54 for the options
+(Upstash recommended to start).
+
+### Images: ~19,000 objects lost with the GCP bucket
+
+Measured, not estimated: `posts.image_path` NULL = 0 of 18,820, and
+`clubs.profile_image_path` NULL = 0 of 451. Every one was mirrored, and every one is gone
+— roughly 3–4 GB.
+
+Recoverable: every row keeps its Instagram source URL (`posts.image_url`, `posts.post_url`,
+`clubs.profile_pic`, `clubs.instagram_handle`). **Those CDN URLs expire**, so backfill hit
+rate falls with time. #53 carries the script.
+
+The database itself — captions, parsed events, embeddings, search vectors — was never at
+risk. That is the part representing months of scraping and every OpenAI call paid for.
+
 ### Note: there is no Tailwind v5
 
 `tailwindcss` dist-tags as of this writing: `latest: 4.3.3`, `next: 4.0.0`,
