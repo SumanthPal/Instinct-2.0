@@ -1,23 +1,18 @@
-# Dockerfile.scraper.fixed
-FROM python:3.11.8-slim as builder
+# Dockerfile.scraper — uses uv + Python 3.14
+FROM python:3.14-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock README.md ./
+COPY backend/app ./backend/app
+RUN uv sync --frozen --no-dev --no-editable
 
-# Create and activate virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Final image
-FROM python:3.11.8-slim
+FROM python:3.14-slim
 WORKDIR /app
 
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/.venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Chromium and dependencies but don't run version checks during build
+# Install Chromium and dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-driver \
@@ -43,18 +38,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN echo '#!/bin/bash\necho "Chrome version: $(chromium --version 2>/dev/null || echo \"Not available in this environment\")"\necho "ChromeDriver version: $(chromedriver --version 2>/dev/null || echo \"Not available in this environment\")"\necho "Starting scraper..."\npython app/tools/scraper_rotation.py\n' > /app/start.sh \
     && chmod +x /app/start.sh
 
-# Set environment variables for Chrome
 ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
 ENV DOCKER_ENV=true
-
-# Set Chrome options for running in container
 ENV CHROME_OPTIONS="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage"
 
-# Copy only necessary source files
 COPY backend/app /app/app
 
-# Set Python to not write .pyc files and remove __pycache__ folders
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
