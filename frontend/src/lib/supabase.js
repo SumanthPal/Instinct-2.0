@@ -3,9 +3,10 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 // Ensure environment variables are available
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Publishable key (sb_publishable_…); replaces the legacy anon JWT key
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabasePublishableKey) {
   console.error('Missing Supabase environment variables');
 }
 
@@ -19,7 +20,7 @@ export const createClient = () => {
   }
   
   // Create a new client if none exists yet
-  supabaseClient = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+  supabaseClient = createSupabaseClient(supabaseUrl, supabasePublishableKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
