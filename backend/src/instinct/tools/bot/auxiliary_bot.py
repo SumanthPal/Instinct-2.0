@@ -15,7 +15,12 @@ from typing import Dict, List, Optional
 # Import custom modules
 from instinct.tools.logger import logger
 from instinct.db.queries import SupabaseQueries
-from instinct.utils.env import env_int, redis_url as get_redis_url, require_env
+from instinct.utils.env import (
+    env_int,
+    redis_url as get_redis_url,
+    require_env,
+    require_env_int,
+)
 
 # Load environment variables
 load_dotenv()
@@ -25,10 +30,34 @@ AUX_BOT_TOKEN = os.getenv('AUX_BOT_TOKEN')
 AUX_BOT_PREFIX = os.getenv('AUX_BOT_PREFIX', '?')
 AUX_BOT_CHANNEL_ID = env_int('AUX_BOT_CHANNEL_ID')
 AUX_BOT_ADMIN_ROLE_ID = env_int('AUX_BOT_ADMIN_ROLE_ID')
-ALLOWED_SERVER_LIST = [env_int('SERVER_ID')]
 # security_checks.py or just at top of bot file
 
-OWNER_USER_ID = env_int("USER_ID")  # 👈  Discord user ID
+
+# SERVER_ID and USER_ID are NOT optional and must never silently default to 0:
+# an allow-list of [0] makes every real guild look unauthorized, which the
+# on_command guard below used to answer by banning the caller. Read at use time
+# so that importing this module still needs no environment, and validated up
+# front by check_config().
+def allowed_server_ids() -> list:
+    """Discord servers this bot is allowed to run in."""
+    return [require_env_int('SERVER_ID', 'restrict the bot to its own server')]
+
+
+def owner_user_id() -> int:
+    """Discord user id that receives misuse alerts."""
+    return require_env_int("USER_ID", "alert the bot owner")
+
+
+def check_config() -> None:
+    """Validate required configuration before the bot connects.
+
+    Called from the entrypoints so a misconfigured bot fails loudly at startup
+    (as it did before this refactor) instead of running half-blind.
+    """
+    require_env('AUX_BOT_TOKEN', 'log the auxiliary bot in to Discord')
+    require_env('INTERNAL_API_TOKEN', 'authenticate the bot to the Instinct API')
+    allowed_server_ids()
+    owner_user_id()
 
 # API Configuration
 API_URL = "https://web-45256917921.us-west2.run.app"
@@ -128,9 +157,17 @@ def is_admin():
 
 @aux_bot.event
 async def on_command(ctx):
-    if ctx.guild is None or ctx.guild.id not in ALLOWED_SERVER_LIST:
+    try:
+        allowed_servers = allowed_server_ids()
+        owner_id = owner_user_id()
+    except RuntimeError as e:
+        # Fail closed, but never punish a user for the bot's own misconfiguration.
+        logger.error(f"Refusing command: bot is misconfigured: {e}")
+        raise commands.CheckFailure("Bot is not configured.")
+
+    if ctx.guild is None or ctx.guild.id not in allowed_servers:
         try:
-            owner = ctx.bot.get_user(OWNER_USER_ID)
+            owner = ctx.bot.get_user(owner_id)
             if owner:
                 await owner.send(
                     f"🚨 BIXIE ALERT!\n"
@@ -2356,4 +2393,5 @@ async def bulk_event_cmd(ctx, instagram_handle: str):
         logger.error(f"Error in bulk event command: {e}")
         await ctx.send(f"😭 Bulk event import failed: {str(e)}")
 if __name__ == "__main__":
+    check_config()
     aux_bot.run(AUX_BOT_TOKEN)

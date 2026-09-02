@@ -25,6 +25,22 @@ def redis_url() -> str:
     return os.getenv("REDIS_URL") or DEFAULT_REDIS_URL
 
 
+def require_env_int(name: str, purpose: str) -> int:
+    """Return an integer environment variable or raise a readable error.
+
+    For settings where a silent default is dangerous — a Discord server or owner
+    id that quietly becomes 0 makes every real guild look unauthorized — so a
+    missing or malformed value must fail loudly at startup.
+    """
+    raw = require_env(name, purpose)
+    try:
+        return int(raw)
+    except ValueError:
+        raise RuntimeError(
+            f"{name}={raw!r} is not an integer; it is required to {purpose}."
+        ) from None
+
+
 def require_env(name: str, purpose: str) -> str:
     """Return an environment variable or raise a readable, actionable error."""
     value = os.getenv(name)

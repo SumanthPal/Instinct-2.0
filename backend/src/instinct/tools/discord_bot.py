@@ -1,3 +1,4 @@
+from instinct.tools.bot import auxiliary_bot, job_bot as job_bot_module
 from instinct.tools.bot.auxiliary_bot import aux_bot
 from instinct.tools.bot.job_bot import job_bot
 import threading
@@ -12,6 +13,12 @@ def run_job():
     job_bot.run(JOB_BOT_TOKEN)
 
 if __name__ == "__main__":
+    # Fail loudly, before either thread starts, if the bots are misconfigured:
+    # a missing SERVER_ID/USER_ID would otherwise leave them running with an
+    # allow-list that matches no real server.
+    auxiliary_bot.check_config()
+    job_bot_module.check_config()
+
     aux_thread = threading.Thread(target=run_aux)
     job_thread = threading.Thread(target=run_job)
 
