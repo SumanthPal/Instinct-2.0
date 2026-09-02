@@ -14,6 +14,8 @@ from instinct.utils.env import redis_url as get_default_redis_url
 
 DEFAULT_MAX_CONNECTIONS = 5
 
+_clients: dict[tuple[str, int, bool, bool], redis.Redis] = {}
+
 
 def get_redis_url() -> str:
     """Return configured REDIS_URL or fallback to local default."""
@@ -27,7 +29,10 @@ def get_redis(
     decode_responses: bool = False,
     **kwargs: Any,
 ) -> redis.Redis:
-    """Create a Redis client with bounded connection pool and keepalive enabled.
+    """Return a Redis client with a bounded connection pool and keepalive enabled.
+
+    Reuses client instances per (url, max_connections, socket_keepalive, decode_responses)
+    so each process shares a single connection pool across logger, queue, and bot usages (#55).
 
     Args:
         url: Redis connection URL (defaults to REDIS_URL env var or redis://localhost:6379)
@@ -40,10 +45,17 @@ def get_redis(
         A configured redis.Redis instance.
     """
     target_url = url or get_redis_url()
-    return redis.from_url(
+    cache_key = (target_url, max_connections, socket_keepalive, decode_responses)
+    if not kwargs and cache_key in _clients:
+        return _clients[cache_key]
+
+    client = redis.from_url(
         target_url,
         max_connections=max_connections,
         socket_keepalive=socket_keepalive,
         decode_responses=decode_responses,
         **kwargs,
     )
+    if not kwargs:
+        _clients[cache_key] = client
+    return client

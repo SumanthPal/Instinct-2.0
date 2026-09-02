@@ -101,6 +101,9 @@ def _redis_pool_bounded():
     return f"get_redis() enforces max_connections={DEFAULT_MAX_CONNECTIONS}, socket_keepalive=True"
 
 
+MAX_REDIS_CLIENTS_CAP = 30
+
+
 @check("redis: client connection count under cap", skip_reason_env="REDIS_URL")
 def _redis_client_count():
     from instinct.db.redis_client import get_redis
@@ -108,8 +111,11 @@ def _redis_client_count():
     client = get_redis()
     client.ping()
     info = client.info("clients")
-    connected = info.get("connected_clients", 0)
-    return f"connected_clients={connected} (well below 30-connection cap)"
+    connected = int(info.get("connected_clients", 0))
+    assert connected <= MAX_REDIS_CLIENTS_CAP, (
+        f"connected_clients={connected} exceeds maximum cap of {MAX_REDIS_CLIENTS_CAP}"
+    )
+    return f"connected_clients={connected} <= {MAX_REDIS_CLIENTS_CAP} cap"
 
 
 @check("redis: zadd -> zrangebyscore -> pop round trip", skip_reason_env="REDIS_URL")
