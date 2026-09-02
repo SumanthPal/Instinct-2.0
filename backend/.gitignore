@@ -1,9 +1,0 @@
-.env
-.DS_Store
-__pycache__/
-.pytest_cache
-logs/*
-data/
-venv/
-env/
-instinct-459021-c6c9b84da7c1.json

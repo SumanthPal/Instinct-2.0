@@ -1,14 +1,66 @@
-dump.rdb
-/.vscode
-.venv/
-dist/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+backend/env/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
 
-# secrets — never commit
+# Environment — never commit
 .env
 .env.*
 !.env.example
 
-# worktrees (see docs/parallelization.md)
+# Node.js / Next.js
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# IDE & OS
+.vscode/
+.DS_Store
+*.pem
+
+# Logs
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Redis
+*.rdb
+
+# Testing & Coverage
+frontend/coverage/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Frontend build artifacts
+frontend/public/sw.js
+frontend/public/workbox-*.js
+
+# Worktrees (see docs/parallelization.md)
 /instinct-wt/
+/Instinct-2.0-wt/
+
+# Misc
+.vercel
+backend/data/
+
+# GCP & Service Accounts
+*-service-account*.json
+instinct-459021-c6c9b84da7c1.json
