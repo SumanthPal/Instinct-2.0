@@ -2,13 +2,14 @@
   "name": "instinct-frontend",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "bun@1.4.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "add-card": "npx shadcn-ui add card",
-    "add-button": "npx shadcn-ui add button"
+    "add-card": "bunx shadcn@latest add card",
+    "add-button": "bunx shadcn@latest add button"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.4.0",
