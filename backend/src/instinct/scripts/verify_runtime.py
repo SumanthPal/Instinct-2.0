@@ -43,9 +43,13 @@ def check(name: str, skip_reason_env: str | None = None):
 def run_checks() -> None:
     """Run every registered check, recording PASS / FAIL / SKIP."""
     for name, skip_reason_env, fn in checks:
-        if skip_reason_env and not os.getenv(skip_reason_env):
-            record("SKIP", name, f"{skip_reason_env} is not set")
-            continue
+        if skip_reason_env:
+            val = os.getenv(skip_reason_env)
+            if skip_reason_env == "OPENAI_API_KEY" and not val:
+                val = os.getenv("OPENAI")
+            if not val:
+                record("SKIP", name, f"{skip_reason_env} is not set")
+                continue
         try:
             detail = fn() or ""
         except Exception as e:
@@ -72,7 +76,8 @@ def _app():
 
 
 # --------------------------------------------------------------------------
-# redis 5 -> 8: bytes-vs-str assumption, then a real queue round trip
+# redis 5 -> 8: bytes-vs-str assumption, connection pool bounding, then a real
+# queue round trip
 # --------------------------------------------------------------------------
 @check("redis: from_url still defaults to decode_responses=False")
 def _redis_decode():
@@ -84,11 +89,40 @@ def _redis_decode():
     return f"redis {redis.__version__}, decode_responses=False (call sites expect bytes)"
 
 
+@check("redis: connection pool bounded (max_connections=5)")
+def _redis_pool_bounded():
+    from instinct.db.redis_client import get_redis, DEFAULT_MAX_CONNECTIONS
+
+    client = get_redis()
+    pool = client.connection_pool
+    assert pool.max_connections == DEFAULT_MAX_CONNECTIONS, (
+        f"expected max_connections={DEFAULT_MAX_CONNECTIONS}, got {pool.max_connections}"
+    )
+    return f"get_redis() enforces max_connections={DEFAULT_MAX_CONNECTIONS}, socket_keepalive=True"
+
+
+MAX_REDIS_CLIENTS_CAP = 30
+
+
+@check("redis: client connection count under cap", skip_reason_env="REDIS_URL")
+def _redis_client_count():
+    from instinct.db.redis_client import get_redis
+
+    client = get_redis()
+    client.ping()
+    info = client.info("clients")
+    connected = int(info.get("connected_clients", 0))
+    assert connected <= MAX_REDIS_CLIENTS_CAP, (
+        f"connected_clients={connected} exceeds maximum cap of {MAX_REDIS_CLIENTS_CAP}"
+    )
+    return f"connected_clients={connected} <= {MAX_REDIS_CLIENTS_CAP} cap"
+
+
 @check("redis: zadd -> zrangebyscore -> pop round trip", skip_reason_env="REDIS_URL")
 def _redis_roundtrip():
-    import redis
+    from instinct.db.redis_client import get_redis
 
-    conn = redis.from_url(os.environ["REDIS_URL"])
+    conn = get_redis()
     conn.ping()
     key = f"verify:{int(time.time())}"
     try:
@@ -146,7 +180,7 @@ def _openai_surface():
     return f"openai {openai.__version__}, all three entry points present"
 
 
-@check("openai: embedding dimensions match the stored index", skip_reason_env="OPENAI")
+@check("openai: embedding dimensions match the stored index", skip_reason_env="OPENAI_API_KEY")
 def _openai_embed():
     from instinct.tools.ai_validation import EMBEDDING_MODEL, get_embedding
 
@@ -156,13 +190,15 @@ def _openai_embed():
     return f"{EMBEDDING_MODEL}: {len(vector)} dims"
 
 
-@check("openai: event parser against a real caption", skip_reason_env="OPENAI")
+@check("openai: event parser against a real caption", skip_reason_env="OPENAI_API_KEY")
 def _openai_parse():
     import json
 
     from instinct.tools.ai_validation import EventParser, get_event_model
 
     parser = EventParser()
+    if not parser.client:
+        raise RuntimeError("OpenAI client not initialized (missing API key)")
     completion = parser.client.chat.completions.create(
         model=get_event_model(),
         messages=[

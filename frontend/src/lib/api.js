@@ -1,7 +1,5 @@
 import { createClient } from "@/lib/supabase";
 
-const supabase = createClient();
-
 // Resolved from the environment (#33). Was hardcoded to a dead Cloud Run URL
 // with three more commented out above it, so pointing at a local backend meant
 // editing source. NEXT_PUBLIC_* is inlined at build time — on Vercel this is set
@@ -206,6 +204,7 @@ export const fetchCampusWideEvents = async (
 
 export const submitNewClub = async (clubData) => {
   try {
+    const supabase = createClient();
     // ✅ Get the current session
     const {
       data: { session },
@@ -250,6 +249,7 @@ export const fetchHybridSearch = async (
   semanticWeight = 0.5,
 ) => {
   try {
+    const supabase = createClient();
     // Check for authentication first
     const {
       data: { session },

@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Any, Union
 
 from instinct.tools.logger import logger
+from instinct.db.redis_client import get_redis
 
 
 class QueueType(Enum):
@@ -135,9 +136,9 @@ class SystemHealthMonitor:
 
 
 class RedisScraperQueue:
-    def __init__(self):
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        self.redis = redis.from_url(redis_url)
+    def __init__(self, redis_url: str | None = None):
+        target_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
+        self.redis = get_redis(target_url)
 
         # Initialize all queue keys with prefixes
         self._init_queue_keys()
