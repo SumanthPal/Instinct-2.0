@@ -6,8 +6,15 @@ Keep every Selenium locator here so an Instagram markup change is a one-file fix
 from selenium.webdriver.common.by import By
 
 # Login and account state
-LOGIN_USERNAME = (By.NAME, "username")
-LOGIN_PASSWORD = (By.NAME, "password")
+LOGIN_USERNAME = (
+    By.CSS_SELECTOR,
+    "input[autocomplete*='username'], input[name='email'], input[name='username']",
+)
+LOGIN_PASSWORD = (
+    By.CSS_SELECTOR,
+    "input[type='password'], input[name='pass'], input[name='password']",
+)
+LOGIN_SUBMIT = (By.CSS_SELECTOR, "input[type='submit']")
 LOGIN_ERROR = (
     By.XPATH,
     "//form//*[@role='alert' or @aria-live='assertive'] | "

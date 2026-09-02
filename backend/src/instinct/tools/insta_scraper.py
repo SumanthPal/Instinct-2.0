@@ -303,7 +303,9 @@ class InstagramScraper:
                 )
                 username_field.send_keys(self._username)
                 password_field.send_keys(self._password)
-                password_field.send_keys("\n")
+                self._wait.until(
+                    EC.element_to_be_clickable(selectors.LOGIN_SUBMIT)
+                ).click()
                 time.sleep(5)
 
             error_message = self._check_login_error()
