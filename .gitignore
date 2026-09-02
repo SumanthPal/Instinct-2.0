@@ -56,3 +56,7 @@ public/workbox-*.js
 # Misc
 .vercel
 data/
+
+# GCP & Service Accounts
+*-service-account*.json
+instinct-*.json
