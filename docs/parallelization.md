@@ -15,18 +15,40 @@ set of files.
 
 ---
 
-## The two contention hotspots
+## Contention hotspots
 
-Everything else in this repo is naturally separable. These two files are not:
+Everything else in this repo is naturally separable. These are not.
+
+### Resolved by Waves 0–1
+
+| File | Was wanted by | How it resolved |
+| --- | --- | --- |
+| `frontend/package.json` | #29, #32, #37, #38, #39 | Serialized inside Lane B. Worked. |
+| `pyproject.toml` | #27, #28, #43, #44 | #27 created it; #43/#44 append their own `[tool.*]` tables — additive, safe |
+| `backend/app/**` | #28 relocated all of it | Lane A ran alone; nothing else touched backend Python |
+
+### Live for Wave 2 onward
 
 | File | Wanted by | Resolution |
 | --- | --- | --- |
-| `frontend/package.json` | #29, #32, #37, #38, #39 | One lane owns it. All five run **serially inside Lane B**. |
-| `pyproject.toml` | #27, #28, #43, #44 | #27 creates it in Wave 0. #43/#44 append their own `[tool.*]` table in Wave 3 — additive, different sections, safe. |
+| `backend/src/instinct/db/queries.py` | #53 (storage), #36 (scraper) | Same lane (F) |
+| `tools/logger.py`, `tools/redis_queue.py` | #55, possibly #36 | **Check before briefing.** If #36 needs either, move #55 to Wave 3 |
+| `frontend/src/lib/supabase.js` | #52 | Lane G alone; no other frontend work in Wave 2 |
+| every file | #43's format pass | Runs alone in Wave 3, in its **own commit** |
 
-A third, subtler one: **#28 relocates every file under `backend/app/`**. Any
-backend edit made in parallel with #28 will conflict with a rename. Nothing else
-touches backend Python until #28 has merged. This is why it is in Wave 1 alone.
+### The one that actually bit
+
+`Procfile` was written into **both** Lane A's and Lane D's briefs. Lane A edited it
+for the new package layout while Lane D deleted it as dead Heroku config. Caught
+mid-run only because the orchestrator was watching `lane.sh status`; the fix was a
+scope correction and a revert commit.
+
+Two modify/delete conflicts also reached the merge — `backend/supervisord.conf`
+(A modified, D deleted) and `frontend/.gitignore` (B modified, D deleted). Both
+resolved in favour of the delete, but both were avoidable by reading this table
+when the briefs were written.
+
+**Check the ownership table when briefing, not when merging.**
 
 ---
 
@@ -35,54 +57,89 @@ touches backend Python until #28 has merged. This is why it is in Wave 1 alone.
 Merge each wave to `main` before starting the next. Within a wave, lanes run in
 parallel worktrees; issues within a lane run serially.
 
-### Wave 0 — foundations · 2 parallel lanes
+**Status as of 2026-09-02: Waves 0 and 1 are merged. 32 issues closed, 13 open.**
 
-Nothing else can start until these land — they define the toolchain everything
-else is built against.
+### ✅ Wave 0 — foundations · MERGED
 
-| Lane | Issues | Model | Why |
+| Lane | Issues | Model | Outcome |
 | --- | --- | --- | --- |
-| **W0-py** | #27 | strong | Dependency selection and the 3.14 target. Already de-risked (resolution + install verified), but the pruning judgment — which of the ~170 frozen packages are real — is the whole task. |
-| **W0-js** | #29 | **cheap** | Purely mechanical: `bun install`, commit `bun.lock`, delete `package-lock.json`, add `packageManager`. |
+| **W0-py** | #27 | strong | ✅ uv + `pyproject.toml`, Python 3.14.7, both `requirements.txt` deleted |
+| **W0-js** | #29 | cheap | ✅ `bun.lock` committed, `package-lock.json` deleted |
 
-Disjoint: one touches Python only, the other `frontend/` only.
+### ✅ Wave 1 — restructure · MERGED (PRs #57, #58, #59)
 
-### Wave 1 — restructure · 3 parallel lanes
+| Lane | Issues | Model | Outcome |
+| --- | --- | --- | --- |
+| **A** backend | #28 → #31 → #50(be) → #47 | strong | ✅ `backend/src/instinct/`, **0** `sys.path` hacks, imports under empty env |
+| **B** frontend | #37 → #32 → #38 → #50(fe) | strong | ✅ Tailwind 4.3.3, Serwist, `@supabase/ssr` 0.12.5 |
+| **D** infra | #41 → #35 → #40 → #34 | cheap | ✅ real `.gitignore`, Redis in compose, −2,632 lines of dead deploy surface |
+
+**Lane C was deliberately absent** — #33 and #34 looked like an easy cheap lane but
+collided with Lane B. Folded in; see *Reassignments*.
+
+### ✅ Wave 1.5 — unplanned, serial (PR #60)
+
+Wave 1 left `docker compose up` broken: #28 moved the package but every launcher
+still referenced `backend/app`. Closed #51, #42, #33 in one branch, plus a
+`Makefile` (`make up` / `make down`).
+
+This wave was not in the plan. **Cross-lane integration gaps are predictable —
+budget for one after any wave that moves files.**
+
+### ⏭️ Wave 2 — scraper and hygiene · 2 parallel lanes  ← NEXT
+
+Re-planned. The original Wave 2 (**E** containers #42, **F** scraper #36) is
+obsolete: #42 shipped in Wave 1.5, and #53 became a **blocker** for #36.
 
 | Lane | Issues | Model | Owns |
 | --- | --- | --- | --- |
-| **A** backend structure | #28 → #31 → #50(backend) → #47 | **strong** | all of `backend/app/**`, `Procfile`, `supervisord.conf` |
-| **B** frontend deps | #37 → #32 → #38 → #50(frontend) | **strong** | `frontend/package.json`, `postcss.config.js`, `tailwind.config.js`, `styles/globals.css`, `frontend/next.config.mjs`, `src/middleware.js`, `src/lib/supabase*.js` |
-| **D** infra | #41 → #35 → #40 | **cheap** | `.gitignore`, `docker-compose.yml`, `dump.rdb`, all Azure/Heroku files |
+| **F** scraper | #53 → #36 | **strong** | `tools/insta_scraper.py`, `tools/scraper/`, new `instinct/storage.py`, `db/queries.py` |
+| **G** hygiene | #30 → #52 → #55 | cheap | `.env.example`, `frontend/src/lib/supabase.js`, `tools/logger.py`, `tools/redis_queue.py` |
 
-**Lane C is deliberately absent.** #33 (API base URL) and #34 (dead files) look
-like an easy cheap-model lane, but both collide with Lane B: #34 moves
-`src/app/middleware.js`, which #38 rewrites, and #33 edits CORS in `server.py`,
-which Lane A is relocating. Folded into B and A respectively — see *Reassignments*.
+**Why #53 and #36 share a lane.** Image mirroring now happens *inside* the scraper
+rather than as a standalone backfill (2026-09-02 decision — a fresh CDN URL arrives
+with every scrape). So `instinct/storage.py` must exist before the scraper runs at
+scale, or it repopulates `image_path` with paths to objects that were never
+uploaded. Same files, hard ordering, one lane.
 
-### Wave 2 — services · 2 parallel lanes
+**Check before starting:** #55 touches `tools/logger.py` and `tools/redis_queue.py`.
+If lane F needs either, move #55 to Wave 3 rather than splitting ownership.
 
-| Lane | Issues | Model | Needs |
-| --- | --- | --- | --- |
-| **E** containers | #42 | cheap | #27, #28 |
-| **F** scraper | #36 | **strong** | #28, #35 |
-
-#36 is strong-model work: Selenium 4.31→4.48, Chrome/driver path normalization,
-and Instagram session handling. It is the least deterministic task in the repo.
+**Consider splitting lane F by model.** #53 is well-specified and mechanical enough
+for a cheap model; #36 is not — it is live-site work against anti-bot measures that
+cannot be verified from the issue text alone.
 
 ### Wave 3 — quality · 3 parallel lanes
 
 | Lane | Issues | Model | Notes |
 | --- | --- | --- | --- |
-| **G** lint | #43 | cheap | Config is cheap; keep the repo-wide format pass as its **own commit** |
-| **H** tests | #44 | strong | Needs the import-time fixes from #31 to be possible at all |
-| **I** UI audit | #39 | strong | Bundle analysis + judgment on Chakra/Emotion |
+| **H** lint | #43 | cheap | Keep the repo-wide format pass as its **own commit** |
+| **I** tests | #44 | strong | Possible only because #31 made modules importable |
+| **J** UI audit | #39 | strong | Bundle analysis + judgment on Chakra/Emotion |
 
-### Wave 4 — close out · serial
+### Wave 4 — deploy and close out · serial
 
-#45 (CI — needs #43 and #44 to exist) → #46 (docs — describes whatever the rest settled on).
+#54 (Oracle topology) + #56 (arm64 images) → #45 (CI — needs #43/#44) → #46 (docs).
+
+#50 stays open until the legacy Supabase keys are disabled in the dashboard; the
+code on both sides is done.
 
 ---
+
+## What Waves 0–1 cost
+
+| Wave | Lanes | Wall time | Notes |
+| --- | --- | --- | --- |
+| 0 | 2 | ~1 session | as predicted |
+| 1 | 3 | ~1 session | as predicted |
+| 1.5 | 1 | ~1 session | **unplanned** — integration gap |
+
+The parallelism worked. The estimate missed only the integration wave.
+
+**Cost did not.** Wave 1 ran three `opus-5` lanes with `opus-5` reviewers at 3–5
+rounds each and burned roughly a month of credits in an afternoon. The tiering in
+this document is correct; it was not followed. Lane D was mechanical and reviewed
+by opus for no benefit. **Use the cheap tier where the table says cheap.**
 
 ## Reassignments from the original plan
 
@@ -122,21 +179,24 @@ particular is a pure deletion against a list already enumerated in the issue.
 - **#50** carries a live credential rotation and a privilege-separation fix; a
   half-applied rename locks you out of your own database.
 
-### On running Gemini here
+### How lanes are actually run
 
-I can't dispatch Gemini from inside Claude Code — subagents run Claude models
-only (Haiku 4.5 is the cheap tier). Two ways to use a cheaper model:
+Via the [`herdr-waves` skill](../.claude/skills/herdr-waves/SKILL.md): one git
+worktree per lane, a `pi` agent in each under a model chosen per lane, and a
+reviewer subagent that `pi` dispatches and iterates against until clean. Models
+come from `pi --list-models` and are not limited to one provider.
 
-1. **External, per worktree** — the worktree layout below is model-agnostic. Run
-   `gemini` (or any CLI) in `../instinct-wt/<lane>/`, pointed at the issue body
-   as the prompt. This is what the bootstrap script is built for.
-2. **In Claude Code** — `Agent(subagent_type: "general-purpose", model: "haiku")`
-   per cheap lane.
+The bottleneck is **context, not model quality**. An agent starting cold in a fresh
+worktree knows nothing about this repo, which is why #27–#56 carry exact file paths,
+line numbers, and acceptance criteria — they are written to be handed over verbatim.
+See [workflow.md](./workflow.md) for how to write one.
 
-Either way the real bottleneck is context, not model quality: an agent starting
-cold in a fresh worktree knows nothing about this repo. **The issue body is the
-contract.** That is why #27–#47 carry exact file paths, line numbers, and
-acceptance criteria — they are written to be handed to a cold agent verbatim.
+Two operational notes from Wave 1:
+
+- `lane.sh brief` and `say` **block** until the agent replies, so briefing several
+  lanes in one call times out after the first. Send each in its own backgrounded call.
+- A `brief`/`say` that appears to time out has usually **still been delivered**. Check
+  `lane.sh tail` or the lane's git log before re-sending, or the agent runs it twice.
 
 ---
 
@@ -195,17 +255,40 @@ Close a lane out with a PR that says `Closes #<issue>`, then
 
 ---
 
-## Realistic throughput
+## Throughput — actual, then remaining
 
-| Wave | Wall time (parallel) | Serial equivalent |
+**Actual, Waves 0–1.5:** 3 waves, 8 lanes, 45 commits, 32 issues closed.
+The parallel structure held; the estimate missed only the unplanned integration
+wave (1.5), which is now a standing expectation rather than a surprise.
+
+**Remaining:**
+
+| Wave | Lanes | Critical path |
 | --- | --- | --- |
-| 0 | 1 lane-session | 2 |
-| 1 | 3 lane-sessions (Lane A is longest) | 7 |
-| 2 | 1 | 2 |
-| 3 | 1 | 3 |
-| 4 | 2 (serial) | 2 |
-| **Total** | **~8 sessions** | **~16** |
+| 2 | 2 | **F** (#53 → #36) — the scraper is the long pole |
+| 3 | 3 | **I** (#44 tests) |
+| 4 | serial | #54/#56 → #45 → #46 |
 
-The ceiling is Lane A: #28 → #31 → #47 is the longest dependent chain in the
-project and gates Waves 2 and 3. If you want to shorten the critical path, that
-is the only place worth attacking — start #28 first and give it the best model.
+Lane F is the ceiling. #36 is the least deterministic task in the repo — live-site
+work against anti-bot measures, where correctness cannot be judged from the issue
+text. Give it the best model and start it first.
+
+### Note on the scraper's actual state (2026-09-02)
+
+Assessed before planning Wave 2, so #36 is not scoped blind:
+
+- **There are two scrapers.** `tools/insta_scraper.py` (1,041 lines) is live;
+  `tools/scraper/` (6 modules, ~630 lines) is a started-and-abandoned refactor
+  that **nothing imports** — including duplicates of the same dead selectors.
+  Decide which survives before touching either.
+- **About a third of the selector surface is certainly dead** — the obfuscated
+  class names (`_ab2z`, `button._acan._acao…`, `span[class*='x1lliihq']`), which
+  Instagram regenerates every build.
+- **The rest is structural and probably fine** — `//a[contains(@href,'/p/')]`,
+  `//time[@datetime]`, `//img[@src[contains(.,'cdninstagram.com')]]`,
+  `div[aria-label="Close"]`, `article img`.
+- **`_ab2z` is the login-error detector** in `instagram_auth.py`. With it dead, the
+  code cannot distinguish wrong-password from rate-limited from checkpoint —
+  a plausible contributor to the original rate-limit trouble.
+
+So #36 is a **selector-hardening and dead-code-removal task**, not a rewrite.
