@@ -140,7 +140,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="min-h-screen overflow-hidden bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
       
       <main className="container mx-auto px-3 sm:px-4 pt-[100px] sm:pt-[120px] pb-10 sm:pb-16 md:pb-20 text-center">        {/* Heading */}
@@ -155,7 +155,7 @@ export default function Dashboard() {
 
         {/* View Toggle - Similar to news page */}
         <div className="flex justify-end mb-6">
-          <div className="inline-flex backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
+          <div className="inline-flex backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
             <button 
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded ${viewMode === 'grid' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
@@ -209,12 +209,12 @@ export default function Dashboard() {
         {/* Main Content Section */}
         <section className="mb-20">
           <div className="flex items-center justify-center mb-8">
-            <div className="h-px bg-gradient-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
+            <div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
             <h2 className="text-3xl font-bold text-dark-base dark:text-white flex items-center">
               <span className="mr-2">{categoryEmojis[activeFilter] || '⭐'}</span>
               {activeFilter === 'all' ? 'All Favorite Clubs' : activeFilter}
             </h2>
-            <div className="h-px bg-gradient-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
+            <div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
           </div>
           
           {/* Loading indicator */}
@@ -226,7 +226,7 @@ export default function Dashboard() {
 
           {/* No liked clubs message - With glass-effect styling */}
           {!isLoading && filteredClubs.length === 0 && (
-            <div className="w-full flex flex-col items-center justify-center py-12 px-6 space-y-8 backdrop-blur-sm bg-white/20 dark:bg-dark-card/20 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg">
+            <div className="w-full flex flex-col items-center justify-center py-12 px-6 space-y-8 backdrop-blur-xs bg-white/20 dark:bg-dark-card/20 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg">
               <h2 className="text-4xl font-bold text-gray-900 dark:text-dark-text">
                 {activeFilter !== 'all' 
                   ? `No ${activeFilter} Clubs Found` 
@@ -258,7 +258,7 @@ export default function Dashboard() {
             `}>
               {filteredClubs.map((club) => (
                 <div key={club.id || club.instagram} className={`
-                  backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 
+                  backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 
                   rounded-xl border border-white/20 dark:border-dark-text/10 
                   shadow-lg overflow-hidden transition-all duration-300
                   ${viewMode === 'list' ? 'w-full' : ''}

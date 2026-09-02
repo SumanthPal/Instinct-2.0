@@ -273,13 +273,13 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
   // Grid view card layout
   const GridCard = () => (
     <div
-      className="h-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300
+      className="h-full backdrop-blur-xs rounded-xl overflow-hidden transition-all duration-300
                 hover:shadow-xl hover:scale-[1.02]
                 cursor-pointer flex flex-col"
       style={cardStyles}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10 rounded-xl">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs z-10 rounded-xl">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
         </div>
       )}
@@ -287,7 +287,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
       {user && (
         <button 
           className="absolute top-3 right-3 z-20 star-button p-2 rounded-full 
-            bg-white/70 dark:bg-dark-card/70 backdrop-blur-sm
+            bg-white/70 dark:bg-dark-card/70 backdrop-blur-xs
             hover:bg-white dark:hover:bg-dark-card transition-colors
             shadow-md"
           onClick={handleLikeToggle}
@@ -333,7 +333,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
         </p>
       </div>
 
-      <div className="flex-grow px-5 py-3 overflow-hidden">
+      <div className="grow px-5 py-3 overflow-hidden">
         <p className="text-gray-700 dark:text-white line-clamp-4 text-sm md:text-base leading-relaxed">
           {extractQuotedContent(club.description || '')}
         </p>
@@ -348,7 +348,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
               className="bg-white/30 dark:bg-dark-profile-card/30 
                 text-gray-900 dark:text-white 
                 px-2 py-0.5 rounded-full text-xs whitespace-nowrap
-                shadow-sm"
+                shadow-xs"
             >
               {typeof category === 'string' ? category : category.name}
             </span>
@@ -357,7 +357,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
             <span className="bg-white/30 dark:bg-dark-profile-card/30 
               text-white dark:text-white 
               px-2 py-0.5 rounded-full text-xs whitespace-nowrap
-              shadow-sm">
+              shadow-xs">
               +{club.categories.length - 4} more
             </span>
           )}
@@ -369,19 +369,19 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
   // List view card layout
   const ListCard = () => (
     <div
-      className="w-full backdrop-blur-sm rounded-xl overflow-hidden transition-all duration-300
+      className="w-full backdrop-blur-xs rounded-xl overflow-hidden transition-all duration-300
                 hover:shadow-xl hover:scale-[1.01]
                 cursor-pointer"
       style={cardStyles}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm z-10 rounded-xl">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-xs z-10 rounded-xl">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
         </div>
       )}
 
       <div className="flex p-4">
-        <div className="mr-4 flex-shrink-0">
+        <div className="mr-4 shrink-0">
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 shadow-lg" 
             style={{ borderColor: finalColors.gradientColors.dark }}>
             {club.profilePicture ? (
@@ -404,7 +404,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
           </div>
         </div>
         
-        <div className="flex-grow flex flex-col">
+        <div className="grow flex flex-col">
           <div className="flex justify-between items-start">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-gray-700 dark:text-white flex items-center gap-1">
@@ -418,7 +418,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
             {user && (
               <button 
                 className="star-button p-2 rounded-full 
-                  bg-white/70 dark:bg-dark-card/70 backdrop-blur-sm
+                  bg-white/70 dark:bg-dark-card/70 backdrop-blur-xs
                   hover:bg-white dark:hover:bg-dark-card transition-colors
                   shadow-md"
                 onClick={handleLikeToggle}
@@ -436,7 +436,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
             )}
           </div>
           
-          <p className="text-gray-700 dark:text-white line-clamp-3 text-sm md:text-base mt-2 leading-relaxed flex-grow">
+          <p className="text-gray-700 dark:text-white line-clamp-3 text-sm md:text-base mt-2 leading-relaxed grow">
             {extractQuotedContent(club.description || '')}
           </p>
           
@@ -447,7 +447,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
                 className="bg-white/30 dark:bg-dark-profile-card/30 
                   text-gray-700 dark:text-white 
                   px-2 py-0.5 rounded-full text-xs whitespace-nowrap
-                  shadow-sm"
+                  shadow-xs"
               >
                 {typeof category === 'string' ? category : category.name}
               </span>
@@ -456,7 +456,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
               <span className="bg-white/30 dark:bg-dark-profile-card/30 
                 text-white dark:text-white 
                 px-2 py-0.5 rounded-full text-xs whitespace-nowrap
-                shadow-sm">
+                shadow-xs">
                 +{club.categories.length - 3} more
               </span>
             )}

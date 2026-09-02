@@ -17,7 +17,7 @@ export default function CategoryFilters({
     <>
       {/* Mobile Dropdown */}
       {showCategoryDropdown && (
-        <div className="md:hidden mb-6 p-3 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-md">
+        <div className="md:hidden mb-6 p-3 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg border border-white/20 dark:border-dark-text/10 shadow-md">
           <div className="flex flex-wrap justify-start gap-2 mb-3">
             {Object.entries(categoryGroups).map(([key, label]) => (
               <button
@@ -44,7 +44,7 @@ export default function CategoryFilters({
       )}
 
       {/* Desktop Category Tabs */}
-      <div className="hidden md:inline-flex mb-8 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
+      <div className="hidden md:inline-flex mb-8 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 p-1 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md">
         {Object.entries(categoryGroups).map(([key, label]) => (
           <button
             key={key}

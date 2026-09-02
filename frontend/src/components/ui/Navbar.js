@@ -93,7 +93,7 @@ export default function Navbar() {
   `;
 
   return (
-    <nav className="fixed w-full bg-white/60 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-sm">
+    <nav className="fixed w-full bg-white/60 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
@@ -102,7 +102,7 @@ export default function Navbar() {
             alt="Logo"
             className="h-9 w-9 sm:h-10 sm:w-10 cursor-pointer"
           />
-          <span className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+          <span className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
             Instinct
           </span>
         </Link>
@@ -138,12 +138,12 @@ export default function Navbar() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center space-x-2 focus:outline-none"
+                className="flex items-center space-x-2 focus:outline-hidden"
                 aria-label="User menu"
               >
                 {user.user_metadata?.avatar_url ? (
                   <div className="group relative">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 group-hover:opacity-100 blur-sm transition duration-200"></div>
+                    <div className="absolute -inset-0.5 bg-linear-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 group-hover:opacity-100 blur-xs transition duration-200"></div>
                     <img
                       src={user.user_metadata.avatar_url}
                       alt="Avatar"
@@ -151,7 +151,7 @@ export default function Navbar() {
                     />
                   </div>
                 ) : (
-                  <div className="rounded-full p-1 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10">
+                  <div className="rounded-full p-1 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10">
                     <FaUserCircle
                       size={32}
                       className="text-indigo-600 dark:text-indigo-400"
@@ -161,7 +161,7 @@ export default function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 origin-top-right backdrop-blur-sm bg-white/90 dark:bg-dark-card/90 rounded-xl shadow-lg py-2 z-[200] border border-white/20 dark:border-dark-text/10 transition ease-out duration-100 transform scale-100">
+                <div className="absolute right-0 mt-2 w-64 origin-top-right backdrop-blur-xs bg-white/90 dark:bg-dark-card/90 rounded-xl shadow-lg py-2 z-200 border border-white/20 dark:border-dark-text/10 transition ease-out duration-100 transform scale-100">
                   <div className="px-4 py-3 border-b dark:border-gray-700/30">
                     <p className="text-base font-semibold text-gray-800 dark:text-white truncate">
                       {user.user_metadata.full_name || user.email}
@@ -184,7 +184,7 @@ export default function Navbar() {
             !loading && (
               <button
                 onClick={handleGoogleSignIn}
-                className="hidden md:flex items-center px-4 py-2 text-base font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-full hover:shadow-md hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-600 transition duration-300 transform hover:scale-105"
+                className="hidden md:flex items-center px-4 py-2 text-base font-medium text-white bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-full hover:shadow-md hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-600 transition duration-300 transform hover:scale-105"
               >
                 <FaGoogle className="mr-2" size={16} />
                 <span>Sign in with UCI</span>
@@ -194,7 +194,7 @@ export default function Navbar() {
           <DarkModeToggle />
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden rounded-lg p-1.5 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-white transition duration-200"
+            className="md:hidden rounded-lg p-1.5 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-white transition duration-200"
             aria-label="Toggle mobile menu"
           >
             {isOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
@@ -236,7 +236,7 @@ export default function Navbar() {
           {!loading && !user && (
             <button
               onClick={handleGoogleSignIn}
-              className="mt-3 w-full flex items-center justify-center py-2.5 text-base font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-lg hover:shadow-md transition duration-200"
+              className="mt-3 w-full flex items-center justify-center py-2.5 text-base font-medium text-white bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-lg hover:shadow-md transition duration-200"
             >
               <FaGoogle className="mr-2" size={16} />
               Sign in with UCI
@@ -248,7 +248,7 @@ export default function Navbar() {
               <div className="flex items-center space-x-3 mb-2">
                 {user.user_metadata?.avatar_url ? (
                   <div className="relative">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 blur-sm"></div>
+                    <div className="absolute -inset-0.5 bg-linear-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 blur-xs"></div>
                     <img
                       src={user.user_metadata.avatar_url}
                       className="relative h-10 w-10 rounded-full object-cover border-2 border-white dark:border-gray-800"
@@ -256,7 +256,7 @@ export default function Navbar() {
                     />
                   </div>
                 ) : (
-                  <div className="rounded-full p-1.5 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10">
+                  <div className="rounded-full p-1.5 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10">
                     <FaUserCircle
                       size={28}
                       className="text-indigo-600 dark:text-indigo-400"
@@ -294,12 +294,12 @@ function NavLink({ href, active, children }) {
       href={href}
       className={`relative px-3 py-2 text-lg font-medium rounded-lg transition-all duration-200 ${
         active
-          ? "bg-gradient-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 pl-4"
+          ? "bg-linear-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 pl-4"
           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/20"
       }`}
     >
       {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full" />
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-linear-to-b from-indigo-500 to-purple-500 rounded-full" />
       )}
       {children}
     </Link>

@@ -70,7 +70,7 @@ const handleSubmit = async (e) => {
   
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
       <Navbar />
       <main className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center">
         <h2 className="text-6xl font-extrabold mb-4 text-gray-900 dark:text-dark-text-white drop-shadow-md">
@@ -94,7 +94,7 @@ const handleSubmit = async (e) => {
               id="clubName"
               value={clubName}
               onChange={(e) => setClubName(e.target.value)}
-              className="w-full p-4 rounded-xl bg-white/60 dark:bg-dark-profile-card/60 text-gray-800 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-sky-blue dark:focus:ring-dark-subtext transition"
+              className="w-full p-4 rounded-xl bg-white/60 dark:bg-dark-profile-card/60 text-gray-800 dark:text-dark-text focus:outline-hidden focus:ring-2 focus:ring-sky-blue dark:focus:ring-dark-subtext transition"
               required
             />
           </div>
@@ -112,7 +112,7 @@ const handleSubmit = async (e) => {
               id="instagramHandle"
               value={instagramHandle}
               onChange={(e) => setInstagramHandle(e.target.value)}
-              className="w-full p-4 rounded-xl bg-white/60 dark:bg-dark-profile-card/60 text-gray-800 dark:text-dark-text focus:outline-none focus:ring-2 focus:ring-sky-blue dark:focus:ring-dark-subtext transition"
+              className="w-full p-4 rounded-xl bg-white/60 dark:bg-dark-profile-card/60 text-gray-800 dark:text-dark-text focus:outline-hidden focus:ring-2 focus:ring-sky-blue dark:focus:ring-dark-subtext transition"
               required
             />
            
@@ -155,7 +155,7 @@ const handleSubmit = async (e) => {
           <div className="mt-12">
             <button
               type="submit"
-              className="w-full py-4 px-6 bg-gradient-to-r from-sky-blue to-lavender dark:from-dark-profile-card dark:to-dark-subtext text-white font-bold text-xl rounded-2xl hover:scale-105 transition-all duration-300 shadow-lg"
+              className="w-full py-4 px-6 bg-linear-to-r from-sky-blue to-lavender dark:from-dark-profile-card dark:to-dark-subtext text-white font-bold text-xl rounded-2xl hover:scale-105 transition-all duration-300 shadow-lg"
             >
               Submit Club
             </button>

@@ -54,7 +54,7 @@ const Footer = () => {
     rel="noopener noreferrer"
     className="flex items-center justify-center space-x-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white text-dark-base dark:bg-dark-card dark:text-white font-semibold transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-lg shadow-md text-sm sm:text-base relative overflow-hidden group border border-white/10"
   >
-    <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <div className="absolute inset-0 bg-linear-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 group-hover:rotate-12 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />

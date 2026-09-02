@@ -116,22 +116,22 @@ const ToastItem = ({ toast, dismiss }) => {
   
   return (
     <div
-      className={`backdrop-blur-sm bg-white/70 dark:bg-dark-card/70 border ${config.border} 
-      bg-gradient-to-r ${config.gradient} rounded-xl shadow-lg overflow-hidden flex items-start p-3`}
+      className={`backdrop-blur-xs bg-white/70 dark:bg-dark-card/70 border ${config.border} 
+      bg-linear-to-r ${config.gradient} rounded-xl shadow-lg overflow-hidden flex items-start p-3`}
       role="alert"
     >
-      <div className={`flex-shrink-0 p-1.5 rounded-full mr-3 ${config.iconBg}`}>
+      <div className={`shrink-0 p-1.5 rounded-full mr-3 ${config.iconBg}`}>
         {config.icon}
       </div>
       
-      <div className="flex-grow min-w-0">
+      <div className="grow min-w-0">
         <h3 className="font-semibold text-gray-800 dark:text-white truncate">{title}</h3>
         {description && <p className="text-sm mt-0.5 text-gray-600 dark:text-gray-300">{description}</p>}
       </div>
       
       {isClosable && (
         <button
-          className="ml-2 flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:text-gray-500 
+          className="ml-2 shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:text-gray-500 
           dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
           onClick={() => dismiss(id)}
           aria-label="Close"

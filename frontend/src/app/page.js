@@ -11,7 +11,7 @@ const InstinctBackground = () => {
 	return (
 		<div className="fixed inset-0 overflow-hidden z-5">
 			{/* Gradient background */}
-			<div className="absolute inset-0 bg-gradient-to-br from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end"></div>
+			<div className="absolute inset-0 bg-linear-to-br from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end"></div>
 
 			{/* Logo */}
 			<div className="absolute inset-0 flex items-center justify-center opacity-30">
@@ -39,7 +39,7 @@ export default function Home() {
 
 			{/* Hero Section */}
 			<div className="flex flex-col items-center justify-center text-center flex-1 px-6 pt-24 sm:pt-32 pb-24 sm:pb-32 z-10">
-				<h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-dark-text-white dark:to-dark-subtext mb-8 drop-shadow-lg">
+				<h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold bg-clip-text text-transparent bg-linear-to-r from-gray-900 to-gray-700 dark:from-dark-text-white dark:to-dark-subtext mb-8 drop-shadow-lg">
 					Instinct at UC Irvine
 				</h1>
 				<TypingAnimation

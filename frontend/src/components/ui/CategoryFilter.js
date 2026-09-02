@@ -49,7 +49,7 @@ export default function CategoryFilter({ categories, selectedCategories, onChang
             className="absolute left-0 mt-2 w-full rounded-lg 
               bg-white/90 dark:bg-dark-card/90 
               shadow-lg ring-1 ring-black/5
-              backdrop-blur-sm z-10 
+              backdrop-blur-xs z-10 
               max-h-60 overflow-y-auto"
             onMouseLeave={() => setIsDropdownOpen(false)}
           >
