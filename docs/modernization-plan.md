@@ -56,6 +56,35 @@ constraint is **connections, not memory** — four processes each open an unboun
 capacity is often exhausted — provision the instance early. The scraper running locally
 means Chromium-on-ARM never has to be solved.
 
+### Principle: vendor-agnostic infrastructure
+
+Every replaceable dependency is reached through a **standard interface behind one module**,
+never a vendor SDK at the call site. Concretely:
+
+| Concern | Interface | Current provider | Swap cost |
+| --- | --- | --- | --- |
+| Object storage | **S3 API via `boto3`** | Cloudflare R2 | change `S3_ENDPOINT_URL` |
+| Cache/queue | Redis protocol via `redis-py` | Redis Cloud | change `REDIS_URL` |
+| Compute | OCI containers via `docker compose` | Oracle Always Free | any host that runs containers |
+
+Config keys are named **generically** — `S3_ENDPOINT_URL`, not `R2_ENDPOINT_URL`. Vendor
+names in configuration are how lock-in gets encoded by accident, and renaming them later
+means touching every deployment.
+
+`google-cloud-storage` was exactly this mistake: a vendor SDK called directly from
+`db/queries.py`, which is why losing the GCP account meant a code change and not a config
+change. #53 replaces it with `boto3` behind a single `instinct/storage.py`.
+
+**One portability trap worth pre-empting:** boto3 ≥ 1.36 sends CRC32 checksums by default
+on `PutObject`/`UploadPart`. Several S3-compatible providers reject them outright
+(`Header 'x-amz-checksum-algorithm' with value 'CRC32' not implemented`). Cloudflare has
+since fixed R2, but MinIO and SeaweedFS still break. Set
+`request_checksum_calculation="when_required"` from the start — it costs nothing and stops
+a future provider swap from failing on the first upload.
+
+The test for whether this holds: **point `S3_ENDPOINT_URL` at a local MinIO container and
+re-run the backfill.** If that needs a source change, the abstraction leaked.
+
 ### Images: ~19,000 objects lost with the GCP bucket
 
 Measured, not estimated: `posts.image_path` NULL = 0 of 18,820, and
