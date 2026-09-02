@@ -2,7 +2,6 @@ import json
 import os
 import random
 import time
-import sys
 from typing import Dict, List, Optional
 from typing_extensions import Tuple
 import dotenv
@@ -22,17 +21,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from pathlib import Path
 from webdriver_manager.chrome import ChromeDriverManager
 
-sys.path.append(
-    os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "..",
-        )
-    )
-)
-from tools.logger import logger
+from instinct.tools.logger import logger
 
-from db.queries import SupabaseQueries
+from instinct.db.queries import SupabaseQueries
 import datetime
 
 

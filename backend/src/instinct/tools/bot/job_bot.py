@@ -1,5 +1,4 @@
 import os
-import sys
 import discord
 import redis
 import json
@@ -21,17 +20,16 @@ import io
 from collections import deque
 import numpy as np
 
-# Path setup
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-# Set base directory for logs
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-LOG_FILE_PATH = os.path.join(BASE_DIR, 'logs', 'logfile.log')
-
 # Import custom modules
-from tools.logger import logger
-from db.queries import SupabaseQueries
-from redis_queue import RedisScraperQueue, QueueType
+from instinct.tools.logger import logger, LOG_FILE_PATH
+from instinct.db.queries import SupabaseQueries
+from instinct.tools.redis_queue import RedisScraperQueue, QueueType
+from instinct.utils.env import (
+    env_int,
+    redis_url as get_redis_url,
+    require_env,
+    require_env_int,
+)
 
 
 # Load environment variables
@@ -40,11 +38,35 @@ load_dotenv()
 # Job Bot Configuration
 JOB_BOT_TOKEN = os.getenv('JOB_BOT_TOKEN')
 JOB_BOT_PREFIX = os.getenv('JOB_BOT_PREFIX', '!')
-JOB_BOT_CHANNEL_ID = int(os.getenv('JOB_BOT_CHANNEL_ID', '0'))
-JOB_BOT_ERROR_CHANNEL_ID = int(os.getenv('JOB_BOT_ERROR_CHANNEL_ID', '0'))
-JOB_BOT_ADMIN_ROLE_ID = int(os.getenv('JOB_BOT_ADMIN_ROLE_ID', '0'))
-OWNER_USER_ID = int(os.getenv("USER_ID"))  # 👈  Discord user ID
-ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
+JOB_BOT_CHANNEL_ID = env_int('JOB_BOT_CHANNEL_ID')
+JOB_BOT_ERROR_CHANNEL_ID = env_int('JOB_BOT_ERROR_CHANNEL_ID')
+JOB_BOT_ADMIN_ROLE_ID = env_int('JOB_BOT_ADMIN_ROLE_ID')
+
+
+# SERVER_ID and USER_ID are NOT optional and must never silently default to 0:
+# an allow-list of [0] makes every real guild look unauthorized, which the
+# on_command guard below used to answer by banning the caller. Read at use time
+# so that importing this module still needs no environment, and validated up
+# front by check_config().
+def allowed_server_ids() -> list:
+    """Discord servers this bot is allowed to run in."""
+    return [require_env_int('SERVER_ID', 'restrict the bot to its own server')]
+
+
+def owner_user_id() -> int:
+    """Discord user id that receives misuse alerts."""
+    return require_env_int("USER_ID", "alert the bot owner")
+
+
+def check_config() -> None:
+    """Validate required configuration before the bot connects.
+
+    Called from the entrypoints so a misconfigured bot fails loudly at startup
+    (as it did before this refactor) instead of running half-blind.
+    """
+    require_env('JOB_BOT_TOKEN', 'log the job bot in to Discord')
+    allowed_server_ids()
+    owner_user_id()
 # Add this to bot startup (on_ready event)
 
 
@@ -56,11 +78,21 @@ intents.message_content = True
 intents.members = True
 job_bot = commands.Bot(command_prefix=JOB_BOT_PREFIX, intents=intents)
 
-# Initialize database connection
-db = SupabaseQueries()
+# Database connection, created on first use: importing this module must not
+# require a configured environment.
+_db = None
 
-# Redis connection (shared resource)
-redis_url = os.getenv('REDIS_URL')
+
+def get_db() -> SupabaseQueries:
+    global _db
+    if _db is None:
+        _db = SupabaseQueries()
+    return _db
+
+
+# Redis connection (shared resource). from_url() does not connect, so this is
+# safe at module scope as long as the URL always has a default.
+redis_url = get_redis_url()
 redis_conn = redis.from_url(redis_url)
 
 # Redis queue key names
@@ -100,9 +132,17 @@ status_info = {
 
 @job_bot.event
 async def on_command(ctx):
-    if ctx.guild is None or ctx.guild.id not in ALLOWED_SERVER_LIST:
+    try:
+        allowed_servers = allowed_server_ids()
+        owner_id = owner_user_id()
+    except RuntimeError as e:
+        # Fail closed, but never punish a user for the bot's own misconfiguration.
+        logger.error(f"Refusing command: bot is misconfigured: {e}")
+        raise commands.CheckFailure("Bot is not configured.")
+
+    if ctx.guild is None or ctx.guild.id not in allowed_servers:
         try:
-            owner = ctx.bot.get_user(OWNER_USER_ID)
+            owner = ctx.bot.get_user(owner_id)
             if owner:
                 await owner.send(
                     f"🚨 BIXIE ALERT!\n"
@@ -376,7 +416,7 @@ def populate_clubs_queue(limit=40):
     """Populate the scraper queue with clubs from the database."""
     try:
         # First get clubs that have never been scraped
-        never_scraped = db.supabase.rpc('get_never_scraped_clubs', {
+        never_scraped = get_db().supabase.rpc('get_never_scraped_clubs', {
             'limit_num': limit
         }).execute()
         
@@ -393,7 +433,7 @@ def populate_clubs_queue(limit=40):
             cooldown_hours = 24  # Default cooldown period
             cooldown_time = datetime.datetime.now() - datetime.timedelta(hours=cooldown_hours)
             
-            oldest_scraped = db.supabase.rpc('get_oldest_scraped_clubs', {
+            oldest_scraped = get_db().supabase.rpc('get_oldest_scraped_clubs', {
                 'cooldown_time': cooldown_time.isoformat(),
                 'limit_num': remaining
             }).execute()
@@ -816,7 +856,7 @@ async def add_club_cmd(ctx, instagram_handle: str, priority: int = 0):
     """Add a specific club to the scraper queue ✨"""
     try:
         # Check if the club exists
-        club_data = db.get_club_by_instagram_handle(instagram_handle)
+        club_data = get_db().get_club_by_instagram_handle(instagram_handle)
         
         if not club_data:
             await ctx.send(
@@ -1558,7 +1598,7 @@ async def cleanup_cmd(ctx):
         
         # Clean up orphaned records
         try:
-            db.supabase.rpc('cleanup_orphaned_records').execute()
+            get_db().supabase.rpc('cleanup_orphaned_records').execute()
             results.append(("🗑️ Orphaned Records", "✅ Successfully cleaned up", True))
         except Exception as e:
             logger.error(f"Error cleaning up orphaned records: {e}")
@@ -1566,7 +1606,7 @@ async def cleanup_cmd(ctx):
 
         # Delete old events
         try:
-            db.supabase.rpc('delete_old_events').execute()
+            get_db().supabase.rpc('delete_old_events').execute()
             results.append(("🕰️ Old Events", "✅ Successfully removed", True))
         except Exception as e:
             logger.error(f"Error deleting old events: {e}")
@@ -1574,7 +1614,7 @@ async def cleanup_cmd(ctx):
 
         # Refresh club search vector
         try:
-            db.supabase.rpc('refresh_club_search_vector').execute()
+            get_db().supabase.rpc('refresh_club_search_vector').execute()
             results.append(("🔍 Search Vectors", "✅ Successfully refreshed", True))
         except Exception as e:
             logger.error(f"Error refreshing club search vector: {e}")
@@ -1583,7 +1623,7 @@ async def cleanup_cmd(ctx):
         # Update embeddings for clubs that need it
         try:
             # Get count of clubs needing embedding updates
-            clubs_needing_update = db.supabase.table("clubs").select("id", count="exact").eq("needs_embedding_update", True).execute()
+            clubs_needing_update = get_db().supabase.table("clubs").select("id", count="exact").eq("needs_embedding_update", True).execute()
             update_count = clubs_needing_update.count if clubs_needing_update.count else 0
             
             if update_count > 0:
@@ -2617,4 +2657,5 @@ async def stop_monitor_cmd(ctx):
 
 # Run the bot
 if __name__ == "__main__":
+    check_config()
     job_bot.run(JOB_BOT_TOKEN)

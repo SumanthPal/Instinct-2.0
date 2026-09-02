@@ -2,7 +2,7 @@ from typing import Tuple
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from .scraper_exceptions import RateLimitException
+from instinct.tools.scraper.scraper_exceptions import RateLimitException
 
 
 class PostScraper:

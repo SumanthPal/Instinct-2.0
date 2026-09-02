@@ -1,5 +1,4 @@
 import os
-import sys
 import discord
 import redis
 import json
@@ -13,12 +12,15 @@ from discord import ButtonStyle
 from discord.ui import Button, View, Select
 from typing import Dict, List, Optional
 
-# Path setup
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
 # Import custom modules
-from tools.logger import logger
-from db.queries import SupabaseQueries
+from instinct.tools.logger import logger
+from instinct.db.queries import SupabaseQueries
+from instinct.utils.env import (
+    env_int,
+    redis_url as get_redis_url,
+    require_env,
+    require_env_int,
+)
 
 # Load environment variables
 load_dotenv()
@@ -26,16 +28,53 @@ load_dotenv()
 # Auxiliary Bot Configuration
 AUX_BOT_TOKEN = os.getenv('AUX_BOT_TOKEN')
 AUX_BOT_PREFIX = os.getenv('AUX_BOT_PREFIX', '?')
-AUX_BOT_CHANNEL_ID = int(os.getenv('AUX_BOT_CHANNEL_ID', '0'))
-AUX_BOT_ADMIN_ROLE_ID = int(os.getenv('AUX_BOT_ADMIN_ROLE_ID', '0'))
-ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
+AUX_BOT_CHANNEL_ID = env_int('AUX_BOT_CHANNEL_ID')
+AUX_BOT_ADMIN_ROLE_ID = env_int('AUX_BOT_ADMIN_ROLE_ID')
 # security_checks.py or just at top of bot file
 
-OWNER_USER_ID = int(os.getenv("USER_ID"))  # 👈  Discord user ID
+
+# SERVER_ID and USER_ID are NOT optional and must never silently default to 0:
+# an allow-list of [0] makes every real guild look unauthorized, which the
+# on_command guard below used to answer by banning the caller. Read at use time
+# so that importing this module still needs no environment, and validated up
+# front by check_config().
+def allowed_server_ids() -> list:
+    """Discord servers this bot is allowed to run in."""
+    return [require_env_int('SERVER_ID', 'restrict the bot to its own server')]
+
+
+def owner_user_id() -> int:
+    """Discord user id that receives misuse alerts."""
+    return require_env_int("USER_ID", "alert the bot owner")
+
+
+def check_config() -> None:
+    """Validate required configuration before the bot connects.
+
+    Called from the entrypoints so a misconfigured bot fails loudly at startup
+    (as it did before this refactor) instead of running half-blind.
+    """
+    require_env('AUX_BOT_TOKEN', 'log the auxiliary bot in to Discord')
+    require_env('INTERNAL_API_TOKEN', 'authenticate the bot to the Instinct API')
+    allowed_server_ids()
+    owner_user_id()
 
 # API Configuration
 API_URL = "https://web-45256917921.us-west2.run.app"
-API_AUTH_TOKEN = os.getenv('SUPABASE_KEY')
+
+
+def api_auth_headers() -> dict:
+    """Authorization header for calls to our own API.
+
+    INTERNAL_API_TOKEN is a shared secret used only for bot -> API auth. It is
+    deliberately NOT the Supabase key: that key grants full service_role
+    database access, bypassing every RLS policy, and it was previously sent on
+    every bot request (#50).
+    """
+    token = require_env(
+        "INTERNAL_API_TOKEN", "authenticate the Discord bot to the Instinct API"
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 # Initialize bot with intents
 intents = discord.Intents.default()
@@ -43,11 +82,21 @@ intents.message_content = True
 intents.members = True
 aux_bot = commands.Bot(command_prefix=AUX_BOT_PREFIX, intents=intents)
 
-# Initialize database connection
-db = SupabaseQueries()
+# Database connection, created on first use: importing this module must not
+# require a configured environment.
+_db = None
 
-# Redis connection (shared resource)
-redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+
+def get_db() -> SupabaseQueries:
+    global _db
+    if _db is None:
+        _db = SupabaseQueries()
+    return _db
+
+
+# Redis connection (shared resource). from_url() does not connect, so this is
+# safe at module scope as long as the URL always has a default.
+redis_url = get_redis_url()
 redis_conn = redis.from_url(redis_url)
 
 # Redis queue key names (for status checks)
@@ -108,9 +157,17 @@ def is_admin():
 
 @aux_bot.event
 async def on_command(ctx):
-    if ctx.guild is None or ctx.guild.id not in ALLOWED_SERVER_LIST:
+    try:
+        allowed_servers = allowed_server_ids()
+        owner_id = owner_user_id()
+    except RuntimeError as e:
+        # Fail closed, but never punish a user for the bot's own misconfiguration.
+        logger.error(f"Refusing command: bot is misconfigured: {e}")
+        raise commands.CheckFailure("Bot is not configured.")
+
+    if ctx.guild is None or ctx.guild.id not in allowed_servers:
         try:
-            owner = ctx.bot.get_user(OWNER_USER_ID)
+            owner = ctx.bot.get_user(owner_id)
             if owner:
                 await owner.send(
                     f"🚨 BIXIE ALERT!\n"
@@ -184,16 +241,15 @@ def get_queue_status():
 def approve_club(pending_id):
     """Approve a pending club."""
     try:
-        # Make sure API_AUTH_TOKEN is properly set and in the expected format
-        # The server expects: Bearer <token>
-        headers = {"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+        # The server expects: Bearer <INTERNAL_API_TOKEN>
+        headers = api_auth_headers()
         
         # Log the request before sending
         logger.info(f"🔄 Sending approval request for club {pending_id}")
         
         response = requests.post(
             f"{API_URL}/pending-club/{pending_id}/approve",
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=headers
         )
         
         # Log the full response for debugging
@@ -216,7 +272,7 @@ def reject_club(pending_id):
     try:
         response = requests.delete(
             f"{API_URL}/pending-club/{pending_id}/reject",
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=api_auth_headers()
         )
         
         if response.status_code == 200:
@@ -405,7 +461,7 @@ async def check_pending_clubs():
         # Get pending clubs from API
         response = requests.get(
             f"{API_URL}/pending-clubs", 
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=api_auth_headers()
         )
         
         if response.status_code != 200:
@@ -564,7 +620,7 @@ async def check_pending_cmd(ctx):
         # Get pending clubs from API
         response = requests.get(
             f"{API_URL}/pending-clubs", 
-            headers={"Authorization": f"Bearer {API_AUTH_TOKEN}"}
+            headers=api_auth_headers()
         )
         
         if response.status_code != 200:
@@ -955,7 +1011,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
     """Show detailed insights about a specific club ✨📊"""
     try:
         # Get club data from database
-        club_data = db.get_club_by_instagram(instagram_handle)
+        club_data = get_db().get_club_by_instagram(instagram_handle)
         
         if not club_data:
             await ctx.send(f"hmm can't find `{instagram_handle}` in the database... 🔍 did u spell it right?")
@@ -973,7 +1029,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
         categories = []
         try:
             # Get categories from clubs_categories table
-            categories_query = db.supabase.from_('clubs_categories').select(
+            categories_query = get_db().supabase.from_('clubs_categories').select(
                 'categories(name)'
             ).eq('club_id', club_data.get('id')).execute()
             
@@ -1006,7 +1062,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
         
         try:
             # Count total posts
-            posts_query = db.supabase.from_('posts').select(
+            posts_query = get_db().supabase.from_('posts').select(
                 'id', 
                 count='exact'
             ).eq('club_id', club_data.get('id')).execute()
@@ -1014,7 +1070,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
             post_count = posts_query.count if hasattr(posts_query, 'count') else 0
             
             # Get newest post date
-            newest_post_query = db.supabase.from_('posts').select(
+            newest_post_query = get_db().supabase.from_('posts').select(
                 'posted'
             ).eq('club_id', club_data.get('id')).order('posted', desc=True).limit(1).execute()
             
@@ -1022,7 +1078,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
                 newest_post_date = newest_post_query.data[0].get('posted')
                 
             # Get oldest post date
-            oldest_post_query = db.supabase.from_('posts').select(
+            oldest_post_query = get_db().supabase.from_('posts').select(
                 'posted'
             ).eq('club_id', club_data.get('id')).order('posted', desc=False).limit(1).execute()
             
@@ -1079,7 +1135,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
         upcoming_events = []
         now = datetime.datetime.now()
         try:
-            events_query = db.supabase.from_('events').select(
+            events_query = get_db().supabase.from_('events').select(
                 'name, date'
             ).eq('club_id', club_data.get('id')).gte('date', now.isoformat()).order('date', desc=False).limit(3).execute()
             
@@ -1347,7 +1403,7 @@ class AddEventModal(discord.ui.Modal, title='Add New Event'):
             }
             
             # Insert into database
-            result = db.supabase.table('events').insert(event_data).execute()
+            result = get_db().supabase.table('events').insert(event_data).execute()
             
             if result.data:
                 # Create success embed
@@ -1452,7 +1508,7 @@ class EditClubModal(discord.ui.Modal, title='Edit Club Information'):
             }
             
             # Update in database
-            result = db.supabase.table('clubs').update(update_data).eq('id', self.club_data['id']).execute()
+            result = get_db().supabase.table('clubs').update(update_data).eq('id', self.club_data['id']).execute()
             
             if result.data:
                 embed = discord.Embed(
@@ -1558,7 +1614,7 @@ class AddPostModal(discord.ui.Modal, title='Add New Post'):
             }
             
             # Insert into database
-            result = db.supabase.table('posts').insert(post_data).execute()
+            result = get_db().supabase.table('posts').insert(post_data).execute()
             
             if result.data:
                 embed = discord.Embed(
@@ -1636,22 +1692,22 @@ class CategorySelectionView(discord.ui.View):
             selected_categories = select.values
             
             # First, remove existing categories for this club
-            db.supabase.table('clubs_categories').delete().eq('club_id', self.club_id).execute()
+            get_db().supabase.table('clubs_categories').delete().eq('club_id', self.club_id).execute()
             
             # Add new categories
             for category_name in selected_categories:
                 # Get or create category
-                category_result = db.supabase.table('categories').select('id').eq('name', category_name).execute()
+                category_result = get_db().supabase.table('categories').select('id').eq('name', category_name).execute()
                 
                 if category_result.data:
                     category_id = category_result.data[0]['id']
                 else:
                     # Create new category
-                    new_category = db.supabase.table('categories').insert({'name': category_name}).execute()
+                    new_category = get_db().supabase.table('categories').insert({'name': category_name}).execute()
                     category_id = new_category.data[0]['id']
                 
                 # Link club to category
-                db.supabase.table('clubs_categories').insert({
+                get_db().supabase.table('clubs_categories').insert({
                     'club_id': self.club_id,
                     'category_id': category_id
                 }).execute()
@@ -1685,7 +1741,7 @@ async def club_search_cmd(ctx, *, search_term: str):
     """Search for clubs by name or Instagram handle 🔍"""
     try:
         # Search clubs using ILIKE for case-insensitive partial matching
-        search_results = db.supabase.table('clubs').select(
+        search_results = get_db().supabase.table('clubs').select(
             'id, name, instagram_handle, description, followers'
         ).or_(
             f'name.ilike.%{search_term}%,instagram_handle.ilike.%{search_term}%'
@@ -1731,7 +1787,7 @@ async def add_event_cmd(ctx, instagram_handle: str):
     """Add an event to a specific club using a form 📅"""
     try:
         # Find the club
-        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -1764,7 +1820,7 @@ async def add_post_cmd(ctx, instagram_handle: str):
     """Add a post to a specific club using a form 📱"""
     try:
         # Find the club
-        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -1794,7 +1850,7 @@ async def edit_club_cmd(ctx, instagram_handle: str):
     """Edit club information using a form ✏️"""
     try:
         # Find the club
-        club_result = db.supabase.table('clubs').select('*').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('*').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -1824,7 +1880,7 @@ async def set_categories_cmd(ctx, instagram_handle: str):
     """Set categories for a club using a dropdown menu 📋"""
     try:
         # Find the club
-        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -1833,7 +1889,7 @@ async def set_categories_cmd(ctx, instagram_handle: str):
         club = club_result.data[0]
         
         # Get current categories
-        current_categories_result = db.supabase.table('clubs_categories').select(
+        current_categories_result = get_db().supabase.table('clubs_categories').select(
             'categories(name)'
         ).eq('club_id', club['id']).execute()
         
@@ -1866,7 +1922,7 @@ async def club_events_cmd(ctx, instagram_handle: str, show_past: bool = False):
     """Show events for a specific club 📅"""
     try:
         # Find the club
-        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -1877,10 +1933,10 @@ async def club_events_cmd(ctx, instagram_handle: str, show_past: bool = False):
         # Get events
         now = datetime.datetime.now()
         if show_past:
-            events_query = db.supabase.table('events').select('*').eq('club_id', club['id']).order('date', desc=True).limit(10).execute()
+            events_query = get_db().supabase.table('events').select('*').eq('club_id', club['id']).order('date', desc=True).limit(10).execute()
             title_suffix = "(All Events)"
         else:
-            events_query = db.supabase.table('events').select('*').eq('club_id', club['id']).gte('date', now.isoformat()).order('date', desc=False).limit(10).execute()
+            events_query = get_db().supabase.table('events').select('*').eq('club_id', club['id']).gte('date', now.isoformat()).order('date', desc=False).limit(10).execute()
             title_suffix = "(Upcoming Events)"
         
         if not events_query.data:
@@ -1942,7 +1998,7 @@ async def club_posts_cmd(ctx, instagram_handle: str, limit: int = 5):
             return
         
         # Find the club
-        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -1951,7 +2007,7 @@ async def club_posts_cmd(ctx, instagram_handle: str, limit: int = 5):
         club = club_result.data[0]
         
         # Get recent posts
-        posts_query = db.supabase.table('posts').select('*').eq('club_id', club['id']).order('posted', desc=True).limit(limit).execute()
+        posts_query = get_db().supabase.table('posts').select('*').eq('club_id', club['id']).order('posted', desc=True).limit(limit).execute()
         
         if not posts_query.data:
             await ctx.send(f"📱 No posts found for **{club['name']}**")
@@ -2082,7 +2138,7 @@ async def list_categories_cmd(ctx):
     """List all available categories 📋"""
     try:
         # Get all categories with club count
-        categories_query = db.supabase.table('categories').select(
+        categories_query = get_db().supabase.table('categories').select(
             'name, id'
         ).order('name').execute()
         
@@ -2101,7 +2157,7 @@ async def list_categories_cmd(ctx):
         category_info = []
         for category in categories_query.data:
             # Count clubs in this category
-            count_query = db.supabase.table('clubs_categories').select(
+            count_query = get_db().supabase.table('clubs_categories').select(
                 'club_id', count='exact'
             ).eq('category_id', category['id']).execute()
             
@@ -2132,7 +2188,7 @@ async def clubs_by_category_cmd(ctx, *, category_name: str):
     """List clubs in a specific category 🏷️"""
     try:
         # Find the category
-        category_query = db.supabase.table('categories').select('id').eq('name', category_name).execute()
+        category_query = get_db().supabase.table('categories').select('id').eq('name', category_name).execute()
         
         if not category_query.data:
             await ctx.send(f"📋 Category '{category_name}' not found. Use `?categories` to see all available categories.")
@@ -2141,7 +2197,7 @@ async def clubs_by_category_cmd(ctx, *, category_name: str):
         category_id = category_query.data[0]['id']
         
         # Get clubs in this category
-        clubs_query = db.supabase.table('clubs_categories').select(
+        clubs_query = get_db().supabase.table('clubs_categories').select(
             'clubs(name, instagram_handle, followers, description)'
         ).eq('category_id', category_id).execute()
         
@@ -2192,12 +2248,12 @@ async def recent_activity_cmd(ctx, hours: int = 24):
         cutoff_time = datetime.datetime.now() - datetime.timedelta(hours=hours)
         
         # Get recent events
-        recent_events = db.supabase.table('events').select(
+        recent_events = get_db().supabase.table('events').select(
             'name, date, clubs(name, instagram_handle)'
         ).gte('created_at', cutoff_time.isoformat()).order('created_at', desc=True).limit(10).execute()
         
         # Get recent posts (manually added ones)
-        recent_posts = db.supabase.table('posts').select(
+        recent_posts = get_db().supabase.table('posts').select(
             'caption, created_at, clubs(name, instagram_handle)'
         ).gte('created_at', cutoff_time.date().isoformat()).eq('scrapped', True).order('created_at', desc=True).limit(10).execute()
         
@@ -2248,7 +2304,7 @@ async def bulk_event_cmd(ctx, instagram_handle: str):
     """Add multiple events to a club (admin only) 📅✨"""
     try:
         # Find the club
-        club_result = db.supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
+        club_result = get_db().supabase.table('clubs').select('id, name').eq('instagram_handle', instagram_handle).execute()
         
         if not club_result.data:
             await ctx.send(f"😔 Club `@{instagram_handle}` not found in database...")
@@ -2312,7 +2368,7 @@ async def bulk_event_cmd(ctx, instagram_handle: str):
                     'created_at': datetime.datetime.now().isoformat()
                 }
                 
-                result = db.supabase.table('events').insert(event_data).execute()
+                result = get_db().supabase.table('events').insert(event_data).execute()
                 
                 if result.data:
                     events_added += 1
@@ -2337,4 +2393,5 @@ async def bulk_event_cmd(ctx, instagram_handle: str):
         logger.error(f"Error in bulk event command: {e}")
         await ctx.send(f"😭 Bulk event import failed: {str(e)}")
 if __name__ == "__main__":
+    check_config()
     aux_bot.run(AUX_BOT_TOKEN)

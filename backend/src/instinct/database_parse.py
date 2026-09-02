@@ -1,10 +1,8 @@
 import json
 import os
-from db.supabase_client import supabase
-import sys
+from instinct.db.supabase_client import supabase
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from tools.logger import logger
+from instinct.tools.logger import logger
 
 
 def process_clubs_data(clubs_data):

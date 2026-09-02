@@ -2,14 +2,12 @@ import redis
 import json
 import time
 import os
-import sys
 import datetime
 import dotenv
 from enum import Enum
 from typing import Dict, List, Optional, Any, Union
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from tools.logger import logger
+from instinct.tools.logger import logger
 
 
 class QueueType(Enum):

@@ -3,8 +3,8 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from app.tools.scraper.rate_limit_detector import RateLimitDetector
-from ..logger import logger
+from instinct.tools.scraper.rate_limit_detector import RateLimitDetector
+from instinct.tools.logger import logger
 from typing import List, Dict, Tuple
 from bs4 import BeautifulSoup
 

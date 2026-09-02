@@ -1,13 +1,13 @@
 import os
 from typing import List
-from .config import ScraperConfig
-from .webdriver_manager import WebDriverManager
-from .instagram_auth import InstagramAuth
-from .rate_limit_detector import RateLimitDetector
-from .profile_scraper import ProfileScraper
-from .post_scraper import PostScraper
-from db.queries import SupabaseQueries
-from .scraper_exceptions import RateLimitException, ProfileNotFoundException
+from instinct.tools.scraper.config import ScraperConfig
+from instinct.tools.scraper.webdriver_manager import WebDriverManager
+from instinct.tools.scraper.instagram_auth import InstagramAuth
+from instinct.tools.scraper.rate_limit_detector import RateLimitDetector
+from instinct.tools.scraper.profile_scraper import ProfileScraper
+from instinct.tools.scraper.post_scraper import PostScraper
+from instinct.db.queries import SupabaseQueries
+from instinct.tools.scraper.scraper_exceptions import RateLimitException, ProfileNotFoundException
 from typing import Optional
 import datetime
 

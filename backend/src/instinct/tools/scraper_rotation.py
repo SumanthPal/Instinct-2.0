@@ -1,6 +1,5 @@
 import os
 import time
-import sys
 import datetime
 import random
 import dotenv
@@ -10,18 +9,12 @@ from typing import List, Dict, Optional, Any, Union
 import schedule
 import json
 
-# Import your existing tools
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from tools.logger import logger
-from db.queries import SupabaseQueries
-from tools.insta_scraper import RateLimitDetected
-from tools.ai_validation import EventParser
-from tools.calendar_connection import CalendarConnection
-from tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
-
-
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-LOG_FILE_PATH = os.path.join(BASE_DIR, "logs", "logfile.log")
+from instinct.tools.logger import logger, LOG_FILE_PATH
+from instinct.db.queries import SupabaseQueries
+from instinct.tools.insta_scraper import RateLimitDetected
+from instinct.tools.ai_validation import EventParser
+from instinct.tools.calendar_connection import CalendarConnection
+from instinct.tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
 
 
 class ScraperRotation:
@@ -1056,7 +1049,7 @@ class ScraperRotation:
                 )
 
                 # Create fresh scraper instance
-                from tools.insta_scraper import InstagramScraper
+                from instinct.tools.insta_scraper import InstagramScraper
 
                 scraper = InstagramScraper(
                     os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
