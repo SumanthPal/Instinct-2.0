@@ -1,26 +1,19 @@
-# Dockerfile.discord (Optimized from 1.5GB to ~300-400MB)
-FROM python:3.11.8-slim as builder
+# Dockerfile.discord — uses uv + Python 3.14 (includes discord extra for matplotlib/numpy)
+FROM python:3.14-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock README.md ./
+COPY backend/app ./backend/app
+RUN uv sync --frozen --no-dev --extra discord --no-editable
 
-# Create and activate virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Final image
-FROM python:3.11.8-slim
+FROM python:3.14-slim
 WORKDIR /app
 
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/.venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy only necessary source files
 COPY backend/app /app/app
 
-# Set Python to not write .pyc files and remove __pycache__ folders
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
