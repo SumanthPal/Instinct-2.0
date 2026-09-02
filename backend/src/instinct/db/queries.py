@@ -27,14 +27,50 @@ class SupabaseQueries:
         self.SUPABASE_URL = os.getenv("SUPABASE_URL")
         self.SUPABASE_KEY = os.getenv("SUPABASE_KEY")
         self.BUCKET_NAME = os.getenv("BUCKET_NAME")
-
-        credentials = service_account.Credentials.from_service_account_info(
-            json.loads(os.getenv("GC_CREDENTIAL"))
-        )
-
-        self.client = storage.Client(credentials=credentials)
-        self.bucket = self.client.bucket(self.BUCKET_NAME)
         self.gcp_container_name = "images"
+
+        # Google Cloud Storage is built on first use (see the properties below).
+        # Constructing SupabaseQueries() must not require GCP credentials: it is
+        # constructed at import time by the web server, both bots and the
+        # scraper, and only a handful of methods ever touch storage.
+        self._storage_client = None
+        self._bucket = None
+
+    @property
+    def client(self):
+        """Google Cloud Storage client, created on first use."""
+        if self._storage_client is None:
+            raw_credential = os.getenv("GC_CREDENTIAL")
+            if not raw_credential:
+                raise RuntimeError(
+                    "Google Cloud Storage is not configured: GC_CREDENTIAL is "
+                    "missing from the environment. It must hold the JSON of a "
+                    "GCP service-account key."
+                )
+            try:
+                credential_info = json.loads(raw_credential)
+            except json.JSONDecodeError as e:
+                raise RuntimeError(
+                    f"GC_CREDENTIAL is not valid JSON: {e}"
+                ) from e
+            credentials = service_account.Credentials.from_service_account_info(
+                credential_info
+            )
+            self._storage_client = storage.Client(credentials=credentials)
+        return self._storage_client
+
+    @property
+    def bucket(self):
+        """Google Cloud Storage bucket, resolved on first use."""
+        if self._bucket is None:
+            bucket_name = self.BUCKET_NAME or os.getenv("BUCKET_NAME")
+            if not bucket_name:
+                raise RuntimeError(
+                    "Google Cloud Storage is not configured: BUCKET_NAME is "
+                    "missing from the environment."
+                )
+            self._bucket = self.client.bucket(bucket_name)
+        return self._bucket
 
     def get_category_id(self, category_name: str) -> Optional[str]:
         """Get the UUID for a category by name, or None if it doesn't exist"""

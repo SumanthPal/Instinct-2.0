@@ -2,19 +2,26 @@ import os
 import time
 from openai import OpenAI
 from dotenv import load_dotenv
-from supabase import create_client, Client
+
+# Reuse the shared lazy client instead of building a second one from the same
+# credentials; it connects on first use, not at import.
+from instinct.db.supabase_client import supabase
+from instinct.utils.env import require_env
 
 # Load environment variables
 load_dotenv()
 
-# Initialize Supabase client
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(supabase_url, supabase_key)
+_openai_client = None
 
-# Initialize OpenAI client
-api_key = os.getenv("OPENAI")
-client = OpenAI(api_key=api_key)
+
+def get_openai_client() -> OpenAI:
+    """OpenAI client, created on first use so that import needs no API key."""
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(
+            api_key=require_env("OPENAI", "generate embeddings")
+        )
+    return _openai_client
 
 def get_embedding(text: str) -> list:
     """Get embedding from OpenAI API."""
@@ -23,7 +30,7 @@ def get_embedding(text: str) -> list:
     
     try:
         # Using text-embedding-3-small model (newer and more cost-effective)
-        response = client.embeddings.create(
+        response = get_openai_client().embeddings.create(
             model="text-embedding-3-small",
             input=text
         )

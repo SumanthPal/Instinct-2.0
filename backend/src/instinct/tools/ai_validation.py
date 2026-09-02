@@ -32,7 +32,6 @@ class EventParser:
         # Load environment variables (for OpenAI API key)
         dotenv.load_dotenv()
         self.client = OpenAI(api_key=os.getenv("OPENAI"))
-        print("API Key Loaded:", os.getenv("OPENAI"))
 
         self.db = SupabaseQueries()
 

@@ -24,6 +24,7 @@ import numpy as np
 from instinct.tools.logger import logger, LOG_FILE_PATH
 from instinct.db.queries import SupabaseQueries
 from instinct.tools.redis_queue import RedisScraperQueue, QueueType
+from instinct.utils.env import env_int, redis_url as get_redis_url
 
 
 # Load environment variables
@@ -32,11 +33,11 @@ load_dotenv()
 # Job Bot Configuration
 JOB_BOT_TOKEN = os.getenv('JOB_BOT_TOKEN')
 JOB_BOT_PREFIX = os.getenv('JOB_BOT_PREFIX', '!')
-JOB_BOT_CHANNEL_ID = int(os.getenv('JOB_BOT_CHANNEL_ID', '0'))
-JOB_BOT_ERROR_CHANNEL_ID = int(os.getenv('JOB_BOT_ERROR_CHANNEL_ID', '0'))
-JOB_BOT_ADMIN_ROLE_ID = int(os.getenv('JOB_BOT_ADMIN_ROLE_ID', '0'))
-OWNER_USER_ID = int(os.getenv("USER_ID"))  # 👈  Discord user ID
-ALLOWED_SERVER_LIST = [int(os.getenv('SERVER_ID'))]
+JOB_BOT_CHANNEL_ID = env_int('JOB_BOT_CHANNEL_ID')
+JOB_BOT_ERROR_CHANNEL_ID = env_int('JOB_BOT_ERROR_CHANNEL_ID')
+JOB_BOT_ADMIN_ROLE_ID = env_int('JOB_BOT_ADMIN_ROLE_ID')
+OWNER_USER_ID = env_int("USER_ID")  # 👈  Discord user ID
+ALLOWED_SERVER_LIST = [env_int('SERVER_ID')]
 # Add this to bot startup (on_ready event)
 
 
@@ -48,11 +49,21 @@ intents.message_content = True
 intents.members = True
 job_bot = commands.Bot(command_prefix=JOB_BOT_PREFIX, intents=intents)
 
-# Initialize database connection
-db = SupabaseQueries()
+# Database connection, created on first use: importing this module must not
+# require a configured environment.
+_db = None
 
-# Redis connection (shared resource)
-redis_url = os.getenv('REDIS_URL')
+
+def get_db() -> SupabaseQueries:
+    global _db
+    if _db is None:
+        _db = SupabaseQueries()
+    return _db
+
+
+# Redis connection (shared resource). from_url() does not connect, so this is
+# safe at module scope as long as the URL always has a default.
+redis_url = get_redis_url()
 redis_conn = redis.from_url(redis_url)
 
 # Redis queue key names
@@ -368,7 +379,7 @@ def populate_clubs_queue(limit=40):
     """Populate the scraper queue with clubs from the database."""
     try:
         # First get clubs that have never been scraped
-        never_scraped = db.supabase.rpc('get_never_scraped_clubs', {
+        never_scraped = get_db().supabase.rpc('get_never_scraped_clubs', {
             'limit_num': limit
         }).execute()
         
@@ -385,7 +396,7 @@ def populate_clubs_queue(limit=40):
             cooldown_hours = 24  # Default cooldown period
             cooldown_time = datetime.datetime.now() - datetime.timedelta(hours=cooldown_hours)
             
-            oldest_scraped = db.supabase.rpc('get_oldest_scraped_clubs', {
+            oldest_scraped = get_db().supabase.rpc('get_oldest_scraped_clubs', {
                 'cooldown_time': cooldown_time.isoformat(),
                 'limit_num': remaining
             }).execute()
@@ -808,7 +819,7 @@ async def add_club_cmd(ctx, instagram_handle: str, priority: int = 0):
     """Add a specific club to the scraper queue ✨"""
     try:
         # Check if the club exists
-        club_data = db.get_club_by_instagram_handle(instagram_handle)
+        club_data = get_db().get_club_by_instagram_handle(instagram_handle)
         
         if not club_data:
             await ctx.send(
@@ -1550,7 +1561,7 @@ async def cleanup_cmd(ctx):
         
         # Clean up orphaned records
         try:
-            db.supabase.rpc('cleanup_orphaned_records').execute()
+            get_db().supabase.rpc('cleanup_orphaned_records').execute()
             results.append(("🗑️ Orphaned Records", "✅ Successfully cleaned up", True))
         except Exception as e:
             logger.error(f"Error cleaning up orphaned records: {e}")
@@ -1558,7 +1569,7 @@ async def cleanup_cmd(ctx):
 
         # Delete old events
         try:
-            db.supabase.rpc('delete_old_events').execute()
+            get_db().supabase.rpc('delete_old_events').execute()
             results.append(("🕰️ Old Events", "✅ Successfully removed", True))
         except Exception as e:
             logger.error(f"Error deleting old events: {e}")
@@ -1566,7 +1577,7 @@ async def cleanup_cmd(ctx):
 
         # Refresh club search vector
         try:
-            db.supabase.rpc('refresh_club_search_vector').execute()
+            get_db().supabase.rpc('refresh_club_search_vector').execute()
             results.append(("🔍 Search Vectors", "✅ Successfully refreshed", True))
         except Exception as e:
             logger.error(f"Error refreshing club search vector: {e}")
@@ -1575,7 +1586,7 @@ async def cleanup_cmd(ctx):
         # Update embeddings for clubs that need it
         try:
             # Get count of clubs needing embedding updates
-            clubs_needing_update = db.supabase.table("clubs").select("id", count="exact").eq("needs_embedding_update", True).execute()
+            clubs_needing_update = get_db().supabase.table("clubs").select("id", count="exact").eq("needs_embedding_update", True).execute()
             update_count = clubs_needing_update.count if clubs_needing_update.count else 0
             
             if update_count > 0:

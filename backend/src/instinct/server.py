@@ -1,6 +1,4 @@
 from instinct.tools.ai_validation import get_embedding
-from instinct.tools.calendar_connection import CalendarConnection
-from instinct.tools.scraper_rotation import ScraperRotation
 from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries
 import os
@@ -19,9 +17,12 @@ import os
 dotenv.load_dotenv()
 from instinct.tools.logger import logger
 
-azure_blob_cdn = os.getenv("GCP_URL")
-# Initialize dependencies
-calendar = CalendarConnection()
+
+def cdn_base_url() -> str:
+    """CDN prefix for stored images, read per request rather than at import."""
+    return os.getenv("GCP_URL", "")
+
+
 app = FastAPI(
     title="UCI Club Discovery API",
     description="API for discovering UCI clubs and their events",
@@ -56,7 +57,19 @@ app.add_middleware(
 )
 
 
-db = SupabaseQueries()
+_db: Optional[SupabaseQueries] = None
+
+
+def get_db() -> SupabaseQueries:
+    """Shared SupabaseQueries instance, created on first request.
+
+    Deliberately not module scope: importing this module must not construct
+    database or storage clients (#31).
+    """
+    global _db
+    if _db is None:
+        _db = SupabaseQueries()
+    return _db
 
 
 class Club(BaseModel):
@@ -112,7 +125,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    supabase_user = await db.get_user_from_token(auth_header)
+    supabase_user = await get_db().get_user_from_token(auth_header)
     if not supabase_user:
         raise HTTPException(status_code=401, detail="Invalid Supabase token")
 
@@ -123,7 +136,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
         )
 
     # 3. Check if club already exists in real table
-    existing = db.get_club_by_instagram(new_club.instagram_handle)
+    existing = get_db().get_club_by_instagram(new_club.instagram_handle)
     if existing:
         raise HTTPException(
             status_code=409, detail="Club with this Instagram handle already exists"
@@ -162,7 +175,7 @@ async def reject_pending_club(pending_id: str, request: Request):
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    if auth_header != f"Bearer {db.SUPABASE_KEY}":
+    if auth_header != f"Bearer {get_db().SUPABASE_KEY}":
         raise HTTPException(status_code=401, detail="Invalid service token")
 
     try:
@@ -221,13 +234,13 @@ async def approve_pending_club(pending_id: str, request: Request):
     if not auth_header:
         raise HTTPException(status_code=401, detail="Missing authorization token")
 
-    if auth_header != f"Bearer {db.SUPABASE_KEY}":
+    if auth_header != f"Bearer {get_db().SUPABASE_KEY}":
         raise HTTPException(status_code=401, detail="Invalid service token")
 
     # 2. Fetch pending club
     try:
         response = (
-            db.supabase.table("pending_clubs")
+            get_db().supabase.table("pending_clubs")
             .select("*")
             .eq("id", pending_id)
             .single()
@@ -250,7 +263,7 @@ async def approve_pending_club(pending_id: str, request: Request):
 
     try:
         # Insert the club
-        club_result = db.supabase.table("clubs").insert(insert_payload).execute()
+        club_result = get_db().supabase.table("clubs").insert(insert_payload).execute()
 
         # Get the new club ID for category association
         if not club_result.data or len(club_result.data) == 0:
@@ -276,7 +289,7 @@ async def approve_pending_club(pending_id: str, request: Request):
 
                 # Look up category ID by name
                 cat_response = (
-                    db.supabase.table("categories")
+                    get_db().supabase.table("categories")
                     .select("id")
                     .eq("name", category_name)
                     .execute()
@@ -286,7 +299,7 @@ async def approve_pending_club(pending_id: str, request: Request):
                     category_id = cat_response.data[0]["id"]
 
                     # Insert association
-                    db.supabase.table("clubs_categories").insert(
+                    get_db().supabase.table("clubs_categories").insert(
                         {"club_id": new_club_id, "category_id": category_id}
                     ).execute()
                 else:
@@ -301,7 +314,11 @@ async def approve_pending_club(pending_id: str, request: Request):
     # 4. Delete the pending club entry
     try:
         delete_result = (
-            db.supabase.table("pending_clubs").delete().eq("id", pending_id).execute()
+            get_db()
+            .supabase.table("pending_clubs")
+            .delete()
+            .eq("id", pending_id)
+            .execute()
         )
         logger.info(f"Deleted pending club: {delete_result.data}")
 
@@ -343,7 +360,7 @@ async def list_clubs(
         offset = (page - 1) * limit
 
         # Use optimized database-level pagination
-        result = db.get_clubs_paginated(offset, limit, category)
+        result = get_db().get_clubs_paginated(offset, limit, category)
 
         # Determine if there are more pages
         has_more = result["total"] > (offset + limit)
@@ -370,7 +387,7 @@ async def list_clubs(
 async def get_club_data(instagram_handle: str):
     """Get detailed information about a specific club."""
     try:
-        club = db.get_club_by_instagram(instagram_handle)
+        club = get_db().get_club_by_instagram(instagram_handle)
         if not club:
             raise HTTPException(
                 status_code=404,
@@ -379,7 +396,7 @@ async def get_club_data(instagram_handle: str):
 
         if club.get("profile_image_path"):
             # Fixed: Use instagram_handle variable, correct path, and add dot before jpg
-            public_url = f"{azure_blob_cdn}/pfps/{instagram_handle}.jpg"
+            public_url = f"{cdn_base_url()}/pfps/{instagram_handle}.jpg"
             club["profile_image_url"] = public_url
 
         return club
@@ -400,7 +417,7 @@ async def get_club_posts(
     """Get posts for a specific club."""
     try:
         # Check if club exists
-        club = db.get_club_by_instagram(instagram_handle)
+        club = get_db().get_club_by_instagram(instagram_handle)
         if not club:
             raise HTTPException(
                 status_code=404,
@@ -411,7 +428,7 @@ async def get_club_posts(
         club_id = club["id"]
 
         # Query posts
-        posts = db.get_posts_by_club_id(club_id, limit, offset)
+        posts = get_db().get_posts_by_club_id(club_id, limit, offset)
 
         for post in posts:
             if post.get("image_path"):
@@ -424,7 +441,7 @@ async def get_club_posts(
                 ):
                     post["image_path"] += ".jpg"  # default fallback
 
-                post["image_url"] = f"{azure_blob_cdn}/{post['image_path']}"
+                post["image_url"] = f"{cdn_base_url()}/{post['image_path']}"
 
         return {"count": len(posts), "results": posts}
     except HTTPException as http_e:
@@ -448,7 +465,7 @@ async def get_club_events(
     """Get events for a specific club."""
     try:
         # Check if club exists
-        club = db.get_club_by_instagram(instagram_handle)
+        club = get_db().get_club_by_instagram(instagram_handle)
         if not club:
             raise HTTPException(
                 status_code=404,
@@ -459,7 +476,7 @@ async def get_club_events(
         club_id = club["id"]
 
         # Get events
-        events = db.get_events_for_club(club_id)
+        events = get_db().get_events_for_club(club_id)
 
         # Apply date filters if specified
         filtered_events = []
@@ -489,7 +506,7 @@ async def get_club_calendar(instagram_handle: str):
     """Get calendar file (ICS) for a specific club."""
     try:
         # Check if club exists
-        club = db.get_club_by_instagram(instagram_handle)
+        club = get_db().get_club_by_instagram(instagram_handle)
         if not club:
             raise HTTPException(
                 status_code=404,
@@ -500,7 +517,7 @@ async def get_club_calendar(instagram_handle: str):
         club_id = club["id"]
 
         # Get calendar content
-        calendar_content = db.get_calendar_file(club_id)
+        calendar_content = get_db().get_calendar_file(club_id)
 
         if not calendar_content:
             raise HTTPException(status_code=404, detail="Calendar file not found")
@@ -535,7 +552,7 @@ async def get_all_campus_events(
     """Get all events from all clubs campus-wide with pagination and date filtering."""
     try:
         # Get all campus events in a single efficient query
-        events = db.get_all_campus_events(start_date, end_date, limit, offset)
+        events = get_db().get_all_campus_events(start_date, end_date, limit, offset)
 
         return {"count": len(events), "results": events}
     except Exception as e:
@@ -561,7 +578,7 @@ async def get_club_manifest(
         else:
             select_fields = "id, name, instagram_handle, profile_image_path"
 
-        result = db.get_club_manifest_optimized(category, limit, select_fields)
+        result = get_db().get_club_manifest_optimized(category, limit, select_fields)
 
         return result
     except Exception as e:
@@ -601,7 +618,7 @@ async def smart_search(
         offset = (page - 1) * limit
 
         # Use database-level search and pagination
-        result = db.search_clubs_optimized(q, offset, limit, category)
+        result = get_db().search_clubs_optimized(q, offset, limit, category)
 
         return {
             "count": result["total"],

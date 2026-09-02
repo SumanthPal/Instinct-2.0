@@ -1,6 +1,7 @@
 import logging
 import os
 import json
+import sys
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -14,19 +15,50 @@ LOG_DIR = os.getenv("LOG_DIR") or str(Path(__file__).resolve().parents[3] / "log
 LOG_FILE_PATH = os.path.join(LOG_DIR, "logfile.log")
 
 class RedisLogHandler(logging.Handler):
-    """Simple Redis logging handler that pushes logs to a Redis list"""
-    
+    """Redis logging handler that pushes logs to a Redis list.
+
+    Connecting is deferred to the first record: constructing the handler must
+    never require a reachable Redis (or a REDIS_URL at all). If Redis is not
+    configured or the first push fails, the handler disables itself and every
+    record falls through to the stderr/file handlers instead.
+    """
+
     def __init__(self, max_entries=1000):
         super().__init__()
         dotenv.load_dotenv()
+        # Never print the URL: it can carry credentials.
         self.redis_url = os.getenv('REDIS_URL')
-        print(self.redis_url)
-        self.redis_conn = redis.from_url(self.redis_url)
+        self.redis_conn = None
+        self.disabled = not self.redis_url
         self.max_entries = max_entries
         self.log_key = 'logs:entries'
 
+    def _disable(self, reason):
+        """Stop trying to reach Redis; report once, not once per record."""
+        self.disabled = True
+        self.redis_conn = None
+        print(
+            f"Redis log handler disabled ({reason}); logging to file and console only.",
+            file=sys.stderr,
+        )
+
+    def _get_conn(self):
+        """Connect on first use. Returns None when Redis is unavailable."""
+        if self.disabled:
+            return None
+        if self.redis_conn is None:
+            try:
+                self.redis_conn = redis.from_url(self.redis_url)
+            except Exception as e:
+                self._disable(f"bad REDIS_URL: {e}")
+                return None
+        return self.redis_conn
+
     def emit(self, record):
         """Process a log record and send it to Redis"""
+        conn = self._get_conn()
+        if conn is None:
+            return
         try:
             # Format the log message
             log_entry = self.format(record)
@@ -47,15 +79,15 @@ class RedisLogHandler(logging.Handler):
             json_entry = json.dumps(structured_entry)
             
             # Push to Redis list
-            self.redis_conn.lpush(self.log_key, json_entry)
+            conn.lpush(self.log_key, json_entry)
             
             # Trim the list if needed
-            self.redis_conn.ltrim(self.log_key, 0, self.max_entries - 1)
+            conn.ltrim(self.log_key, 0, self.max_entries - 1)
                 
         except Exception as e:
-            # Last resort fallback to print
-            print(f"Failed to push log to Redis: {e}")
-            print(f"Original log: {record.getMessage()}")
+            # Do not retry per-record: one dead Redis would otherwise print a
+            # traceback for every single log line.
+            self._disable(f"failed to push log: {e}")
 
 # Configure logging system
 def setup_logging(log_level=logging.INFO):
