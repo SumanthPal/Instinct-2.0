@@ -27,12 +27,42 @@ def get_event_model() -> str:
     return os.getenv("OPENAI_EVENT_MODEL", DEFAULT_EVENT_MODEL)
 
 
+OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
+LEGACY_OPENAI_API_KEY_ENV = "OPENAI"
+_warned_about_legacy_openai = False
+
+
+def get_openai_api_key() -> Optional[str]:
+    """OpenAI API key.
+
+    Prefers OPENAI_API_KEY. The old OPENAI name is still accepted, with a warning,
+    so that a deployment whose secrets have not been renamed yet keeps working;
+    drop that fallback once every environment is updated (#30).
+    """
+    key = os.getenv(OPENAI_API_KEY_ENV)
+    if key:
+        return key
+
+    legacy = os.getenv(LEGACY_OPENAI_API_KEY_ENV)
+    if legacy:
+        global _warned_about_legacy_openai
+        if not _warned_about_legacy_openai:
+            _warned_about_legacy_openai = True
+            logger.warning(
+                f"{LEGACY_OPENAI_API_KEY_ENV} is deprecated; rename it to {OPENAI_API_KEY_ENV}."
+            )
+        return legacy
+
+    return None
+
+
 def get_embedding(text: str) -> list:
     """Get embedding from OpenAI API."""
-    client = OpenAI(api_key=os.getenv("OPENAI"))
-    if not text or text.strip() == "":
+    key = get_openai_api_key()
+    if not text or text.strip() == "" or not key:
         return None
 
+    client = OpenAI(api_key=key)
     try:
         response = client.embeddings.create(model=EMBEDDING_MODEL, input=text)
         return response.data[0].embedding
@@ -45,7 +75,8 @@ class EventParser:
     def __init__(self):
         # Load environment variables (for OpenAI API key)
         dotenv.load_dotenv()
-        self.client = OpenAI(api_key=os.getenv("OPENAI"))
+        key = get_openai_api_key()
+        self.client = OpenAI(api_key=key) if key else None
 
         self.db = SupabaseQueries()
 

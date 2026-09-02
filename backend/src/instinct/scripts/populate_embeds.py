@@ -12,16 +12,47 @@ from instinct.utils.env import require_env
 # Load environment variables
 load_dotenv()
 
+OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
+LEGACY_OPENAI_API_KEY_ENV = "OPENAI"
+_warned_about_legacy_openai = False
 _openai_client = None
+
+
+def get_openai_api_key() -> str | None:
+    """OpenAI API key.
+
+    Prefers OPENAI_API_KEY. The old OPENAI name is still accepted, with a warning,
+    so that a deployment whose secrets have not been renamed yet keeps working;
+    drop that fallback once every environment is updated (#30).
+    """
+    key = os.getenv(OPENAI_API_KEY_ENV)
+    if key:
+        return key
+
+    legacy = os.getenv(LEGACY_OPENAI_API_KEY_ENV)
+    if legacy:
+        global _warned_about_legacy_openai
+        if not _warned_about_legacy_openai:
+            _warned_about_legacy_openai = True
+            print(
+                f"WARNING: {LEGACY_OPENAI_API_KEY_ENV} is deprecated; rename it to {OPENAI_API_KEY_ENV}."
+            )
+        return legacy
+
+    return None
 
 
 def get_openai_client() -> OpenAI:
     """OpenAI client, created on first use so that import needs no API key."""
     global _openai_client
     if _openai_client is None:
-        _openai_client = OpenAI(
-            api_key=require_env("OPENAI", "generate embeddings")
-        )
+        key = get_openai_api_key()
+        if not key:
+            raise RuntimeError(
+                f"{OPENAI_API_KEY_ENV} is missing from the environment; it is required to generate embeddings. "
+                "Set it in .env or the process environment."
+            )
+        _openai_client = OpenAI(api_key=key)
     return _openai_client
 
 def get_embedding(text: str) -> list:

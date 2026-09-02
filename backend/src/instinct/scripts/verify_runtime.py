@@ -43,9 +43,13 @@ def check(name: str, skip_reason_env: str | None = None):
 def run_checks() -> None:
     """Run every registered check, recording PASS / FAIL / SKIP."""
     for name, skip_reason_env, fn in checks:
-        if skip_reason_env and not os.getenv(skip_reason_env):
-            record("SKIP", name, f"{skip_reason_env} is not set")
-            continue
+        if skip_reason_env:
+            val = os.getenv(skip_reason_env)
+            if skip_reason_env == "OPENAI_API_KEY" and not val:
+                val = os.getenv("OPENAI")
+            if not val:
+                record("SKIP", name, f"{skip_reason_env} is not set")
+                continue
         try:
             detail = fn() or ""
         except Exception as e:
@@ -146,7 +150,7 @@ def _openai_surface():
     return f"openai {openai.__version__}, all three entry points present"
 
 
-@check("openai: embedding dimensions match the stored index", skip_reason_env="OPENAI")
+@check("openai: embedding dimensions match the stored index", skip_reason_env="OPENAI_API_KEY")
 def _openai_embed():
     from instinct.tools.ai_validation import EMBEDDING_MODEL, get_embedding
 
@@ -156,13 +160,15 @@ def _openai_embed():
     return f"{EMBEDDING_MODEL}: {len(vector)} dims"
 
 
-@check("openai: event parser against a real caption", skip_reason_env="OPENAI")
+@check("openai: event parser against a real caption", skip_reason_env="OPENAI_API_KEY")
 def _openai_parse():
     import json
 
     from instinct.tools.ai_validation import EventParser, get_event_model
 
     parser = EventParser()
+    if not parser.client:
+        raise RuntimeError("OpenAI client not initialized (missing API key)")
     completion = parser.client.chat.completions.create(
         model=get_event_model(),
         messages=[
