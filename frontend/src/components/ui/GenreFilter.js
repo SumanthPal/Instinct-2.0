@@ -11,7 +11,7 @@ export default function GenreFilter({ genres, selectedGenre, onSelectGenre }) {
           bg-white/80 dark:bg-dark-profile-card/80 
           text-gray-900 dark:text-dark-text-white 
           text-base font-medium
-          focus:outline-none focus:ring-2 focus:ring-lavender
+          focus:outline-hidden focus:ring-2 focus:ring-lavender
           transition-all duration-300 ease-in-out"
       >
         <option value="">All Genres</option>

@@ -99,8 +99,8 @@ const RssFeed = ({
     const matchedCategory = categories.find(cat => categoryBgMap[cat]);
     
     return matchedCategory 
-      ? `bg-gradient-to-br ${categoryBgMap[matchedCategory] || 'from-lavender to-sky-blue'}`
-      : 'bg-gradient-to-br from-lavender to-sky-blue'; // Default
+      ? `bg-linear-to-br ${categoryBgMap[matchedCategory] || 'from-lavender to-sky-blue'}`
+      : 'bg-linear-to-br from-lavender to-sky-blue'; // Default
   };
 
   // Function to get category emoji
@@ -148,13 +148,13 @@ const RssFeed = ({
               return (
                 <div 
                   key={index} 
-                  className={`group relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-102 h-64 backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/20 shadow-md`}
+                  className={`group relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-102 h-64 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/20 shadow-md`}
                 >
                   {/* Category Background */}
                   <div className={`absolute inset-0 ${categoryBg} opacity-30`}></div>
                   
                   {/* Text Readability Gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent z-10"></div>
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/20 to-transparent z-10"></div>
                   
                   {/* Image if available */}
                   {imageUrl && (
@@ -171,13 +171,13 @@ const RssFeed = ({
                   <div className="absolute inset-0 p-5 z-20 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center mb-2">
-                        <span className="bg-lavender/70 dark:bg-dark-gradient-start/70 text-dark-base dark:text-dark-text-white text-xs font-medium px-2 py-1 rounded-full backdrop-blur-sm">
+                        <span className="bg-lavender/70 dark:bg-dark-gradient-start/70 text-dark-base dark:text-dark-text-white text-xs font-medium px-2 py-1 rounded-full backdrop-blur-xs">
                           {new Date(item.pubDate).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric'
                           })}
                         </span>
-                        <span className="ml-2 bg-white/30 dark:bg-dark-gradient-start/30 backdrop-blur-sm w-7 h-7 flex items-center justify-center rounded-full text-dark-base dark:text-dark-text-white">
+                        <span className="ml-2 bg-white/30 dark:bg-dark-gradient-start/30 backdrop-blur-xs w-7 h-7 flex items-center justify-center rounded-full text-dark-base dark:text-dark-text-white">
                           {emoji}
                         </span>
                       </div>
@@ -226,7 +226,7 @@ const RssFeed = ({
               return (
                 <div 
                   key={index}
-                  className="backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/20 rounded-xl p-6 shadow-md hover:shadow-lg transition-all"
+                  className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/20 rounded-xl p-6 shadow-md hover:shadow-lg transition-all"
                 >
                   <div className="flex items-center mb-3">
                     <span className="bg-lavender/70 dark:bg-dark-gradient-start/70 text-dark-base dark:text-dark-text-white text-xs font-medium px-2 py-1 rounded-full">

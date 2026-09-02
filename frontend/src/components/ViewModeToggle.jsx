@@ -1,6 +1,6 @@
 export default function ViewModeToggle({ viewMode, setViewMode }) {
     return (
-      <div className="inline-flex backdrop-blur-sm bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
+      <div className="inline-flex backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
         <button 
           onClick={() => setViewMode('grid')}
           className={`p-2 rounded ${viewMode === 'grid' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
