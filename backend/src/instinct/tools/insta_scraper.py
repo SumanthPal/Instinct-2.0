@@ -2,6 +2,7 @@ import json
 import os
 import random
 import time
+from pathlib import Path
 from typing import Dict, List, Optional
 from typing_extensions import Tuple
 import base64
@@ -44,6 +45,16 @@ class InstagramScraper:
         self._password = password
         self._current_page = "none"
         self._db = SupabaseQueries()
+
+        self._chrome_profile_dir = Path(
+            os.getenv("CHROME_PROFILE_DIR") or "/app/chrome-profile"
+        ).expanduser()
+        try:
+            self._chrome_profile_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise RuntimeError(
+                f"Unable to create Chrome profile directory: {self._chrome_profile_dir}"
+            ) from exc
 
         options = Options()
         self.db = SupabaseQueries()
@@ -101,8 +112,16 @@ class InstagramScraper:
             driver = webdriver.Chrome(service=service, options=chrome_options)
             logger.info("Chrome WebDriver created successfully")
             return driver
-        except Exception as e:
-            logger.error(f"Failed to create Chrome WebDriver: {str(e)}")
+        except WebDriverException as exc:
+            error_message = str(exc)
+            if "user data directory is already in use" in error_message.lower():
+                message = (
+                    "Chrome profile is locked; another scraper instance is using "
+                    f"{self._chrome_profile_dir}."
+                )
+                logger.error(message)
+                raise RuntimeError(message) from exc
+            logger.error(f"Failed to create Chrome WebDriver: {error_message}")
             raise
 
     def __enter__(self):
@@ -768,7 +787,7 @@ class InstagramScraper:
         """Add options to the Chrome WebDriver."""
         # Add all the common arguments in one go
         args = [
-            f"user-agent={self._set_random_user_agent()}",
+            f"--user-data-dir={self._chrome_profile_dir}",
             "--disable-blink-features=AutomationControlled",
             "--disable-notifications",
             "--disable-popup-blocking",
@@ -818,21 +837,6 @@ class InstagramScraper:
             "excludeSwitches", ["enable-logging", "enable-automation"]
         )
         option.add_experimental_option("useAutomationExtension", False)
-
-    def _set_random_user_agent(self):
-        """Randomly selects a User-Agent string from the list."""
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 "
-            "Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0",
-            "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:39.0) Gecko/20100101 Firefox/39.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/89.0.4389.128 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/80.0.3987.122 Safari/537.36",
-            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0",
-        ]
-        return random.choice(user_agents)
 
     def _get_cookies(self):
         """Dismiss the save-login prompt without writing or logging session secrets.

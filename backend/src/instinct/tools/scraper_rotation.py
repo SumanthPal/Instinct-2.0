@@ -1214,7 +1214,8 @@ def main() -> int:
             "CHROME_BIN is the sole browser-binary setting; CHROMEDRIVER_PATH names "
             "the matching driver binary. Docker supplies both defaults. Set "
             "HEADLESS=false only when the container has an X display available; "
-            "it runs headless by default."
+            "it runs headless by default. CHROME_PROFILE_DIR defaults to "
+            "/app/chrome-profile and must be used by only one scraper at a time."
         ),
     )
     parser.add_argument(
