@@ -46,8 +46,13 @@ class InstagramScraper:
         self._current_page = "none"
         self._db = SupabaseQueries()
 
+        default_profile_dir = (
+            "/app/chrome-profile"
+            if os.environ.get("DOCKER_ENV")
+            else "~/.cache/instinct/chrome-profile"
+        )
         self._chrome_profile_dir = Path(
-            os.getenv("CHROME_PROFILE_DIR") or "/app/chrome-profile"
+            os.getenv("CHROME_PROFILE_DIR") or default_profile_dir
         ).expanduser()
         try:
             self._chrome_profile_dir.mkdir(parents=True, exist_ok=True)
@@ -114,7 +119,19 @@ class InstagramScraper:
             return driver
         except WebDriverException as exc:
             error_message = str(exc)
-            if "user data directory is already in use" in error_message.lower():
+            chrome_lock_files = ("SingletonLock", "SingletonSocket", "SingletonCookie")
+            has_profile_lock = any(
+                os.path.lexists(self._chrome_profile_dir / lock_file)
+                for lock_file in chrome_lock_files
+            )
+            lock_error_markers = (
+                "user data directory is already in use",
+                "exited normally",
+                "chrome not reachable",
+            )
+            if has_profile_lock and any(
+                marker in error_message.lower() for marker in lock_error_markers
+            ):
                 message = (
                     "Chrome profile is locked; another scraper instance is using "
                     f"{self._chrome_profile_dir}."

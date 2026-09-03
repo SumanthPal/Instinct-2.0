@@ -1215,7 +1215,8 @@ def main() -> int:
             "the matching driver binary. Docker supplies both defaults. Set "
             "HEADLESS=false only when the container has an X display available; "
             "it runs headless by default. CHROME_PROFILE_DIR defaults to "
-            "/app/chrome-profile and must be used by only one scraper at a time."
+            "/app/chrome-profile in Docker (or ~/.cache/instinct/chrome-profile "
+            "locally) and must be used by only one scraper at a time."
         ),
     )
     parser.add_argument(
