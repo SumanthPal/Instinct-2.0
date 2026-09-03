@@ -1,6 +1,5 @@
 import os
 from PIL import Image
-import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 import uuid
@@ -19,8 +18,7 @@ from instinct.db.supabase_client import (
     get_supabase_url,
     get_supabase_secret_key,
 )
-from google.cloud import storage
-from google.oauth2 import service_account
+from instinct.storage import get_storage
 from instinct.tools.logger import logger
 
 
@@ -28,15 +26,6 @@ class SupabaseQueries:
     def __init__(self):
         """Initialize the Supabase client"""
         self.supabase = supabase
-        self.BUCKET_NAME = os.getenv("BUCKET_NAME")
-        self.gcp_container_name = "images"
-
-        # Google Cloud Storage is built on first use (see the properties below).
-        # Constructing SupabaseQueries() must not require GCP credentials: it is
-        # constructed at import time by the web server, both bots and the
-        # scraper, and only a handful of methods ever touch storage.
-        self._storage_client = None
-        self._bucket = None
 
     @property
     def SUPABASE_URL(self) -> Optional[str]:
@@ -47,42 +36,6 @@ class SupabaseQueries:
     def SUPABASE_SECRET_KEY(self) -> Optional[str]:
         """Supabase secret key (replaces the legacy `service_role` key, #50)."""
         return get_supabase_secret_key()
-
-    @property
-    def client(self):
-        """Google Cloud Storage client, created on first use."""
-        if self._storage_client is None:
-            raw_credential = os.getenv("GC_CREDENTIAL")
-            if not raw_credential:
-                raise RuntimeError(
-                    "Google Cloud Storage is not configured: GC_CREDENTIAL is "
-                    "missing from the environment. It must hold the JSON of a "
-                    "GCP service-account key."
-                )
-            try:
-                credential_info = json.loads(raw_credential)
-            except json.JSONDecodeError as e:
-                raise RuntimeError(
-                    f"GC_CREDENTIAL is not valid JSON: {e}"
-                ) from e
-            credentials = service_account.Credentials.from_service_account_info(
-                credential_info
-            )
-            self._storage_client = storage.Client(credentials=credentials)
-        return self._storage_client
-
-    @property
-    def bucket(self):
-        """Google Cloud Storage bucket, resolved on first use."""
-        if self._bucket is None:
-            bucket_name = self.BUCKET_NAME or os.getenv("BUCKET_NAME")
-            if not bucket_name:
-                raise RuntimeError(
-                    "Google Cloud Storage is not configured: BUCKET_NAME is "
-                    "missing from the environment."
-                )
-            self._bucket = self.client.bucket(bucket_name)
-        return self._bucket
 
     def get_category_id(self, category_name: str) -> Optional[str]:
         """Get the UUID for a category by name, or None if it doesn't exist"""
@@ -132,7 +85,7 @@ class SupabaseQueries:
 
     def get_all_clubs(self) -> List[Dict]:
         """Fetch all clubs with their categories and prepend CDN URL to profile images"""
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
         response = self.supabase.table("clubs").select("*, categories(name)").execute()
 
         clubs = response.data if response.data else []
@@ -603,7 +556,7 @@ class SupabaseQueries:
         Returns:
             List[Dict]: List of event records with club information
         """
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         # Fetch events with club info in a single efficient query
         query = self.supabase.from_("events").select(
@@ -738,49 +691,39 @@ class SupabaseQueries:
             return []
 
     def download_and_upload_img(self, image_url: str, storage_path: str):
-        """
-        Download image from URL, compress it, and upload to GCP Blob Storage
-        """
-        response = requests.get(image_url)
+        """Download, compress, and mirror an Instagram image through S3 storage."""
+        response = requests.get(image_url, timeout=30)
         if response.status_code != 200:
-            logger.error("Error in fetching image.")
-            raise Exception(f"Failed to download image: {response.status_code}")
+            logger.error(f"Error fetching image for mirroring: {response.status_code}")
+            raise RuntimeError(f"Failed to download image: {response.status_code}")
 
         try:
             img = Image.open(BytesIO(response.content))
-        except Exception as e:
+            compressed_io = BytesIO()
+            img.convert("RGB").save(compressed_io, format="JPEG", quality=85)
+            compressed_io.seek(0)
+        except Exception as exc:
             logger.error("Failed to load image into Pillow")
-            raise e
+            raise RuntimeError("Failed to process downloaded image") from exc
 
-        # Compress image
-        compressed_io = BytesIO()
-        img.convert("RGB").save(compressed_io, format="JPEG", quality=85)
-        compressed_io.seek(0)
-
-        # Ensure storage_path has .jpg extension for proper content type detection
         if not storage_path.lower().endswith((".jpg", ".jpeg")):
             storage_path += ".jpg"
 
         try:
-            blob = self.bucket.blob(storage_path)
-            blob.upload_from_file(compressed_io, content_type="image/jpeg", rewind=True)
-
-            # Optional: set cache control or content disposition
-            blob.content_disposition = "inline"
-            blob.patch()
-
-            logger.info(f"Successfully uploaded image to GCP: {storage_path}")
-            return storage_path
-
-        except Exception as e:
-            logger.error(f"Failed to upload image to GCP Blob Storage: {str(e)}")
-            raise e
+            uploaded_path = get_storage().upload(
+                storage_path, compressed_io, content_type="image/jpeg"
+            )
+            logger.info(f"Successfully mirrored image to object storage: {uploaded_path}")
+            return uploaded_path
+        except Exception as exc:
+            logger.error(f"Failed to mirror image to object storage: {exc}")
+            raise
 
     def get_clubs_paginated(
         self, offset: int, limit: int, category: Optional[str] = None
     ) -> Dict:
         """Fetch clubs with database-level pagination and optional category filtering"""
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         try:
             # Build the query with only essential fields to reduce data transfer
@@ -831,7 +774,7 @@ class SupabaseQueries:
         self, offset: int, limit: int, category: Optional[str] = None
     ) -> Dict:
         """Fallback method using client-side filtering (less efficient)"""
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         # Get only essential fields
         query = self.supabase.table("clubs").select(
@@ -877,7 +820,7 @@ class SupabaseQueries:
         self, query: str, offset: int, limit: int, category: Optional[str] = None
     ) -> Dict:
         """Optimized search with database-level pagination"""
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
         logger.info(f"CDN prefix: {cdn_prefix}")  # Debug log
 
         try:
@@ -958,7 +901,7 @@ class SupabaseQueries:
     ) -> List[Dict]:
         """Optimized club manifest with selective field loading"""
 
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         query = self.supabase.table("clubs").select(select_fields).limit(limit)
 
@@ -1040,7 +983,7 @@ class SupabaseQueries:
 
         logger.warning("get_all_clubs called - consider using pagination instead")
 
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
         response = self.supabase.table("clubs").select("*, categories(name)").execute()
         clubs = response.data if response.data else []
 

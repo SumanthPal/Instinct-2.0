@@ -17,8 +17,9 @@ COPY --from=builder /app/.venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    LOG_DIR=/app/logs
-RUN mkdir -p /app/logs
+    LOG_DIR=/app/logs \
+    CHROME_PROFILE_DIR=/app/chrome-profile
+RUN mkdir -p /app/logs /app/chrome-profile
 COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]

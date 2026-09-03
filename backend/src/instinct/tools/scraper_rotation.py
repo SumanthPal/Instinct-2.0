@@ -1,3 +1,4 @@
+import argparse
 import os
 import time
 import datetime
@@ -5,13 +6,14 @@ import random
 import dotenv
 import threading
 import signal
+from pathlib import Path
 from typing import List, Dict, Optional, Any, Union
 import schedule
 import json
 
 from instinct.tools.logger import logger, LOG_FILE_PATH
 from instinct.db.queries import SupabaseQueries
-from instinct.tools.insta_scraper import RateLimitDetected
+from instinct.tools.insta_scraper import InstagramLoginError, RateLimitDetected
 from instinct.tools.ai_validation import EventParser
 from instinct.tools.calendar_connection import CalendarConnection
 from instinct.tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
@@ -21,6 +23,7 @@ class ScraperRotation:
     def __init__(self):
         """Initialize the scraper rotation manager"""
         dotenv.load_dotenv()
+        Path(LOG_FILE_PATH).parent.mkdir(parents=True, exist_ok=True)
         self.db = SupabaseQueries()
         self.clubs_per_session = 10
         self.cooldown_hours = 24  # Don't scrape same club more than once every 3 days
@@ -1167,5 +1170,72 @@ class ScraperRotation:
         return False
 
 
-if __name__ == "__main__":
+def run_once(instagram_handle: str, *, dry_run: bool = False) -> bool:
+    """Scrape one club and exit; this path never starts the rotation loop or retries."""
+    from instinct.tools.insta_scraper import InstagramScraper
+    from instinct.storage import get_storage
+
+    scraper = None
+    try:
+        scraper = InstagramScraper(
+            os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
+        )
+        scraper.login()
+        if dry_run:
+            club_info = scraper.get_club_info(instagram_handle)
+            logger.info(
+                "Dry run scraped %s with %s recent post link(s); no data was written.",
+                instagram_handle,
+                len(club_info["Recent Posts"]),
+            )
+        elif not scraper.store_club_data(instagram_handle):
+            raise RuntimeError(f"Scrape failed for {instagram_handle}")
+        logger.info(get_storage().report())
+        return True
+    except (InstagramLoginError, RateLimitDetected) as exc:
+        logger.error(f"One-shot scrape stopped without retrying: {exc}")
+        return False
+    except Exception as exc:
+        logger.error(f"One-shot scrape failed without retrying: {exc}")
+        return False
+    finally:
+        if scraper:
+            scraper._driver_quit()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Run the Instagram scraper rotation or exactly one safe smoke-test scrape.",
+        epilog=(
+            "--once never enters the rotation loop and never retries. COOKIE_1 and "
+            "optional COOKIE_2 must be base64-encoded JSON arrays exported from a "
+            "logged-in browser session (Chrome DevTools > Application > Cookies). "
+            "Refresh them in your secret manager, never in a repository file or logs. "
+            "CHROME_BIN is the sole browser-binary setting; CHROMEDRIVER_PATH names "
+            "the matching driver binary. Docker supplies both defaults. Set "
+            "HEADLESS=false only when the container has an X display available; "
+            "it runs headless by default. CHROME_PROFILE_DIR defaults to "
+            "/app/chrome-profile in Docker (or ~/.cache/instinct/chrome-profile "
+            "locally) and must be used by only one scraper at a time."
+        ),
+    )
+    parser.add_argument(
+        "--once", metavar="INSTAGRAM_HANDLE", help="scrape one club and exit"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="with --once, fetch one club without writing to Supabase or storage",
+    )
+    args = parser.parse_args()
+    if args.dry_run and not args.once:
+        parser.error("--dry-run requires --once INSTAGRAM_HANDLE")
+    if args.once:
+        return 0 if run_once(args.once, dry_run=args.dry_run) else 1
+
     ScraperRotation().run()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
