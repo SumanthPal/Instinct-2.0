@@ -109,15 +109,17 @@ class InstagramScraper:
                 f"Unable to read Chromium version from {self._chrome_bin_path}"
             ) from exc
 
-        match = re.search(r"(?:Chromium|Google Chrome)\s+(\d+(?:\.\d+){3})", version_output)
+        match = re.search(
+            r"(?:Chromium|Google Chrome)\s+(\d+)(?:\.\d+){3}", version_output
+        )
         if not match:
             raise RuntimeError(
                 f"Could not parse Chromium version from: {version_output!r}"
             )
-        version = match.group(1)
+        major_version = match.group(1)
         return (
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            f"(KHTML, like Gecko) Chrome/{version} Safari/537.36"
+            f"(KHTML, like Gecko) Chrome/{major_version}.0.0.0 Safari/537.36"
         )
 
     def _create_driver(self, chrome_options: Options = None):
@@ -858,6 +860,7 @@ class InstagramScraper:
         args = [
             f"--user-data-dir={self._chrome_profile_dir}",
             "--window-size=1920,1080",
+            "--screen-info={0,0 1920x1080}",
             "--disable-blink-features=AutomationControlled",
             "--disable-notifications",
             "--disable-popup-blocking",
