@@ -1,6 +1,8 @@
 import json
 import os
 import random
+import re
+import subprocess
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -40,20 +42,22 @@ class SelectorNotFoundError(RuntimeError):
 
 
 class InstagramScraper:
-    def __init__(self, username, password):
+    def __init__(self, username, password, *, cookie_index: int = 0):
         self._username = username
         self._password = password
         self._current_page = "none"
         self._db = SupabaseQueries()
+        self.current_cookie_index = cookie_index
 
         default_profile_dir = (
             "/app/chrome-profile"
             if os.environ.get("DOCKER_ENV")
             else "~/.cache/instinct/chrome-profile"
         )
-        self._chrome_profile_dir = Path(
+        profile_root = Path(
             os.getenv("CHROME_PROFILE_DIR") or default_profile_dir
         ).expanduser()
+        self._chrome_profile_dir = profile_root / f"account-{cookie_index + 1}"
         try:
             self._chrome_profile_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
@@ -61,6 +65,13 @@ class InstagramScraper:
                 f"Unable to create Chrome profile directory: {self._chrome_profile_dir}"
             ) from exc
 
+        self._scraper_tz = os.getenv("SCRAPER_TZ") or "America/Los_Angeles"
+        os.environ["TZ"] = self._scraper_tz
+        if hasattr(time, "tzset"):
+            time.tzset()
+
+        self._chrome_bin_path = self._configured_chrome_binary()
+        self._chromium_user_agent = self._native_chromium_user_agent()
         options = Options()
         self.db = SupabaseQueries()
         self._add_options(options)
@@ -72,7 +83,42 @@ class InstagramScraper:
         logger.info("WebDriver successfully initialized")
         self._wait = WebDriverWait(self._driver, 5)
         self.cookies_list = [os.getenv("COOKIE_1"), os.getenv("COOKIE_2")]
-        self.current_cookie_index = 0  # Start from the first cookie
+
+    def _configured_chrome_binary(self) -> Optional[str]:
+        """Return the browser binary used by Selenium, when it is configured."""
+        configured_path = os.getenv("CHROME_BIN")
+        if configured_path:
+            return configured_path
+        if os.environ.get("DOCKER_ENV") or os.environ.get("CI"):
+            return "/usr/bin/chromium"
+        return None
+
+    def _native_chromium_user_agent(self) -> Optional[str]:
+        """Build a non-headless UA using the exact installed Chromium version."""
+        if not self._chrome_bin_path:
+            return None
+        try:
+            version_output = subprocess.run(
+                [self._chrome_bin_path, "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RuntimeError(
+                f"Unable to read Chromium version from {self._chrome_bin_path}"
+            ) from exc
+
+        match = re.search(r"(?:Chromium|Google Chrome)\s+(\d+(?:\.\d+){3})", version_output)
+        if not match:
+            raise RuntimeError(
+                f"Could not parse Chromium version from: {version_output!r}"
+            )
+        version = match.group(1)
+        return (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{version} Safari/537.36"
+        )
 
     def _create_driver(self, chrome_options: Options = None):
         """Create and return a Chrome WebDriver instance.
@@ -87,19 +133,19 @@ class InstagramScraper:
         if os.environ.get("DOCKER_ENV") or os.environ.get("CI"):
             logger.info("Running in Docker/CI environment. Using system ChromeDriver.")
 
-            # Use environment variables if set, otherwise use defaults
-            chromedriver_path = os.environ.get("CHROMEDRIVER_PATH") or "/usr/bin/chromedriver"
-            chrome_bin_path = os.environ.get("CHROME_BIN") or "/usr/bin/chromium"
+            # Use environment variables if set, otherwise use Docker defaults.
+            chromedriver_path = (
+                os.environ.get("CHROMEDRIVER_PATH") or "/usr/bin/chromedriver"
+            )
+            chrome_bin_path = self._chrome_bin_path
 
             logger.info(f"ChromeDriver path: {chromedriver_path}")
             logger.info(f"Chrome binary path: {chrome_bin_path}")
 
-            # Check if binaries exist
-            if not os.path.exists(chrome_bin_path):
-                logger.warning(f"Chrome binary not found at {chrome_bin_path}")
-            else:
-                chrome_options.binary_location = chrome_bin_path
-                logger.info(f"Chrome binary location set to {chrome_bin_path}")
+            if not chrome_bin_path or not os.path.exists(chrome_bin_path):
+                raise RuntimeError(f"Chrome binary not found at {chrome_bin_path}")
+            chrome_options.binary_location = chrome_bin_path
+            logger.info(f"Chrome binary location set to {chrome_bin_path}")
 
             if not os.path.exists(chromedriver_path):
                 logger.warning(f"ChromeDriver not found at {chromedriver_path}")
@@ -281,44 +327,49 @@ class InstagramScraper:
                 return False
 
     def swap_cookies(self):
-        """Switch to the next cookie/account when rate limited."""
-        self.current_cookie_index = (self.current_cookie_index + 1) % len(
-            self.cookies_list
+        """Return a scraper using the next account's isolated browser profile."""
+        next_cookie_index = (self.current_cookie_index + 1) % len(self.cookies_list)
+        logger.warning(f"Switching to cookie account #{next_cookie_index + 1}.")
+        self._driver_quit()
+        next_scraper = InstagramScraper(
+            self._username, self._password, cookie_index=next_cookie_index
         )
-        logger.warning(
-            f"🔄 Swapping to cookie account #{self.current_cookie_index + 1}..."
-        )
+        next_scraper.login()
+        return next_scraper
 
+    def _inject_cookie_seed(self) -> None:
+        """Seed an empty account profile without logging or persisting cookie values."""
+        encoded_cookies = self.cookies_list[self.current_cookie_index]
         try:
-            self._driver.delete_all_cookies()
-            decoded_cookies = base64.b64decode(
-                self.cookies_list[self.current_cookie_index]
-            )
-            cookies = json.loads(decoded_cookies.decode("utf-8"))
-            for cookie in cookies:
-                self._driver.add_cookie(cookie)
-
-            self._driver.refresh()
-            time.sleep(5)  # Give some time to reload
-            logger.info("Cookies swapped and page refreshed successfully.")
-        except Exception as e:
-            logger.error(f"Error while swapping cookies: {e}")
+            cookies = json.loads(base64.b64decode(encoded_cookies).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise InstagramLoginError("COOKIE seed is not valid base64 JSON.") from exc
+        if not isinstance(cookies, list) or not all(
+            isinstance(cookie, dict) for cookie in cookies
+        ):
+            raise InstagramLoginError("COOKIE seed must be a JSON array of cookie objects.")
+        for cookie in cookies:
+            self._driver.add_cookie(cookie)
 
     def login(self) -> None:
-        """Log in once and raise a specific error when Instagram rejects the session."""
+        """Reuse an account profile session, seeding it once only when necessary."""
         try:
-            using_cookies = bool(self.cookies_list[self.current_cookie_index])
-            if using_cookies:
-                self._driver.delete_all_cookies()
+            self._driver.get("https://www.instagram.com/")
+            profile_has_session = bool(self._driver.get_cookie("sessionid"))
+            using_cookies = profile_has_session or bool(
+                self.cookies_list[self.current_cookie_index]
+            )
+            if profile_has_session:
                 logger.info(
-                    f"Loading cookies for account {self.current_cookie_index + 1}."
+                    f"Reusing profile session for account {self.current_cookie_index + 1}."
                 )
-                self._driver.get("https://www.instagram.com/")
-                decoded_cookies = base64.b64decode(
-                    self.cookies_list[self.current_cookie_index]
+                self._driver.refresh()
+                time.sleep(3)
+            elif self.cookies_list[self.current_cookie_index]:
+                logger.info(
+                    f"Seeding profile for account {self.current_cookie_index + 1}."
                 )
-                for cookie in json.loads(decoded_cookies.decode("utf-8")):
-                    self._driver.add_cookie(cookie)
+                self._inject_cookie_seed()
                 self._driver.refresh()
                 time.sleep(3)
             else:
@@ -327,7 +378,6 @@ class InstagramScraper:
                         "No Instagram cookies or username/password credentials are configured."
                     )
                 logger.info("No cookies configured; submitting username/password once.")
-                self._driver.get("https://www.instagram.com")
                 self._accept_cookies()
                 username_field = self._wait.until(
                     EC.visibility_of_element_located(selectors.LOGIN_USERNAME)
@@ -805,6 +855,7 @@ class InstagramScraper:
         # Add all the common arguments in one go
         args = [
             f"--user-data-dir={self._chrome_profile_dir}",
+            "--window-size=1920,1080",
             "--disable-blink-features=AutomationControlled",
             "--disable-notifications",
             "--disable-popup-blocking",
@@ -838,6 +889,8 @@ class InstagramScraper:
             "--disable-cache",
             "--aggressive-cache-discard",
         ]
+        if self._chromium_user_agent:
+            args.append(f"--user-agent={self._chromium_user_agent}")
         if os.getenv("HEADLESS", "true").lower() not in {"0", "false", "no"}:
             args.append("--headless=new")
 
@@ -955,8 +1008,8 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
                 f"Rate limit detected during attempt {attempt+1} for {username}: {rate_limit_exc}"
             )
 
-            # Swap cookies
-            scraper.swap_cookies()
+            # Switch to a fresh browser instance for the next account profile.
+            scraper = scraper.swap_cookies()
 
             # On last attempt, restart the driver completely
             if attempt == max_retries - 1:
@@ -965,7 +1018,9 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
                 )
                 scraper._driver_quit()
                 scraper = InstagramScraper(
-                    os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
+                    os.getenv("INSTAGRAM_USERNAME"),
+                    os.getenv("INSTAGRAM_PASSWORD"),
+                    cookie_index=scraper.current_cookie_index,
                 )
                 scraper.login()
                 return scraper
@@ -982,7 +1037,9 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
                 )
                 scraper._driver_quit()
                 scraper = InstagramScraper(
-                    os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
+                    os.getenv("INSTAGRAM_USERNAME"),
+                    os.getenv("INSTAGRAM_PASSWORD"),
+                    cookie_index=scraper.current_cookie_index,
                 )
                 scraper.login()
                 return scraper

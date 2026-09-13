@@ -18,7 +18,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     LOG_DIR=/app/logs \
-    CHROME_PROFILE_DIR=/app/chrome-profile
+    CHROME_PROFILE_DIR=/app/chrome-profile \
+    SCRAPER_TZ=America/Los_Angeles
 RUN mkdir -p /app/logs /app/chrome-profile
 COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

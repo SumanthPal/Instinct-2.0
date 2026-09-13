@@ -1054,15 +1054,13 @@ class ScraperRotation:
                 # Create fresh scraper instance
                 from instinct.tools.insta_scraper import InstagramScraper
 
+                cookie_index = cookie_attempt % 2
                 scraper = InstagramScraper(
-                    os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
+                    os.getenv("INSTAGRAM_USERNAME"),
+                    os.getenv("INSTAGRAM_PASSWORD"),
+                    cookie_index=cookie_index,
                 )
-
-                # Set the cookie index for this attempt
-                scraper.current_cookie_index = cookie_attempt % len(
-                    scraper.cookies_list
-                )
-                logger.info(f"Using cookie account #{scraper.current_cookie_index + 1}")
+                logger.info(f"Using cookie account #{cookie_index + 1}")
 
                 # Login with the selected cookie
                 scraper.login()
@@ -1216,7 +1214,8 @@ def main() -> int:
             "HEADLESS=false only when the container has an X display available; "
             "it runs headless by default. CHROME_PROFILE_DIR defaults to "
             "/app/chrome-profile in Docker (or ~/.cache/instinct/chrome-profile "
-            "locally) and must be used by only one scraper at a time."
+            "locally); each cookie account receives its own subdirectory, and each "
+            "profile must be used by only one scraper at a time."
         ),
     )
     parser.add_argument(
