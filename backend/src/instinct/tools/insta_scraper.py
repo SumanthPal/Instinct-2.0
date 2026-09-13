@@ -91,7 +91,10 @@ class InstagramScraper:
             return configured_path
         if os.environ.get("DOCKER_ENV") or os.environ.get("CI"):
             return "/usr/bin/chromium"
-        return None
+        raise RuntimeError(
+            "CHROME_BIN must name the local Chromium binary so its version can be "
+            "used for a consistent user agent."
+        )
 
     def _native_chromium_user_agent(self) -> Optional[str]:
         """Build a non-headless UA using the exact installed Chromium version."""
