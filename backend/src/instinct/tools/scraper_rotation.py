@@ -1086,6 +1086,12 @@ class ScraperRotation:
                 # If we get here, everything succeeded
                 return True
 
+            except InstagramLoginError as exc:
+                logger.error(
+                    f"Login failed; stopping without trying another account: {exc}"
+                )
+                return False
+
             except RateLimitDetected as rl:
                 logger.warning(
                     f"Rate limit detected with cookie #{cookie_attempt + 1}: {rl}"

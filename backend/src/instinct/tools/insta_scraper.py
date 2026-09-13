@@ -71,6 +71,7 @@ class InstagramScraper:
             time.tzset()
 
         self._chrome_bin_path = self._configured_chrome_binary()
+        self._chromium_version = self._installed_chromium_version()
         self._chromium_user_agent = self._native_chromium_user_agent()
         options = Options()
         self.db = SupabaseQueries()
@@ -96,8 +97,8 @@ class InstagramScraper:
             "used for a consistent user agent."
         )
 
-    def _native_chromium_user_agent(self) -> Optional[str]:
-        """Build a non-headless UA using the exact installed Chromium version."""
+    def _installed_chromium_version(self) -> Optional[str]:
+        """Read the full version of the binary Selenium will launch."""
         if not self._chrome_bin_path:
             return None
         try:
@@ -113,13 +114,19 @@ class InstagramScraper:
             ) from exc
 
         match = re.search(
-            r"(?:Chromium|Google Chrome)\s+(\d+)(?:\.\d+){3}", version_output
+            r"(?:Chromium|Google Chrome)\s+(\d+(?:\.\d+){3})", version_output
         )
         if not match:
             raise RuntimeError(
                 f"Could not parse Chromium version from: {version_output!r}"
             )
-        major_version = match.group(1)
+        return match.group(1)
+
+    def _native_chromium_user_agent(self) -> Optional[str]:
+        """Build a reduced non-headless UA from the launched Chromium version."""
+        if not self._chromium_version:
+            return None
+        major_version = self._chromium_version.split(".", maxsplit=1)[0]
         return (
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
             f"(KHTML, like Gecko) Chrome/{major_version}.0.0.0 Safari/537.36"
@@ -160,9 +167,14 @@ class InstagramScraper:
                 logger.info(f"Using ChromeDriver at {chromedriver_path}")
                 service = Service(executable_path=chromedriver_path)
         else:
-            # For local development, use webdriver_manager
-            logger.info("Local environment detected. Using webdriver_manager.")
-            service = Service(ChromeDriverManager().install())
+            # Keep the launched binary and its version-derived UA in lockstep.
+            logger.info("Local environment detected. Using configured Chromium.")
+            if not self._chrome_bin_path or not os.path.exists(self._chrome_bin_path):
+                raise RuntimeError(f"Chrome binary not found at {self._chrome_bin_path}")
+            chrome_options.binary_location = self._chrome_bin_path
+            service = Service(
+                ChromeDriverManager(driver_version=self._chromium_version).install()
+            )
 
         try:
             driver = webdriver.Chrome(service=service, options=chrome_options)
