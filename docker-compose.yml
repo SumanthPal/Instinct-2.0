@@ -68,6 +68,8 @@ services:
     env_file: .env
     environment:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+    volumes:
+      - scraper-chrome-profile:/app/chrome-profile
     networks: [instinct-net]
     restart: unless-stopped
     depends_on:
@@ -79,3 +81,4 @@ networks:
 
 volumes:
   redis-data:
+  scraper-chrome-profile:

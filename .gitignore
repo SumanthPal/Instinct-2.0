@@ -32,8 +32,9 @@ frontend/build/
 .DS_Store
 *.pem
 
-# Logs
+# Logs and persistent browser state
 logs/
+chrome-profile/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

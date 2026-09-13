@@ -1,10 +1,12 @@
 import json
 import os
 import random
+import re
+import subprocess
 import time
+from pathlib import Path
 from typing import Dict, List, Optional
 from typing_extensions import Tuple
-import dotenv
 import base64
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -15,13 +17,13 @@ from selenium.common.exceptions import (
 )
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from pathlib import Path
 from webdriver_manager.chrome import ChromeDriverManager
 
 from instinct.tools.logger import logger
+from instinct.tools.scraper import selectors
+from instinct.storage import get_storage
 
 from instinct.db.queries import SupabaseQueries
 import datetime
@@ -30,16 +32,47 @@ import datetime
 class RateLimitDetected(Exception):
     """Raised when a potential rate limit is detected during scraping."""
 
-    pass
+
+class InstagramLoginError(Exception):
+    """Raised when Instagram rejects a login or demands account verification."""
+
+
+class SelectorNotFoundError(RuntimeError):
+    """Raised when a required Instagram page element is absent."""
 
 
 class InstagramScraper:
-    def __init__(self, username, password):
+    def __init__(self, username, password, *, cookie_index: int = 0):
         self._username = username
         self._password = password
         self._current_page = "none"
         self._db = SupabaseQueries()
+        self.current_cookie_index = cookie_index
 
+        default_profile_dir = (
+            "/app/chrome-profile"
+            if os.environ.get("DOCKER_ENV")
+            else "~/.cache/instinct/chrome-profile"
+        )
+        profile_root = Path(
+            os.getenv("CHROME_PROFILE_DIR") or default_profile_dir
+        ).expanduser()
+        self._chrome_profile_dir = profile_root / f"account-{cookie_index + 1}"
+        try:
+            self._chrome_profile_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise RuntimeError(
+                f"Unable to create Chrome profile directory: {self._chrome_profile_dir}"
+            ) from exc
+
+        self._scraper_tz = os.getenv("SCRAPER_TZ") or "America/Los_Angeles"
+        os.environ["TZ"] = self._scraper_tz
+        if hasattr(time, "tzset"):
+            time.tzset()
+
+        self._chrome_bin_path = self._configured_chrome_binary()
+        self._chromium_version = self._installed_chromium_version()
+        self._chromium_user_agent = self._native_chromium_user_agent()
         options = Options()
         self.db = SupabaseQueries()
         self._add_options(options)
@@ -51,7 +84,53 @@ class InstagramScraper:
         logger.info("WebDriver successfully initialized")
         self._wait = WebDriverWait(self._driver, 5)
         self.cookies_list = [os.getenv("COOKIE_1"), os.getenv("COOKIE_2")]
-        self.current_cookie_index = 0  # Start from the first cookie
+
+    def _configured_chrome_binary(self) -> Optional[str]:
+        """Return the browser binary used by Selenium, when it is configured."""
+        configured_path = os.getenv("CHROME_BIN")
+        if configured_path:
+            return configured_path
+        if os.environ.get("DOCKER_ENV") or os.environ.get("CI"):
+            return "/usr/bin/chromium"
+        raise RuntimeError(
+            "CHROME_BIN must name the local Chromium binary so its version can be "
+            "used for a consistent user agent."
+        )
+
+    def _installed_chromium_version(self) -> Optional[str]:
+        """Read the full version of the binary Selenium will launch."""
+        if not self._chrome_bin_path:
+            return None
+        try:
+            version_output = subprocess.run(
+                [self._chrome_bin_path, "--version"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RuntimeError(
+                f"Unable to read Chromium version from {self._chrome_bin_path}"
+            ) from exc
+
+        match = re.search(
+            r"(?:Chromium|Google Chrome)\s+(\d+(?:\.\d+){3})", version_output
+        )
+        if not match:
+            raise RuntimeError(
+                f"Could not parse Chromium version from: {version_output!r}"
+            )
+        return match.group(1)
+
+    def _native_chromium_user_agent(self) -> Optional[str]:
+        """Build a reduced non-headless UA from the launched Chromium version."""
+        if not self._chromium_version:
+            return None
+        major_version = self._chromium_version.split(".", maxsplit=1)[0]
+        return (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{major_version}.0.0.0 Safari/537.36"
+        )
 
     def _create_driver(self, chrome_options: Options = None):
         """Create and return a Chrome WebDriver instance.
@@ -66,21 +145,19 @@ class InstagramScraper:
         if os.environ.get("DOCKER_ENV") or os.environ.get("CI"):
             logger.info("Running in Docker/CI environment. Using system ChromeDriver.")
 
-            # Use environment variables if set, otherwise use defaults
-            chromedriver_path = os.environ.get(
-                "CHROMEDRIVER_PATH", "/usr/bin/chromedriver"
+            # Use environment variables if set, otherwise use Docker defaults.
+            chromedriver_path = (
+                os.environ.get("CHROMEDRIVER_PATH") or "/usr/bin/chromedriver"
             )
-            chrome_bin_path = os.environ.get("CHROME_BIN", "/usr/bin/chromium")
+            chrome_bin_path = self._chrome_bin_path
 
             logger.info(f"ChromeDriver path: {chromedriver_path}")
             logger.info(f"Chrome binary path: {chrome_bin_path}")
 
-            # Check if binaries exist
-            if not os.path.exists(chrome_bin_path):
-                logger.warning(f"Chrome binary not found at {chrome_bin_path}")
-            else:
-                chrome_options.binary_location = chrome_bin_path
-                logger.info(f"Chrome binary location set to {chrome_bin_path}")
+            if not chrome_bin_path or not os.path.exists(chrome_bin_path):
+                raise RuntimeError(f"Chrome binary not found at {chrome_bin_path}")
+            chrome_options.binary_location = chrome_bin_path
+            logger.info(f"Chrome binary location set to {chrome_bin_path}")
 
             if not os.path.exists(chromedriver_path):
                 logger.warning(f"ChromeDriver not found at {chromedriver_path}")
@@ -90,16 +167,41 @@ class InstagramScraper:
                 logger.info(f"Using ChromeDriver at {chromedriver_path}")
                 service = Service(executable_path=chromedriver_path)
         else:
-            # For local development, use webdriver_manager
-            logger.info("Local environment detected. Using webdriver_manager.")
-            service = Service(ChromeDriverManager().install())
+            # Keep the launched binary and its version-derived UA in lockstep.
+            logger.info("Local environment detected. Using configured Chromium.")
+            if not self._chrome_bin_path or not os.path.exists(self._chrome_bin_path):
+                raise RuntimeError(f"Chrome binary not found at {self._chrome_bin_path}")
+            chrome_options.binary_location = self._chrome_bin_path
+            service = Service(
+                ChromeDriverManager(driver_version=self._chromium_version).install()
+            )
 
         try:
             driver = webdriver.Chrome(service=service, options=chrome_options)
             logger.info("Chrome WebDriver created successfully")
             return driver
-        except Exception as e:
-            logger.error(f"Failed to create Chrome WebDriver: {str(e)}")
+        except WebDriverException as exc:
+            error_message = str(exc)
+            chrome_lock_files = ("SingletonLock", "SingletonSocket", "SingletonCookie")
+            has_profile_lock = any(
+                os.path.lexists(self._chrome_profile_dir / lock_file)
+                for lock_file in chrome_lock_files
+            )
+            lock_error_markers = (
+                "user data directory is already in use",
+                "exited normally",
+                "chrome not reachable",
+            )
+            if has_profile_lock and any(
+                marker in error_message.lower() for marker in lock_error_markers
+            ):
+                message = (
+                    "Chrome profile is locked; another scraper instance is using "
+                    f"{self._chrome_profile_dir}."
+                )
+                logger.error(message)
+                raise RuntimeError(message) from exc
+            logger.error(f"Failed to create Chrome WebDriver: {error_message}")
             raise
 
     def __enter__(self):
@@ -108,7 +210,7 @@ class InstagramScraper:
     def __exit__(self, exc_type, exc_value, traceback):
         self._driver_quit()
 
-    def detect_rate_limit(self):
+    def detect_rate_limit(self, *, check_page_content: bool = True):
         """
         Check for signs of Instagram rate limiting with optimized performance
 
@@ -167,17 +269,15 @@ class InstagramScraper:
                     logger.warning(f"Rate limit detected: '{indicator}' text found")
                     return True
 
-            # Use CSS selectors instead of XPath for faster element detection
-            if "/p/" in current_url:  # Post page
-                if not self._driver.find_elements(
-                    By.CSS_SELECTOR, "article img, div[role='presentation'] img"
-                ):
+            # Content can render after navigation. Post extraction waits for its
+            # required locators explicitly, so do not mistake a slow render for a
+            # rate limit before those waits have had a chance to run.
+            if check_page_content and "/p/" in current_url:  # Post page
+                if not self._driver.find_elements(*selectors.POST_CONTENT):
                     logger.warning("Rate limit detected: Missing post content")
                     return True
-            elif "/stories/" in current_url:  # Stories page
-                if not self._driver.find_elements(
-                    By.CSS_SELECTOR, "div[role='dialog'] img, div[role='presentation']"
-                ):
+            elif check_page_content and "/stories/" in current_url:  # Stories page
+                if not self._driver.find_elements(*selectors.STORY_CONTENT):
                     logger.warning("Rate limit detected: Missing stories content")
                     return True
 
@@ -197,7 +297,7 @@ class InstagramScraper:
             )  # Limit log size
             return False
 
-    def safe_get_page(self, url, retry_count=1):
+    def safe_get_page(self, url, retry_count=0, *, check_page_content=True):
         """
         Safely access a page with rate limit detection
 
@@ -223,7 +323,7 @@ class InstagramScraper:
             time.sleep(0.5)
 
             # Check if we've been rate limited
-            if self.detect_rate_limit():
+            if self.detect_rate_limit(check_page_content=check_page_content):
                 raise RateLimitDetected(f"Rate limit detected when accessing {url}")
 
             return True
@@ -236,90 +336,98 @@ class InstagramScraper:
             if retry_count > 0:
                 logger.warning(f"Error accessing {url}: {e}. Retrying...")
                 time.sleep(2)
-                return self.safe_get_page(url, retry_count - 1)
+                return self.safe_get_page(
+                    url, retry_count - 1, check_page_content=check_page_content
+                )
             else:
                 logger.error(f"Failed to access {url} after retries: {e}")
                 return False
 
     def swap_cookies(self):
-        """Switch to the next cookie/account when rate limited."""
-        self.current_cookie_index = (self.current_cookie_index + 1) % len(
-            self.cookies_list
+        """Return a scraper using the next account's isolated browser profile."""
+        next_cookie_index = (self.current_cookie_index + 1) % len(self.cookies_list)
+        logger.warning(f"Switching to cookie account #{next_cookie_index + 1}.")
+        self._driver_quit()
+        next_scraper = InstagramScraper(
+            self._username, self._password, cookie_index=next_cookie_index
         )
-        logger.warning(
-            f"🔄 Swapping to cookie account #{self.current_cookie_index + 1}..."
-        )
+        next_scraper.login()
+        return next_scraper
 
+    def _inject_cookie_seed(self) -> None:
+        """Seed an empty account profile without logging or persisting cookie values."""
+        encoded_cookies = self.cookies_list[self.current_cookie_index]
         try:
-            self._driver.delete_all_cookies()
-            decoded_cookies = base64.b64decode(
-                self.cookies_list[self.current_cookie_index]
-            )
-            cookies = json.loads(decoded_cookies.decode("utf-8"))
-            for cookie in cookies:
-                self._driver.add_cookie(cookie)
-
-            self._driver.refresh()
-            time.sleep(5)  # Give some time to reload
-            logger.info("Cookies swapped and page refreshed successfully.")
-        except Exception as e:
-            logger.error(f"Error while swapping cookies: {e}")
+            cookies = json.loads(base64.b64decode(encoded_cookies).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise InstagramLoginError("COOKIE seed is not valid base64 JSON.") from exc
+        if not isinstance(cookies, list) or not all(
+            isinstance(cookie, dict) for cookie in cookies
+        ):
+            raise InstagramLoginError("COOKIE seed must be a JSON array of cookie objects.")
+        for cookie in cookies:
+            self._driver.add_cookie(cookie)
 
     def login(self) -> None:
-        """
-        Main method to log into Instagram with credentials. Creates a cookies.json file to store cookies.
-        :return: None
-        """
+        """Reuse an account profile session, seeding it once only when necessary."""
         try:
-
-            if self.cookies_list[self.current_cookie_index]:
-                self._driver.delete_all_cookies()
+            self._driver.get("https://www.instagram.com/")
+            profile_has_session = bool(self._driver.get_cookie("sessionid"))
+            using_cookies = profile_has_session or bool(
+                self.cookies_list[self.current_cookie_index]
+            )
+            if profile_has_session:
                 logger.info(
-                    f"Cookies found for account {self.current_cookie_index + 1}. Loading..."
+                    f"Reusing profile session for account {self.current_cookie_index + 1}."
                 )
-                self._driver.get("https://www.instagram.com/")
-
-                decoded_cookies = base64.b64decode(
-                    self.cookies_list[self.current_cookie_index]
-                )
-                cookies = json.loads(decoded_cookies.decode("utf-8"))
-
-                for cookie in cookies:
-                    self._driver.add_cookie(cookie)
-
-                logger.info("Cookies loaded.")
                 self._driver.refresh()
-
+                time.sleep(3)
+            elif self.cookies_list[self.current_cookie_index]:
+                logger.info(
+                    f"Seeding profile for account {self.current_cookie_index + 1}."
+                )
+                self._inject_cookie_seed()
+                self._driver.refresh()
+                time.sleep(3)
             else:
-                logger.info("No cookies file found. Logging in...")
-                self._driver.get("https://www.instagram.com")
-
+                if not self._username or not self._password:
+                    raise InstagramLoginError(
+                        "No Instagram cookies or username/password credentials are configured."
+                    )
+                logger.info("No cookies configured; submitting username/password once.")
                 self._accept_cookies()
                 username_field = self._wait.until(
-                    EC.visibility_of_element_located((By.NAME, "username"))
+                    EC.visibility_of_element_located(selectors.LOGIN_USERNAME)
                 )
                 password_field = self._wait.until(
-                    EC.visibility_of_element_located((By.NAME, "password"))
+                    EC.visibility_of_element_located(selectors.LOGIN_PASSWORD)
                 )
-
-                # Send login credentials
                 username_field.send_keys(self._username)
                 password_field.send_keys(self._password)
-                password_field.send_keys("\n")  # Simulate pressing Enter
-                logger.info("Login credentials sent.")
+                self._wait.until(
+                    EC.element_to_be_clickable(selectors.LOGIN_SUBMIT)
+                ).click()
                 time.sleep(5)
 
-                # Check if login was successful or failed
-                error_message = self._check_login_error()
-                if error_message:
-                    self._driver_quit()
-                    raise Exception(f"{error_message}")
-
+            # A rejected cookie can render the logged-out page without an alert.
+            # Check rate limits/challenges first, then require evidence of a session.
+            error_message = self._check_login_error(
+                include_login_page=not using_cookies
+            )
+            if error_message:
+                raise InstagramLoginError(error_message)
+            if using_cookies:
+                self._assert_authenticated_cookie_session(
+                    profile_held_session=profile_has_session
+                )
+            else:
                 self._get_cookies()
-
-        except WebDriverException as e:
-            logger.error(f"Error during login: {e}", exc_info=True)
+        except InstagramLoginError:
             self._driver_quit()
+            raise
+        except (WebDriverException, TimeoutException, ValueError) as exc:
+            self._driver_quit()
+            raise InstagramLoginError(f"Instagram login could not be completed: {exc}") from exc
 
     def _parse_count(self, count_str):
         count_str = count_str.replace(",", "").upper()
@@ -390,163 +498,120 @@ class InstagramScraper:
 
     def get_post_info(
         self, post_url: str
-    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """
-        Extracts the caption, date, and image URL from a given Instagram post.
-        """
-        description, date, img_src = None, None, None
+    ) -> Tuple[Optional[str], str, str]:
+        """Extract a post's caption, date, and image, failing on missing required data."""
+        if not self.safe_get_page(post_url, check_page_content=False):
+            raise RuntimeError(f"Failed to access Instagram post: {post_url}")
+        logger.info(f"Fetching Instagram post: {post_url}")
 
         try:
-            self._driver.get(post_url)
-            logger.info(f"Fetching Instagram post: {post_url}")
+            caption_element = self._wait.until(
+                EC.presence_of_element_located(selectors.POST_CAPTION)
+            )
+            description = caption_element.text.strip() or None
+        except TimeoutException:
+            # A post may have no caption; this is not a selector failure.
+            description = None
 
-            # --- Caption ---
+        try:
+            date_element = self._wait.until(
+                EC.presence_of_element_located(selectors.POST_DATETIME)
+            )
+            date = date_element.get_attribute("datetime")
+            if not date:
+                raise SelectorNotFoundError("POST_DATETIME had no datetime value")
+        except TimeoutException as exc:
+            raise SelectorNotFoundError("POST_DATETIME did not match") from exc
 
+        try:
+            image_element = self._wait.until(
+                EC.presence_of_element_located(selectors.POST_IMAGE)
+            )
+            image_url = image_element.get_attribute("src")
+            if not image_url:
+                raise SelectorNotFoundError("POST_IMAGE had no src value")
+        except TimeoutException:
             try:
-                # Fallback: Look for any span with substantial text content
-                caption_element = self._wait.until(
-                    EC.presence_of_element_located(
-                        (By.XPATH, "//span[string-length(text()) > 20]")
-                    )
+                video_element = self._wait.until(
+                    EC.presence_of_element_located(selectors.POST_VIDEO_POSTER)
                 )
-                description = caption_element.text.strip()
-                logger.info(f"Caption found: {description[:80]}...")
-            except TimeoutException:
-                logger.warning("Caption not found in post.")
-                description = None
+                image_url = video_element.get_attribute("poster")
+                if not image_url:
+                    raise SelectorNotFoundError("POST_VIDEO_POSTER had no poster value")
+            except TimeoutException as exc:
+                raise SelectorNotFoundError(
+                    "Neither POST_IMAGE nor POST_VIDEO_POSTER matched"
+                ) from exc
 
-            # --- Date ---
-            try:
-                date_element = self._wait.until(
-                    EC.presence_of_element_located((By.XPATH, "//time[@datetime]"))
-                )
-                date = date_element.get_attribute("datetime")
-                logger.info(f"Date found: {date}")
-            except TimeoutException:
-                logger.warning("Date not found in post.")
-                date = None
-
-            # --- Image ---
-            try:
-                # Broaden the XPath to find img with specific classes or src attribute
-                img_element = self._wait.until(
-                    EC.presence_of_element_located(
-                        (
-                            By.XPATH,
-                            "//img[contains(@class, 'x5yr21d') or contains(@class, 'x87ps6o') or @src[contains(., 'cdninstagram.com')]]",
-                        )
-                    )
-                )
-                img_src = img_element.get_attribute("src")
-                logger.info(f"Image found: {img_src[:80]}...")
-            except TimeoutException:
-                logger.warning(
-                    "Image not found with primary XPath, trying alternative..."
-                )
-                try:
-                    # Fallback: Look for any img with a src containing 'cdninstagram'
-                    img_element = self._wait.until(
-                        EC.presence_of_element_located(
-                            (By.XPATH, "//img[@src[contains(., 'cdninstagram.com')]]")
-                        )
-                    )
-                    img_src = img_element.get_attribute("src")
-                    logger.info(f"Image found with fallback: {img_src[:80]}...")
-                except TimeoutException:
-                    logger.warning("Image not found in post.")
-                    img_src = None
-
-        except WebDriverException as e:
-            logger.error(f"Error fetching post info: {str(e)}")
-
-        return description, date, img_src
+        return description, date, image_url
 
     def save_post_info(self, club_username: str):
-        """Process and save post information to the database"""
-        try:
-            # Get club ID from database
-            club_id = self.db.get_club_by_instagram_handle(club_username)
-            logger.info(f"Club ID for {club_username}: {club_id}")
-            if not club_id:
-                logger.error(f"Club {club_username} not found in database")
-                return
+        """Process and save post information, never marking a failed mirror as scraped."""
+        club_id = self.db.get_club_by_instagram_handle(club_username)
+        logger.info(f"Club ID for {club_username}: {club_id}")
+        if not club_id:
+            raise RuntimeError(f"Club {club_username} was not saved before post scraping")
 
-            # Get unprocessed post links from database - ALREADY GOOD
-            post_links_response = self.db.get_unscrapped_posts_by_club_id(club_id)
+        post_links_response = self.db.get_unscrapped_posts_by_club_id(club_id)
+        if not post_links_response:
+            logger.info(f"No unprocessed posts found for {club_username}")
+            return
 
-            if not post_links_response:
-                logger.info(f"No unprocessed posts found for {club_username}")
-                return
+        processed = 0
+        failures = []
+        for post_data in post_links_response:
+            post_url = post_data["post_url"]
+            post_id = post_data["id"]
+            if self.db.check_if_post_is_scrapped(post_id):
+                logger.info(f"Post {post_id} already scrapped, skipping")
+                continue
 
-            for post_data in post_links_response:
-                post_url = post_data["post_url"]
-                post_id = post_data["id"]
-
-                print("Processing post:", post_url)
-
-                if self.db.check_if_post_is_scrapped(post_id):
-                    logger.info(f"Post {post_id} already scrapped, skipping...")
-                    continue
-
-                try:
-                    # Scrape post information
-                    description, date, post_pic = self.get_post_info(post_url)
-                    instagram_storage_path = f"posts/{club_username}/{post_id}"
-
-                    uploaded_path = self.db.download_and_upload_img(
-                        post_pic, instagram_storage_path
-                    )
-
-                    # Update post in database
-                    update_data = {
+            try:
+                description, date, post_pic = self.get_post_info(post_url)
+                uploaded_path = self.db.download_and_upload_img(
+                    post_pic, f"posts/{club_username}/{post_id}"
+                )
+                self.db.update_post_by_id(
+                    post_id,
+                    {
                         "caption": description,
                         "posted": date,
                         "image_url": post_pic,
                         "scrapped": True,
                         "image_path": uploaded_path,
-                    }
+                    },
+                )
+                processed += 1
+                logger.info(f"Updated post {post_id} in database")
+            except Exception as exc:
+                failures.append(str(post_id))
+                logger.error(f"Error processing post {post_id}: {exc}")
 
-                    self.db.update_post_by_id(post_id, update_data)
-                    logger.info(f"Updated post {post_id} in database")
-
-                except Exception as e:
-                    logger.error(f"Error processing post {post_id}: {str(e)}")
-                    continue
-
-        except Exception as e:
-            logger.error(f"Error in save_post_info: {str(e)}")
+        if failures:
+            raise RuntimeError(
+                f"Failed to scrape {len(failures)} post(s) for {club_username}: "
+                f"{', '.join(failures)}"
+            )
+        logger.info(f"Mirrored {processed} post image(s) for {club_username}")
 
     def save_club_info(self, club_info: dict):
-        """Save the club information and post links to the database"""
-        try:
-            # Get club categories from manifest
+        """Mirror the profile image before recording its object key in Supabase."""
+        instagram_handle = club_info["Instagram Handle"]
+        club_pfp_url = club_info["Profile Picture"]
+        if not club_pfp_url:
+            raise SelectorNotFoundError("Profile picture URL is missing")
 
-            instagram_handle = club_info["Instagram Handle"]
+        storage_path = self.db.download_and_upload_img(
+            club_pfp_url, f"pfps/{instagram_handle}.jpg"
+        )
+        club_info["profile_image_path"] = storage_path
+        club_id = self.db.upsert_club(club_info)
 
-            logger.info("inserted data")
+        if club_info["Recent Posts"] and club_id:
+            self._store_post_links(club_id, instagram_handle, club_info["Recent Posts"])
 
-            club_pfp_url = club_info["Profile Picture"]
-            pfp_path = f"pfps/{instagram_handle}.jpg"
-            storage_path = self.db.download_and_upload_img(club_pfp_url, pfp_path)
-
-            club_info["profile_image_path"] = storage_path
-
-            club_id = self.db.upsert_club(club_info)
-
-            # Store post links in the database
-            logger.info(club_info)
-            if club_info["Recent Posts"] and club_id:
-                self._store_post_links(
-                    club_id, instagram_handle, club_info["Recent Posts"]
-                )
-
-            logger.info(f"Club info for {instagram_handle} saved to database.")
-            return club_id
-        except Exception as e:
-            logger.error(
-                f"Error saving club info for {club_info[0]['Instagram Handle']}: {str(e)}"
-            )
-            return None
+        logger.info(f"Club info for {instagram_handle} saved to database.")
+        return club_id
 
     def _store_post_links(self, club_id: str, club_username: str, post_links: list):
         """Store post links in the database with minimal information"""
@@ -590,10 +655,7 @@ class InstagramScraper:
                 # Wait specifically for the error span to appear
                 WebDriverWait(self._driver, 10).until(
                     EC.visibility_of_element_located(
-                        (
-                            By.XPATH,
-                            '//span[contains(text(), "Sorry, this page isn\'t available.")]',
-                        )
+                        selectors.INVALID_PROFILE
                     )
                 )
                 return False  # Error span found, handle is invalid
@@ -612,10 +674,7 @@ class InstagramScraper:
             try:
                 link_element = self._wait.until(
                     EC.presence_of_element_located(
-                        (
-                            By.XPATH,
-                            "//a[@rel='me nofollow noopener noreferrer' and @target='_blank']",
-                        )
+                        selectors.PROFILE_EXTERNAL_LINK
                     )
                 )
                 return [
@@ -627,24 +686,10 @@ class InstagramScraper:
             except TimeoutException:
                 pass
 
-            # Look for the trigger div (updated selectors)
-            trigger_selectors = [
-                "div._ap3a._aaco._aacw._aacz._aada._aade",  # Your specific class
-                "//div[contains(text(), 'more')]",
-                "//div[contains(text(), ' and ')]",
-            ]
-
             button_found = False
-            for selector in trigger_selectors:
+            for locator in selectors.PROFILE_LINK_TRIGGERS:
                 try:
-                    if selector.startswith("//"):
-                        button = self._wait.until(
-                            EC.element_to_be_clickable((By.XPATH, selector))
-                        )
-                    else:
-                        button = self._wait.until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
-                        )
+                    button = self._wait.until(EC.element_to_be_clickable(locator))
                     button.click()
                     logger.info("Links trigger clicked successfully.")
                     button_found = True
@@ -659,17 +704,13 @@ class InstagramScraper:
             # Wait for links to appear (they might be in buttons now)
             self._wait.until(
                 EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        "//a[@rel='me nofollow noopener noreferrer' and @target='_blank']",
-                    )
+                    selectors.PROFILE_EXTERNAL_LINK
                 )
             )
 
             # Get all link elements (whether direct or in buttons)
             links = self._driver.find_elements(
-                By.XPATH,
-                "//a[@rel='me nofollow noopener noreferrer' and @target='_blank']",
+                *selectors.PROFILE_EXTERNAL_LINK,
             )
             logger.info("Links found successfully.")
 
@@ -684,7 +725,7 @@ class InstagramScraper:
             # Close modal
             try:
                 close_button = self._driver.find_element(
-                    By.CSS_SELECTOR, 'div[aria-label="Close"]'
+                    *selectors.CLOSE_DIALOG
                 )
                 close_button.click()
                 logger.info("Close button clicked successfully.")
@@ -693,7 +734,7 @@ class InstagramScraper:
                 try:
                     from selenium.webdriver.common.keys import Keys
 
-                    self._driver.find_element(By.TAG_NAME, "body").send_keys(
+                    self._driver.find_element(*selectors.PAGE_BODY).send_keys(
                         Keys.ESCAPE
                     )
                     logger.info("Closed modal with Escape key.")
@@ -715,19 +756,19 @@ class InstagramScraper:
         try:
             self._wait.until(
                 EC.presence_of_all_elements_located(
-                    (By.XPATH, "//a[contains(@href, '/p/')]")
+                    selectors.PROFILE_POST_LINKS
                 )
             )
             button_element = self._wait.until(
                 EC.presence_of_element_located(
-                    (By.XPATH, "//span[contains(@class, 'x1lliihq') and text()='more']")
+                    selectors.PROFILE_MORE_BUTTON
                 )
             )
 
             button_element.click()
             logger.info("Button for more info clicked!")
-        except (NoSuchElementException, TimeoutException):
-            logger.info("More... button not found / timeout error.")
+        except (NoSuchElementException, TimeoutException, WebDriverException) as exc:
+            logger.info(f"More... button unavailable; continuing without it: {exc}")
 
     def _find_club_name_pfp(
         self, profile_soup: BeautifulSoup, club_username: str
@@ -796,7 +837,9 @@ class InstagramScraper:
             if "/p/" in href:
                 post_url = f"https://www.instagram.com{href}"
                 post_links.append(post_url)
-        logger.info("obtained post links...")
+        if not post_links:
+            raise SelectorNotFoundError("PROFILE_POST_LINKS did not match any posts")
+        logger.info(f"obtained {len(post_links)} post links")
         return post_links
 
     def _get_club_post_links(self, club_username: str) -> list:
@@ -819,14 +862,20 @@ class InstagramScraper:
         return clubs_info["Recent Posts"]
 
     def _driver_quit(self):
-        if hasattr(self, "_driver") and self._driver:
-            self._driver.quit()
+        driver = getattr(self, "_driver", None)
+        if driver:
+            try:
+                driver.quit()
+            finally:
+                self._driver = None
 
     def _add_options(self, option: Options):
         """Add options to the Chrome WebDriver."""
         # Add all the common arguments in one go
         args = [
-            f"user-agent={self._set_random_user_agent()}",
+            f"--user-data-dir={self._chrome_profile_dir}",
+            "--window-size=1920,1080",
+            "--screen-info={0,0 1920x1080}",
             "--disable-blink-features=AutomationControlled",
             "--disable-notifications",
             "--disable-popup-blocking",
@@ -835,7 +884,6 @@ class InstagramScraper:
             "--disable-gpu",
             "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--headless",  # Run in headless mode for better speed
             "--disable-software-rasterizer",
             "--disable-background-networking",
             "--disable-background-timer-throttling",
@@ -861,6 +909,11 @@ class InstagramScraper:
             "--disable-cache",
             "--aggressive-cache-discard",
         ]
+        if self._chromium_user_agent:
+            args.append(f"--user-agent={self._chromium_user_agent}")
+        if os.getenv("HEADLESS", "true").lower() not in {"0", "false", "no"}:
+            args.append("--headless=new")
+
         for arg in args:
             option.add_argument(arg)
 
@@ -875,49 +928,18 @@ class InstagramScraper:
         )
         option.add_experimental_option("useAutomationExtension", False)
 
-    def _set_random_user_agent(self):
-        """Randomly selects a User-Agent string from the list."""
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 "
-            "Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0",
-            "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:39.0) Gecko/20100101 Firefox/39.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/89.0.4389.128 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/80.0.3987.122 Safari/537.36",
-            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0",
-        ]
-        return random.choice(user_agents)
-
     def _get_cookies(self):
-        """DEPRECATED; requires fix"""
+        """Dismiss the save-login prompt without writing or logging session secrets.
+
+        To refresh COOKIE_1/COOKIE_2, export the browser's Instagram cookies as a
+        JSON array, base64 encode that JSON, and update the local secret manager.
+        Never write cookie values to a repository file or application logs.
+        """
         try:
-            save_button = self._wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//button[contains(text(),'Save info')]")
-                )
-            )
-            save_button.click()
-
-            cookies = self._driver.get_cookies()
-            logger.info(cookies)
-
-            cookies_json = json.dumps(cookies)
-
-            # Encode to base64
-            encoded_cookies = base64.b64encode(cookies_json.encode()).decode()
-            logger.info(encoded_cookies)
-
-            # Save to .env file
-            current_file = Path(__file__).resolve()
-            env_path = current_file.parents[1] / "backend" / ".env"
-            dotenv.set_key(env_path, "COOKIE", encoded_cookies)
-
-            logger.info("Cookies saved to .env file.")
-
-        except Exception as e:
-            logger.error(f"Error saving cookies: {e}")
+            self._wait.until(EC.element_to_be_clickable(selectors.SAVE_LOGIN_INFO)).click()
+        except TimeoutException:
+            # Instagram does not always display this prompt; no persistence is needed.
+            pass
 
     def _accept_cookies(self):
         """Handles the cookie popup."""
@@ -925,7 +947,7 @@ class InstagramScraper:
             # Wait for the popup and try accepting it using XPath (you can try to use other methods like CSS selectors too)
             accept_button = self._wait.until(
                 EC.element_to_be_clickable(
-                    (By.XPATH, "//button[contains(text(),'Allow all cookies')]")
+                    selectors.ALLOW_COOKIES
                 )
             )
             # Perform a click on the "Accept" button
@@ -934,16 +956,55 @@ class InstagramScraper:
         except Exception as e:
             logger.error(f"Cookies button not found or couldn't be clicked: {e}")
 
-    def _check_login_error(self):
-        """Check if there is an error message after login attempt."""
+    def _assert_authenticated_cookie_session(
+        self, *, profile_held_session: bool = False
+    ) -> None:
+        """Require a logged-in affordance after loading or reusing session cookies."""
+        message = "session cookie expired or rejected"
+        if profile_held_session:
+            message += (
+                f"; remove {self._chrome_profile_dir} to re-seed this account profile"
+            )
+        if self._driver.find_elements(*selectors.LOGIN_USERNAME):
+            raise InstagramLoginError(message)
         try:
-            # Look for the error message in the class "_ab2z" (Instagram's error message class)
-            error_element = self._driver.find_element(By.CLASS_NAME, "_ab2z")
-            if error_element:
-                return error_element.text
-        except Exception:
-            # If no error message is found, return None (indicating no error)
-            return None
+            self._wait.until(
+                lambda driver: bool(
+                    driver.find_elements(*selectors.AUTHENTICATED_AFFORDANCE)
+                )
+            )
+        except TimeoutException as exc:
+            raise InstagramLoginError(message) from exc
+
+    def _check_login_error(self, *, include_login_page: bool = True) -> Optional[str]:
+        """Return a categorized login failure without relying on obfuscated classes."""
+        current_url = self._driver.current_url.lower()
+        if any(path in current_url for path in ("/challenge/", "/checkpoint/", "/confirm/")):
+            return "Instagram checkpoint or challenge required; do not retry this login."
+        if "/accounts/suspended" in current_url:
+            return "Instagram reports this account is suspended; do not retry this login."
+
+        page_text = self._driver.page_source.lower()
+        rate_limit_messages = (
+            "try again later",
+            "please wait a few minutes",
+            "rate limit",
+            "unusual activity",
+        )
+        if any(message in page_text for message in rate_limit_messages):
+            return "Instagram rate-limited this login; do not retry this login."
+        credential_messages = ("incorrect password", "password was incorrect", "invalid username")
+        if any(message in page_text for message in credential_messages):
+            return "Instagram rejected the supplied username or password."
+
+        for error_element in self._driver.find_elements(*selectors.LOGIN_ERROR):
+            message = error_element.text.strip()
+            if message:
+                return f"Instagram login error: {message}"
+
+        if include_login_page and "/accounts/login" in current_url:
+            return "Instagram remained on the login page; credentials or verification may be required."
+        return None
 
 
 def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
@@ -974,8 +1035,8 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
                 f"Rate limit detected during attempt {attempt+1} for {username}: {rate_limit_exc}"
             )
 
-            # Swap cookies
-            scraper.swap_cookies()
+            # Switch to a fresh browser instance for the next account profile.
+            scraper = scraper.swap_cookies()
 
             # On last attempt, restart the driver completely
             if attempt == max_retries - 1:
@@ -984,7 +1045,9 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
                 )
                 scraper._driver_quit()
                 scraper = InstagramScraper(
-                    os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
+                    os.getenv("INSTAGRAM_USERNAME"),
+                    os.getenv("INSTAGRAM_PASSWORD"),
+                    cookie_index=scraper.current_cookie_index,
                 )
                 scraper.login()
                 return scraper
@@ -1001,7 +1064,9 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
                 )
                 scraper._driver_quit()
                 scraper = InstagramScraper(
-                    os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
+                    os.getenv("INSTAGRAM_USERNAME"),
+                    os.getenv("INSTAGRAM_PASSWORD"),
+                    cookie_index=scraper.current_cookie_index,
                 )
                 scraper.login()
                 return scraper
@@ -1029,6 +1094,7 @@ def scrape_sequence(username_list: list[str]) -> None:
     except Exception as e:
         logger.error(f"An error occurred during scrape sequence: {e}")
     finally:
+        logger.info(get_storage().report())
         if scraper:
             logger.info("Quitting scraper driver...")
             scraper._driver_quit()
