@@ -400,7 +400,9 @@ class InstagramScraper:
             if error_message:
                 raise InstagramLoginError(error_message)
             if using_cookies:
-                self._assert_authenticated_cookie_session()
+                self._assert_authenticated_cookie_session(
+                    profile_held_session=profile_has_session
+                )
             else:
                 self._get_cookies()
         except InstagramLoginError:
@@ -936,10 +938,17 @@ class InstagramScraper:
         except Exception as e:
             logger.error(f"Cookies button not found or couldn't be clicked: {e}")
 
-    def _assert_authenticated_cookie_session(self) -> None:
-        """Require a logged-in affordance after loading session cookies."""
+    def _assert_authenticated_cookie_session(
+        self, *, profile_held_session: bool = False
+    ) -> None:
+        """Require a logged-in affordance after loading or reusing session cookies."""
+        message = "session cookie expired or rejected"
+        if profile_held_session:
+            message += (
+                f"; remove {self._chrome_profile_dir} to re-seed this account profile"
+            )
         if self._driver.find_elements(*selectors.LOGIN_USERNAME):
-            raise InstagramLoginError("session cookie expired or rejected")
+            raise InstagramLoginError(message)
         try:
             self._wait.until(
                 lambda driver: bool(
@@ -947,7 +956,7 @@ class InstagramScraper:
                 )
             )
         except TimeoutException as exc:
-            raise InstagramLoginError("session cookie expired or rejected") from exc
+            raise InstagramLoginError(message) from exc
 
     def _check_login_error(self, *, include_login_page: bool = True) -> Optional[str]:
         """Return a categorized login failure without relying on obfuscated classes."""
