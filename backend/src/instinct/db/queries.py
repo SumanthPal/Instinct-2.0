@@ -634,11 +634,11 @@ class SupabaseQueries:
         return response.json()
 
     def insert_pending_club(self, data: dict):
-        supabase.table("clubs_pending").insert(data).execute()
+        supabase.table("pending_clubs").insert(data).execute()
 
     def get_last_submission_by_user(self, user_id: str):
         response = (
-            supabase.table("clubs_pending")
+            supabase.table("pending_clubs")
             .select("*")
             .eq("submitted_by", user_id)
             .order("created_at", desc=True)
