@@ -1,9 +1,9 @@
-// middleware.js (should be at the root of your project)
+// proxy.js (Next 16 renamed middleware to proxy; with src/ it lives in src/)
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
-export async function middleware(req) {
+export async function proxy(req) {
   try {
     let res = NextResponse.next({ request: req })
 
