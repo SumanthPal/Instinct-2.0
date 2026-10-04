@@ -8,7 +8,6 @@ from io import BytesIO
 import httpx
 
 
-
 from instinct.db.supabase_client import (
     supabase,
     get_supabase_url,
@@ -591,7 +590,9 @@ class SupabaseQueries:
         for event in events:
             if event.get("clubs") and event["clubs"].get("profile_image_path"):
                 image_path = event["clubs"]["profile_image_path"]
-                event["clubs"]["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+                event["clubs"]["profile_image_path"] = (
+                    f"{cdn_prefix}/{image_path.lstrip('/')}"
+                )
 
         return events
 
@@ -709,7 +710,9 @@ class SupabaseQueries:
             uploaded_path = get_storage().upload(
                 storage_path, compressed_io, content_type="image/jpeg"
             )
-            logger.info(f"Successfully mirrored image to object storage: {uploaded_path}")
+            logger.info(
+                f"Successfully mirrored image to object storage: {uploaded_path}"
+            )
             return uploaded_path
         except Exception as exc:
             logger.error(f"Failed to mirror image to object storage: {exc}")

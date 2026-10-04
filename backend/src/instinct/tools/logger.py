@@ -9,6 +9,7 @@ import dotenv
 
 from instinct.db.redis_client import get_redis
 
+
 def _default_log_dir() -> str:
     """Where logs go when LOG_DIR is unset.
 
@@ -30,6 +31,7 @@ def _default_log_dir() -> str:
 LOG_DIR = os.getenv("LOG_DIR") or _default_log_dir()
 LOG_FILE_PATH = os.path.join(LOG_DIR, "logfile.log")
 
+
 class RedisLogHandler(logging.Handler):
     """Redis logging handler that pushes logs to a Redis list.
 
@@ -43,11 +45,11 @@ class RedisLogHandler(logging.Handler):
         super().__init__()
         dotenv.load_dotenv()
         # Never print the URL: it can carry credentials.
-        self.redis_url = os.getenv('REDIS_URL')
+        self.redis_url = os.getenv("REDIS_URL")
         self.redis_conn = None
         self.disabled = not self.redis_url
         self.max_entries = max_entries
-        self.log_key = 'logs:entries'
+        self.log_key = "logs:entries"
 
     def _disable(self, reason):
         """Stop trying to reach Redis; report once, not once per record."""
@@ -78,89 +80,99 @@ class RedisLogHandler(logging.Handler):
         try:
             # Format the log message
             log_entry = self.format(record)
-            
+
             # Create a structured log entry
             structured_entry = {
-                'timestamp': datetime.now().isoformat(),
-                'level': record.levelname,
-                'message': record.getMessage(),
-                'logger': record.name,
-                'formatted': log_entry
+                "timestamp": datetime.now().isoformat(),
+                "level": record.levelname,
+                "message": record.getMessage(),
+                "logger": record.name,
+                "formatted": log_entry,
             }
-            
+
             # Add exception info if available
             if record.exc_info:
-                structured_entry['exception'] = self.formatter.formatException(record.exc_info)
+                structured_entry["exception"] = self.formatter.formatException(
+                    record.exc_info
+                )
             # Convert to JSON string
             json_entry = json.dumps(structured_entry)
-            
+
             # Push to Redis list
             conn.lpush(self.log_key, json_entry)
-            
+
             # Trim the list if needed
             conn.ltrim(self.log_key, 0, self.max_entries - 1)
-                
+
         except Exception as e:
             # Do not retry per-record: one dead Redis would otherwise print a
             # traceback for every single log line.
             self._disable(f"failed to push log: {e}")
 
+
 # Configure logging system
 def setup_logging(log_level=logging.INFO):
     """
     Set up the logging system with file, console, and Redis handlers.
-    
+
     Args:
         log_level: Logging level (default: INFO)
-    
+
     Returns:
         The configured logger
     """
     # Define the log file directory
     log_file_dir = LOG_DIR
-    
+
     # Create the log file directory if it doesn't exist
     if not os.path.exists(log_file_dir):
         os.makedirs(log_file_dir)
-    
+
     # Define the log file path
     log_file_path = LOG_FILE_PATH
-    
+
     # Create a TimedRotatingFileHandler to rotate logs daily
     file_handler = TimedRotatingFileHandler(
-        log_file_path, 
-        when="midnight", 
-        interval=1, 
-        backupCount=7  # Keep logs for the last 7 days
+        log_file_path,
+        when="midnight",
+        interval=1,
+        backupCount=7,  # Keep logs for the last 7 days
     )
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+
     # Create a console handler
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+
     # Create a Redis handler
     redis_handler = RedisLogHandler()
-    redis_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    
+    redis_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+
     # Configure the root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    
+
     # Remove any existing handlers
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Add our handlers
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
     root_logger.addHandler(redis_handler)
-    
+
     # Create a named logger
     logger = logging.getLogger(__name__)
-    logger.info('Logging system initialized')
-    
+    logger.info("Logging system initialized")
+
     return logger
+
 
 # Create and export the logger
 logger = setup_logging()
@@ -172,6 +184,6 @@ if __name__ == "__main__":
     logger.warning("This is a warning message")
     logger.error("This is an error message")
     try:
-        1/0
+        1 / 0
     except Exception:
         logger.exception("This is an exception")

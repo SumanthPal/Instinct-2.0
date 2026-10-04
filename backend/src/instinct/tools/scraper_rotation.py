@@ -592,7 +592,9 @@ class ScraperRotation:
                     else (
                         "paused"
                         if self.paused
-                        else "running" if self.running else "stopped"
+                        else "running"
+                        if self.running
+                        else "stopped"
                     )
                 ),
                 "rate_limited_until": self.status["rate_limited_until"],
@@ -1143,7 +1145,9 @@ class ScraperRotation:
         for attempt in range(max_retries):
             try:
                 username = username[1:] if username.startswith("@") else username
-                logger.info(f"Scrape attempt {attempt+1}/{max_retries} for {username}")
+                logger.info(
+                    f"Scrape attempt {attempt + 1}/{max_retries} for {username}"
+                )
 
                 if attempt > 0:
                     # Add delay before retry
@@ -1158,13 +1162,13 @@ class ScraperRotation:
 
             except RateLimitDetected as rate_limit_exc:
                 logger.warning(
-                    f"Rate limit detected during attempt {attempt+1} for {username}: {rate_limit_exc}"
+                    f"Rate limit detected during attempt {attempt + 1} for {username}: {rate_limit_exc}"
                 )
                 # Don't try cookie swapping here - let the session-level handler deal with it
                 return False
 
             except Exception as e:
-                logger.error(f"Attempt {attempt+1} failed for {username}: {str(e)}")
+                logger.error(f"Attempt {attempt + 1} failed for {username}: {str(e)}")
 
                 if attempt == max_retries - 1:
                     logger.error(f"All retry attempts failed for {username}")

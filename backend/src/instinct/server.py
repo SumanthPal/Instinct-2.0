@@ -247,8 +247,6 @@ async def list_pending_clubs(
         )
 
 
-
-
 @router.post("/pending-club/{pending_id}/approve")
 async def approve_pending_club(pending_id: str, request: Request):
     # 1. Validate admin authentication
@@ -257,7 +255,8 @@ async def approve_pending_club(pending_id: str, request: Request):
     # 2. Fetch pending club
     try:
         response = (
-            get_db().supabase.table("pending_clubs")
+            get_db()
+            .supabase.table("pending_clubs")
             .select("*")
             .eq("id", pending_id)
             .single()
@@ -306,7 +305,8 @@ async def approve_pending_club(pending_id: str, request: Request):
 
                 # Look up category ID by name
                 cat_response = (
-                    get_db().supabase.table("categories")
+                    get_db()
+                    .supabase.table("categories")
                     .select("id")
                     .eq("name", category_name)
                     .execute()

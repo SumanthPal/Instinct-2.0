@@ -759,7 +759,7 @@ class RedisScraperQueue:
             bool: True if successful, False otherwise
         """
         log_entry = {
-            "id": f"log_{int(time.time()*1000)}",
+            "id": f"log_{int(time.time() * 1000)}",
             "message": message,
             "level": level,
             "timestamp": time.time(),
@@ -1224,4 +1224,3 @@ class RedisScraperQueue:
 
         except Exception as e:
             logger.error(f"Error checking health alerts: {e}")
-

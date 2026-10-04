@@ -174,9 +174,7 @@ class EventParser:
         This enables semantic similarity matching.
         """
         try:
-            response = self.client.embeddings.create(
-                model=EMBEDDING_MODEL, input=text
-            )
+            response = self.client.embeddings.create(model=EMBEDDING_MODEL, input=text)
             return response.data[0].embedding
         except Exception as e:
             logger.error(f"Error getting embedding: {e}")
@@ -442,7 +440,7 @@ class EventParser:
 
         try:
             return int(value)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             if isinstance(value, str):
                 value_clean = value.strip().lower()
                 if value_clean in word_to_number:

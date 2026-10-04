@@ -4,13 +4,16 @@ from instinct.tools.bot.job_bot import job_bot
 import threading
 import os
 
+
 def run_aux():
-    AUX_BOT_TOKEN = os.getenv('AUX_BOT_TOKEN')
+    AUX_BOT_TOKEN = os.getenv("AUX_BOT_TOKEN")
     aux_bot.run(AUX_BOT_TOKEN)
 
+
 def run_job():
-    JOB_BOT_TOKEN = os.getenv('JOB_BOT_TOKEN')
+    JOB_BOT_TOKEN = os.getenv("JOB_BOT_TOKEN")
     job_bot.run(JOB_BOT_TOKEN)
+
 
 if __name__ == "__main__":
     # Fail loudly, before either thread starts, if the bots are misconfigured:
