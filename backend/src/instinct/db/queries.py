@@ -633,22 +633,6 @@ class SupabaseQueries:
 
         return response.json()
 
-    def insert_pending_club(self, data: dict):
-        supabase.table("pending_clubs").insert(data).execute()
-
-    def get_last_submission_by_user(self, user_id: str):
-        response = (
-            supabase.table("pending_clubs")
-            .select("*")
-            .eq("submitted_by", user_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if response.data:
-            return response.data[0]
-        return None
-
     def download_and_upload_img(self, image_url: str, storage_path: str):
         """Download, compress, and mirror an Instagram image through S3 storage."""
         response = requests.get(image_url, timeout=30)
