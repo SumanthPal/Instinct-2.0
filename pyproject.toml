@@ -62,8 +62,7 @@ packages = ["backend/src/instinct"]
 select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
-# TEMPORARY: duplicate query methods; removed in PR #64, drop this after.
-"backend/src/instinct/db/queries.py" = ["F811", "E722"]
+"backend/src/instinct/db/queries.py" = ["E722"]
 # The later send_notification/send_error add silence mode and win today;
 # deleting the earlier copies is a behavior review, not a lint fix.
 "backend/src/instinct/tools/bot/job_bot.py" = ["F811", "E402", "E722"]
