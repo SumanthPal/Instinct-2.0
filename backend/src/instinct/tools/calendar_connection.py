@@ -1,8 +1,7 @@
-import os
 import uuid
 from datetime import datetime, timedelta
 import pytz
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 from ics import Calendar, Event
 
 from instinct.db.queries import SupabaseQueries
@@ -226,6 +225,6 @@ if __name__ == "__main__":
     result = conn.create_calendar_file("icssc.uci")
 
     if result:
-        print(f"✅ Successfully created calendar for icssc.uci")
+        print("✅ Successfully created calendar for icssc.uci")
     else:
-        print(f"❌ Failed to create calendar for icssc.uci")
+        print("❌ Failed to create calendar for icssc.uci")

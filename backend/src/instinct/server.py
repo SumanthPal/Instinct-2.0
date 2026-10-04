@@ -12,7 +12,6 @@ from fastapi.responses import JSONResponse, Response
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-import os
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -173,7 +172,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
 
     # 4. Insert into pending_clubs table
     try:
-        result = (
+        (
             supabase.table("pending_clubs")
             .insert(
                 {
@@ -204,7 +203,7 @@ async def reject_pending_club(pending_id: str, request: Request):
 
     try:
         # Set approved = false
-        result = (
+        (
             supabase.table("pending_clubs")
             .update({"approved": False})
             .eq("id", pending_id)
@@ -248,7 +247,6 @@ async def list_pending_clubs(
         )
 
 
-from datetime import datetime  # Make sure you have this imported!
 
 
 @router.post("/pending-club/{pending_id}/approve")

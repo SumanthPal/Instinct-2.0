@@ -5,7 +5,6 @@ import sys
 from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-import redis
 import dotenv
 
 from instinct.db.redis_client import get_redis
@@ -174,5 +173,5 @@ if __name__ == "__main__":
     logger.error("This is an error message")
     try:
         1/0
-    except Exception as e:
+    except Exception:
         logger.exception("This is an exception")

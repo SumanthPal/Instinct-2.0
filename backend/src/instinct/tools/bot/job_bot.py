@@ -1,15 +1,12 @@
 import os
 import discord
-import redis
 import json
 import time
 import datetime
-import traceback
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from discord import ButtonStyle
 from discord.ui import Button, View
-from typing import Dict, List, Optional
+from typing import Dict, List
 import asyncio
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend BEFORE importing pyplot
@@ -18,7 +15,6 @@ import matplotlib.pyplot as plt
 
 import io
 from collections import deque
-import numpy as np
 
 # Import custom modules
 from instinct.tools.logger import logger, LOG_FILE_PATH
@@ -27,7 +23,6 @@ from instinct.db.redis_client import get_redis
 from instinct.tools.redis_queue import RedisScraperQueue, QueueType
 from instinct.utils.env import (
     env_int,
-    redis_url as get_redis_url,
     require_env,
     require_env_int,
 )
@@ -517,7 +512,7 @@ def is_admin():
 # Bot events
 @job_bot.event
 async def on_ready():
-    logger.info(f"omg im back")
+    logger.info("omg im back")
     activity = discord.Game(name="fixing the system ⚙️ | instinct.club")
     await job_bot.change_presence(status=discord.Status.online, activity=activity)
     
@@ -2338,12 +2333,9 @@ async def quick_health_cmd(ctx):
     except Exception as e:
         logger.error(f"Error in quickhealth command: {e}")
         await ctx.send(f"💔 couldn't get quick health info: `{e}`")
-import asyncio
-import datetime
 import discord
 from discord.ext import tasks
-import json
-from typing import Dict, List, Optional, Set
+from typing import Set
 
 # Import the RedisScraperQueue class from your existing code
 # Assuming the redis_queue.py file is in the same directory or in your import path

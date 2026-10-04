@@ -1,17 +1,13 @@
 import os
 from PIL import Image
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional
 import uuid
-from pathlib import Path
 import requests
 from io import BytesIO
 import httpx
 
 
-from pathlib import Path
-import os
-from dotenv import load_dotenv
 
 from instinct.db.supabase_client import (
     supabase,

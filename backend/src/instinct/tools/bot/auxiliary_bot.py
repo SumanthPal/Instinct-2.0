@@ -1,16 +1,13 @@
 import os
 import discord
-import redis
 import json
 import time
 import datetime
 import requests
-import traceback
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from discord import ButtonStyle
-from discord.ui import Button, View, Select
-from typing import Dict, List, Optional
+from discord.ui import Button, View
+from typing import List
 
 # Import custom modules
 from instinct.tools.logger import logger
@@ -18,7 +15,6 @@ from instinct.db.queries import SupabaseQueries
 from instinct.db.redis_client import get_redis
 from instinct.utils.env import (
     env_int,
-    redis_url as get_redis_url,
     require_env,
     require_env_int,
 )
@@ -318,7 +314,7 @@ class AutomationToggleView(View):
     async def enable_automation(self, interaction: discord.Interaction, button: Button):
         automation_state["enabled"] = True
         await interaction.response.edit_message(
-            content=f"yaaaay automation is back ON 🔥💖 let's get this breaddd\n" +
+            content="yaaaay automation is back ON 🔥💖 let's get this breaddd\n" +
                 f"- Queue: every {automation_state['populate_interval_hours']} hours\n" +
                 f"- Pending check: {automation_state['check_pending_interval_minutes']} mins\n" +
                 f"- Stalled check: {automation_state['requeue_stalled_interval_minutes']} mins",
@@ -1019,7 +1015,7 @@ async def club_insights_cmd(ctx, instagram_handle: str):
         # Create embed
         embed = discord.Embed(
             title=f"✨ Club Insights: @{instagram_handle}",
-            description=f"Here's everything I know about this club!",
+            description="Here's everything I know about this club!",
             color=0xE1306C,  # Instagram pink color
             timestamp=datetime.datetime.now()
         )
@@ -1327,10 +1323,6 @@ async def debug_cmd(ctx):
 # Run the bot
 import discord
 from discord.ext import commands
-from discord import app_commands
-import json
-import datetime
-from typing import Optional, List
 import re
 
 # Add these Modal classes for forms
@@ -2167,7 +2159,7 @@ async def list_categories_cmd(ctx):
         categories_per_field = 8
         for i in range(0, len(category_info), categories_per_field):
             field_categories = category_info[i:i+categories_per_field]
-            field_name = "📂 Categories" if i == 0 else f"📂 Categories (cont.)"
+            field_name = "📂 Categories" if i == 0 else "📂 Categories (cont.)"
             
             embed.add_field(
                 name=field_name,

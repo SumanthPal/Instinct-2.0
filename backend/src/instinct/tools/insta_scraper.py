@@ -452,7 +452,7 @@ class InstagramScraper:
             self.save_club_info(club_info)
             self.save_post_info(club_username)
             return True
-        except AttributeError as e:
+        except AttributeError:
             logger.error(f"Enter a valid username {club_username}")
             return False
 

@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 # credentials; it connects on first use, not at import.
 from instinct.db.supabase_client import supabase
 from instinct.tools.ai_validation import EMBEDDING_MODEL
-from instinct.utils.env import require_env
 
 # Load environment variables
 load_dotenv()
@@ -149,7 +148,7 @@ def update_club_embeddings(batch_size=50):
         
         # Avoid rate limits
         if i + batch_size < total_clubs:
-            print(f"Sleeping for 2 seconds to avoid rate limits...")
+            print("Sleeping for 2 seconds to avoid rate limits...")
             time.sleep(2)
     
     print(f"Embedding update complete. Updated: {updated_count}, Errors: {error_count}")

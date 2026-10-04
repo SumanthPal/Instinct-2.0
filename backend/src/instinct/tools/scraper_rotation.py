@@ -5,9 +5,8 @@ import datetime
 import random
 import dotenv
 import threading
-import signal
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict
 import schedule
 import json
 
@@ -1098,7 +1097,7 @@ class ScraperRotation:
                 )
 
                 if cookie_attempt < max_cookie_attempts - 1:
-                    logger.info(f"Will try next cookie account...")
+                    logger.info("Will try next cookie account...")
                     # Add delay before trying next cookie
                     delay = random.uniform(30, 60) * (
                         cookie_attempt + 1
