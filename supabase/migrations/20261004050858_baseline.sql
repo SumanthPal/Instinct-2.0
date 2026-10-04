@@ -1,20 +1,15 @@
--- Baseline of the live public schema (Postgres 15.8), dumped 2026-10-03 with
+-- Baseline of the live public schema (Postgres 15.8), re-dumped 2026-10-03
+-- after the RLS hotfix (#73) with
 --   pg_dump --schema-only (pg_dump 17.11)
 -- then filtered to the public schema plus CREATE EXTENSION statements.
 -- Owners, GRANT/REVOKE and default privileges were stripped; the auth, storage,
 -- realtime, vault and other Supabase-managed schemas are not included.
---
--- Edited by hand afterwards to match SQL run on the live project the same day:
--- row level security enabled on the seven remaining public tables, and the
--- clubs policy "Only UCI emails allowed" replaced by "Public read". Re-dump to
--- confirm. A TRUNCATE revoke for anon/authenticated was also run; grants are
--- not part of this file.
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict SRZlOlViZhwqG3xdhxyA1Nrq5WXEhLyVmuVe6I2KzUvAszHg09OUj6ceMgUpv6n
+\restrict wrx9XKkAVUKYb20TqOwRw78FbfI9RhUAfeEczzw0pJ5YaBNM2suhcfNQ5uZxvip
 
 -- Dumped from database version 15.8
 -- Dumped by pg_dump version 17.11 (Debian 17.11-1.pgdg13+2)
@@ -813,7 +808,7 @@ ALTER TABLE ONLY public.user_liked_clubs
 -- Name: clubs Public read; Type: POLICY; Schema: public; Owner: postgres
 --
 
-CREATE POLICY "Public read" ON public.clubs FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Public read" ON public.clubs FOR SELECT TO authenticated, anon USING (true);
 
 
 --
@@ -843,13 +838,11 @@ CREATE POLICY "Users can view their own likes" ON public.user_liked_clubs FOR SE
 
 ALTER TABLE public.calendar_files ENABLE ROW LEVEL SECURITY;
 
-
 --
 -- Name: categories; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-
 
 --
 -- Name: clubs; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -857,13 +850,11 @@ ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.clubs ENABLE ROW LEVEL SECURITY;
 
-
 --
 -- Name: clubs_categories; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.clubs_categories ENABLE ROW LEVEL SECURITY;
-
 
 --
 -- Name: events; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -871,20 +862,17 @@ ALTER TABLE public.clubs_categories ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
-
 --
 -- Name: pending_clubs; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.pending_clubs ENABLE ROW LEVEL SECURITY;
 
-
 --
 -- Name: posts; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
-
 
 --
 -- Name: user_liked_clubs; Type: ROW SECURITY; Schema: public; Owner: postgres
