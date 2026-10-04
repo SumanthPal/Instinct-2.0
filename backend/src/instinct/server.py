@@ -20,7 +20,7 @@ from instinct.tools.logger import logger
 
 def cdn_base_url() -> str:
     """CDN prefix for stored images, read per request rather than at import."""
-    return os.getenv("GCP_URL", "")
+    return os.getenv("S3_PUBLIC_URL", "")
 
 
 app = FastAPI(
@@ -698,7 +698,7 @@ async def hybrid_search(
 
         # Manually paginate results
         total_matches = len(matches)
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = cdn_base_url()
         start = (page - 1) * limit
         end = start + limit
         paginated_matches = matches[start:end]
