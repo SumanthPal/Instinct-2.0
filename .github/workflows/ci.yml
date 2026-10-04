@@ -17,6 +17,7 @@ jobs:
       - run: uv sync --frozen --all-extras --group dev
       - run: uv run ruff check
       - run: uv run ruff format --check
+      - run: uv run pytest
 
   frontend:
     runs-on: ubuntu-latest
