@@ -20,7 +20,9 @@ class ObjectStorage:
     def bucket(self) -> str:
         bucket = os.getenv("S3_BUCKET")
         if not bucket:
-            raise RuntimeError("Object storage is not configured: S3_BUCKET is missing.")
+            raise RuntimeError(
+                "Object storage is not configured: S3_BUCKET is missing."
+            )
         return bucket
 
     @property
@@ -76,7 +78,9 @@ class ObjectStorage:
 
     def report(self) -> str:
         """Return upload hit/miss counts for the current scraper session."""
-        return f"image mirrors: uploaded={self.uploaded_count}, failed={self.failed_count}"
+        return (
+            f"image mirrors: uploaded={self.uploaded_count}, failed={self.failed_count}"
+        )
 
 
 _storage: Optional[ObjectStorage] = None

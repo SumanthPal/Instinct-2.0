@@ -1,17 +1,12 @@
 import os
 from PIL import Image
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional
 import uuid
-from pathlib import Path
 import requests
 from io import BytesIO
 import httpx
 
-
-from pathlib import Path
-import os
-from dotenv import load_dotenv
 
 from instinct.db.supabase_client import (
     supabase,
@@ -595,7 +590,9 @@ class SupabaseQueries:
         for event in events:
             if event.get("clubs") and event["clubs"].get("profile_image_path"):
                 image_path = event["clubs"]["profile_image_path"]
-                event["clubs"]["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+                event["clubs"]["profile_image_path"] = (
+                    f"{cdn_prefix}/{image_path.lstrip('/')}"
+                )
 
         return events
 
@@ -713,7 +710,9 @@ class SupabaseQueries:
             uploaded_path = get_storage().upload(
                 storage_path, compressed_io, content_type="image/jpeg"
             )
-            logger.info(f"Successfully mirrored image to object storage: {uploaded_path}")
+            logger.info(
+                f"Successfully mirrored image to object storage: {uploaded_path}"
+            )
             return uploaded_path
         except Exception as exc:
             logger.error(f"Failed to mirror image to object storage: {exc}")

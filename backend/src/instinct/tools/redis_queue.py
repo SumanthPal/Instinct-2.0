@@ -1,11 +1,10 @@
-import redis
 import json
 import time
 import os
 import datetime
 import dotenv
 from enum import Enum
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional
 
 from instinct.tools.logger import logger
 from instinct.db.redis_client import get_redis
@@ -21,7 +20,6 @@ dotenv.load_dotenv()
 
 import psutil
 import platform
-import datetime
 
 # Add these imports at the top of your redis_queue.py file
 
@@ -761,7 +759,7 @@ class RedisScraperQueue:
             bool: True if successful, False otherwise
         """
         log_entry = {
-            "id": f"log_{int(time.time()*1000)}",
+            "id": f"log_{int(time.time() * 1000)}",
             "message": message,
             "level": level,
             "timestamp": time.time(),
@@ -1226,4 +1224,3 @@ class RedisScraperQueue:
 
         except Exception as e:
             logger.error(f"Error checking health alerts: {e}")
-

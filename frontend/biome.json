@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true, "root": ".." },
+  "files": { "includes": ["**", "!public"] },
+  "formatter": { "enabled": false },
+  "css": { "parser": { "tailwindDirectives": true } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "noLabelWithoutControl": "warn",
+        "noStaticElementInteractions": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useAnchorContent": "warn",
+        "useButtonType": "warn",
+        "useIframeTitle": "warn",
+        "useKeyWithClickEvents": "warn"
+      },
+      "correctness": { "useExhaustiveDependencies": "warn" },
+      "suspicious": { "noArrayIndexKey": "warn" }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/app/auth/callback/route.js", "src/app/middleware.js", "src/proxy.js"],
+      "linter": { "rules": { "suspicious": { "useIterableCallbackReturn": "off" } } }
+    },
+    {
+      "includes": ["src/app/error.js"],
+      "linter": { "rules": { "suspicious": { "noShadowRestrictedNames": "off" } } }
+    },
+    {
+      "includes": ["src/components/RssFeed.js", "src/lib/rss-viewer-ssr.js"],
+      "linter": { "rules": { "security": { "noDangerouslySetInnerHtml": "off" } } }
+    },
+    {
+      "includes": ["styles/globals.css"],
+      "linter": { "rules": { "correctness": { "noUnknownTypeSelector": "off" } } }
+    }
+  ]
+}

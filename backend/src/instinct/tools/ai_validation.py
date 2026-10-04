@@ -1,4 +1,3 @@
-import ast
 import os
 import dotenv
 from openai import OpenAI
@@ -84,7 +83,7 @@ class EventParser:
         self.name_similarity_threshold = 0.6  # Lower than original 0.7
         self.time_window_hours = 24  # Hours to consider for time proximity
 
-    def parse_post(self, post_id: "uuid") -> List[Dict]:
+    def parse_post(self, post_id: "uuid") -> List[Dict]:  # noqa: F821
         """
         Parses a post to extract event data using OpenAI's GPT-4 API.
 
@@ -175,9 +174,7 @@ class EventParser:
         This enables semantic similarity matching.
         """
         try:
-            response = self.client.embeddings.create(
-                model=EMBEDDING_MODEL, input=text
-            )
+            response = self.client.embeddings.create(model=EMBEDDING_MODEL, input=text)
             return response.data[0].embedding
         except Exception as e:
             logger.error(f"Error getting embedding: {e}")
@@ -418,7 +415,7 @@ class EventParser:
                 }
 
                 # Insert the event
-                new_event = self.db.insert_event(event_data)
+                self.db.insert_event(event_data)
 
                 # Update the post as parsed
                 self.db.update_post_by_id(post_id, {"parsed": True})
@@ -443,7 +440,7 @@ class EventParser:
 
         try:
             return int(value)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             if isinstance(value, str):
                 value_clean = value.strip().lower()
                 if value_clean in word_to_number:
