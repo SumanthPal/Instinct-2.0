@@ -12,18 +12,12 @@
     "add-button": "bunx shadcn@latest add button"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.4.0",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@headlessui/react": "^2.2.0",
-    "@radix-ui/react-slot": "^1.1.1",
     "@serwist/next": "^9.5.12",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.49.4",
     "@vercel/analytics": "^1.4.1",
     "@vercel/speed-insights": "^1.2.0",
     "axios": "^1.7.9",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.18.1",
