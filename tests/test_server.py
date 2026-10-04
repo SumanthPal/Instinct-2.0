@@ -46,9 +46,6 @@ def test_get_club_not_found(client, monkeypatch):
     assert client.get("/club/nope").status_code == 404
 
 
-@pytest.mark.xfail(
-    strict=False, reason="server.py still reads GCP_URL; fixed by PR #64"
-)
 def test_get_club_image_url_uses_s3_public_url(client, monkeypatch):
     monkeypatch.delenv("GCP_URL", raising=False)
     monkeypatch.setenv("S3_PUBLIC_URL", "https://cdn.example")
