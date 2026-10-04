@@ -10,6 +10,13 @@
 #                                          # scraper normally runs on a local
 #                                          # machine, not in this stack
 #   docker compose --profile discord up    # requires AUX_BOT_TOKEN/JOB_BOT_TOKEN
+#
+# Architecture (#56): every image builds for both linux/amd64 and linux/arm64
+# (arm64 = Oracle Ampere A1 or Apple Silicon). Build on the host that runs
+# the stack, `docker compose build && docker compose up`, and you get that
+# host's arch. No `platform:` key on purpose: pinning one would force slow
+# QEMU emulation on the other arch. An image built on an amd64 machine and
+# copied to an arm64 host fails with `exec format error`.
 
 services:
   redis:
