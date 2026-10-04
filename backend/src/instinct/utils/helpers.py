@@ -1,9 +1,8 @@
 import os
-from datetime import datetime
 
-from dateutil.relativedelta import relativedelta
 
 from instinct.tools.logger import logger
+
 
 def file_cleanup():
     """
@@ -22,7 +21,9 @@ def file_cleanup():
         # If there are more than 10 files, remove the oldest ones
         if len(files) > 10:
             extra_files = len(files) - 10
-            logger.info(f"Directory {root} has {len(files)} files, cleaning up {extra_files}...")
+            logger.info(
+                f"Directory {root} has {len(files)} files, cleaning up {extra_files}..."
+            )
             for file in files[:extra_files]:  # Remove the oldest files
                 file_path = os.path.join(root, file)
                 try:

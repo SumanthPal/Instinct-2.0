@@ -55,3 +55,24 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["backend/src/instinct"]
+
+[tool.ruff.lint]
+# Ruff 0.16 enables several hundred rules by default; pin the classic
+# minimal set so the baseline passes and rules can be added deliberately.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# TEMPORARY: duplicate query methods; removed in PR #64, drop this after.
+"backend/src/instinct/db/queries.py" = ["F811", "E722"]
+# The later send_notification/send_error add silence mode and win today;
+# deleting the earlier copies is a behavior review, not a lint fix.
+"backend/src/instinct/tools/bot/job_bot.py" = ["F811", "E402", "E722"]
+# Imports intentionally follow dotenv.load_dotenv() so env is loaded first.
+"backend/src/instinct/server.py" = ["E402"]
+"backend/src/instinct/tools/redis_queue.py" = ["E402"]
+# Bare excepts also swallow KeyboardInterrupt/SystemExit; narrowing them
+# changes behavior and needs a per-site review.
+"backend/src/instinct/tools/ai_validation.py" = ["E722"]
+"backend/src/instinct/tools/insta_scraper.py" = ["E722"]
+# Second import block mid-file (files were concatenated); see job_bot too.
+"backend/src/instinct/tools/bot/auxiliary_bot.py" = ["E402", "E722"]

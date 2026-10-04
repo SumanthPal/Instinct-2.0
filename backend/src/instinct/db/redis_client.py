@@ -7,7 +7,6 @@ so every connection pool must limit max_connections (default: 5) and enable
 socket keepalive.
 """
 
-import os
 from typing import Any
 import redis
 from instinct.utils.env import redis_url as get_default_redis_url

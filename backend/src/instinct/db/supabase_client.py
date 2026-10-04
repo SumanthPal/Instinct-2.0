@@ -69,9 +69,7 @@ def get_supabase() -> Client:
         url = get_supabase_url()
         key = get_supabase_secret_key()
         missing = [
-            name
-            for name, value in ((URL_ENV, url), (SECRET_KEY_ENV, key))
-            if not value
+            name for name, value in ((URL_ENV, url), (SECRET_KEY_ENV, key)) if not value
         ]
         if missing:
             raise RuntimeError(

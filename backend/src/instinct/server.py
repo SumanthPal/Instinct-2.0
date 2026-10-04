@@ -12,7 +12,6 @@ from fastapi.responses import JSONResponse, Response
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-import os
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -21,7 +20,7 @@ from instinct.tools.logger import logger
 
 def cdn_base_url() -> str:
     """CDN prefix for stored images, read per request rather than at import."""
-    return os.getenv("GCP_URL", "")
+    return os.getenv("S3_PUBLIC_URL", "")
 
 
 app = FastAPI(
@@ -173,7 +172,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
 
     # 4. Insert into pending_clubs table
     try:
-        result = (
+        (
             supabase.table("pending_clubs")
             .insert(
                 {
@@ -204,7 +203,7 @@ async def reject_pending_club(pending_id: str, request: Request):
 
     try:
         # Set approved = false
-        result = (
+        (
             supabase.table("pending_clubs")
             .update({"approved": False})
             .eq("id", pending_id)
@@ -248,9 +247,6 @@ async def list_pending_clubs(
         )
 
 
-from datetime import datetime  # Make sure you have this imported!
-
-
 @router.post("/pending-club/{pending_id}/approve")
 async def approve_pending_club(pending_id: str, request: Request):
     # 1. Validate admin authentication
@@ -259,7 +255,8 @@ async def approve_pending_club(pending_id: str, request: Request):
     # 2. Fetch pending club
     try:
         response = (
-            get_db().supabase.table("pending_clubs")
+            get_db()
+            .supabase.table("pending_clubs")
             .select("*")
             .eq("id", pending_id)
             .single()
@@ -308,7 +305,8 @@ async def approve_pending_club(pending_id: str, request: Request):
 
                 # Look up category ID by name
                 cat_response = (
-                    get_db().supabase.table("categories")
+                    get_db()
+                    .supabase.table("categories")
                     .select("id")
                     .eq("name", category_name)
                     .execute()
@@ -700,7 +698,7 @@ async def hybrid_search(
 
         # Manually paginate results
         total_matches = len(matches)
-        cdn_prefix = os.getenv("GCP_URL", "")
+        cdn_prefix = cdn_base_url()
         start = (page - 1) * limit
         end = start + limit
         paginated_matches = matches[start:end]

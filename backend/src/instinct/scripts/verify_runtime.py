@@ -86,7 +86,9 @@ def _redis_decode():
     conn = redis.from_url("redis://localhost:6379")
     decode_responses = conn.get_encoder().decode_responses
     assert decode_responses is False, decode_responses
-    return f"redis {redis.__version__}, decode_responses=False (call sites expect bytes)"
+    return (
+        f"redis {redis.__version__}, decode_responses=False (call sites expect bytes)"
+    )
 
 
 @check("redis: connection pool bounded (max_connections=5)")
@@ -180,7 +182,10 @@ def _openai_surface():
     return f"openai {openai.__version__}, all three entry points present"
 
 
-@check("openai: embedding dimensions match the stored index", skip_reason_env="OPENAI_API_KEY")
+@check(
+    "openai: embedding dimensions match the stored index",
+    skip_reason_env="OPENAI_API_KEY",
+)
 def _openai_embed():
     from instinct.tools.ai_validation import EMBEDDING_MODEL, get_embedding
 

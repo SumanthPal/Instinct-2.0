@@ -1,17 +1,12 @@
 import os
 from PIL import Image
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional
 import uuid
-from pathlib import Path
 import requests
 from io import BytesIO
 import httpx
 
-
-from pathlib import Path
-import os
-from dotenv import load_dotenv
 
 from instinct.db.supabase_client import (
     supabase,
@@ -82,21 +77,6 @@ class SupabaseQueries:
         if response.data and len(response.data) > 0:
             return response.data[0]
         return None
-
-    def get_all_clubs(self) -> List[Dict]:
-        """Fetch all clubs with their categories and prepend CDN URL to profile images"""
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
-        response = self.supabase.table("clubs").select("*, categories(name)").execute()
-
-        clubs = response.data if response.data else []
-
-        for club in clubs:
-            image_path = club.get("profile_image_path")
-            if image_path:
-                # Construct full image URL: <CDN_URL>/images/<profile_image_path>
-                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
-
-        return clubs
 
     def upsert_club(self, club_info: Dict) -> str:
         """Create or update a club and assign categories"""
@@ -365,14 +345,6 @@ class SupabaseQueries:
 
         return response.data or []
 
-    def update_post_by_id(self, post_id: int, update_data: dict):
-        """Update a post by its ID with the given update data."""
-        response = (
-            self.supabase.from_("posts").update(update_data).eq("id", post_id).execute()
-        )
-
-        return response.data
-
     def check_if_post_is_parsed(self, post_id: uuid) -> bool:
         response = (
             self.supabase.table("posts")
@@ -595,7 +567,9 @@ class SupabaseQueries:
         for event in events:
             if event.get("clubs") and event["clubs"].get("profile_image_path"):
                 image_path = event["clubs"]["profile_image_path"]
-                event["clubs"]["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+                event["clubs"]["profile_image_path"] = (
+                    f"{cdn_prefix}/{image_path.lstrip('/')}"
+                )
 
         return events
 
@@ -656,40 +630,6 @@ class SupabaseQueries:
 
         return response.json()
 
-    def insert_pending_club(self, data: dict):
-        supabase.table("clubs_pending").insert(data).execute()
-
-    def get_last_submission_by_user(self, user_id: str):
-        response = (
-            supabase.table("clubs_pending")
-            .select("*")
-            .eq("submitted_by", user_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if response.data:
-            return response.data[0]
-        return None
-
-    def get_posts_by_club_id(
-        self, club_id: str, limit: int = 10, offset: int = 0
-    ) -> List[Dict]:
-        try:
-            response = (
-                supabase.table("posts")
-                .select("*")
-                .eq("club_id", club_id)
-                .order("posted", desc=True)
-                .range(offset, offset + limit - 1)
-                .execute()
-            )
-
-            return response.data or []  # Return empty list if None
-        except Exception as e:
-            print(f"Error in get_posts_by_club_id: {e}")
-            return []
-
     def download_and_upload_img(self, image_url: str, storage_path: str):
         """Download, compress, and mirror an Instagram image through S3 storage."""
         response = requests.get(image_url, timeout=30)
@@ -713,7 +653,9 @@ class SupabaseQueries:
             uploaded_path = get_storage().upload(
                 storage_path, compressed_io, content_type="image/jpeg"
             )
-            logger.info(f"Successfully mirrored image to object storage: {uploaded_path}")
+            logger.info(
+                f"Successfully mirrored image to object storage: {uploaded_path}"
+            )
             return uploaded_path
         except Exception as exc:
             logger.error(f"Failed to mirror image to object storage: {exc}")
@@ -977,7 +919,6 @@ class SupabaseQueries:
             logger.error(f"Error in get_posts_by_club_id: {e}")
             return []
 
-    # Override the original get_all_clubs to use caching
     def get_all_clubs(self) -> List[Dict]:
         """Cached version of get_all_clubs - use only when necessary"""
 
