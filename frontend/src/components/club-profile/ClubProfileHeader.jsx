@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { FaInstagram, FaStar, FaRegStar } from "react-icons/fa";
+import { FaInstagram, FaStar, FaRegStar, FaUserCircle } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import {
   extractQuotedContent,
@@ -29,8 +29,12 @@ function Avatar({ clubData, sizeClass }) {
               onError={() => setFailed(true)}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-muted-foreground">
-              {clubData?.name?.charAt(0) || "?"}
+            <div className="flex h-full w-full items-center justify-center bg-muted">
+              <FaUserCircle
+                className="h-full w-full text-muted-foreground"
+                aria-hidden="true"
+              />
+              <span className="sr-only">{clubData?.name || "Club avatar"}</span>
             </div>
           )}
         </div>
@@ -116,7 +120,6 @@ export default function ClubProfileHeader({
   isLiked,
   isLikeLoading,
   onFavoriteToggle,
-  activityLabel,
 }) {
   const handle = clubData?.instagram_handle;
   const cats = categoryNames(clubData?.categories);
@@ -156,9 +159,6 @@ export default function ClubProfileHeader({
           <p className="mt-1 font-mono text-sm text-muted-foreground">
             @{handle}
           </p>
-          {activityLabel && (
-            <p className="mt-2 text-xs text-muted-foreground">{activityLabel}</p>
-          )}
           <Stats
             postCount={postCount}
             followers={clubData?.followers}
@@ -183,9 +183,6 @@ export default function ClubProfileHeader({
           {clubData?.name}
         </h1>
         <p className="font-mono text-xs text-muted-foreground">@{handle}</p>
-        {activityLabel && (
-          <p className="mt-1 text-xs text-muted-foreground">{activityLabel}</p>
-        )}
         {bio && (
           <p className="mt-2 text-sm leading-relaxed text-foreground">{bio}</p>
         )}

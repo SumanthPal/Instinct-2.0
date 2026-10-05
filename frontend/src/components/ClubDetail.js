@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FaArrowLeft } from "react-icons/fa";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
+import { categoryNames } from "@/components/club-profile/clubDetailUtils";
 import { useAuth } from "@/context/auth-context";
 import { likesService } from "@/lib/like-service";
 import { useToast } from "@/components/ui/toast";
@@ -13,7 +14,6 @@ import ClubPostGrid from "@/components/club-profile/ClubPostGrid";
 import ClubEventsPanel from "@/components/club-profile/ClubEventsPanel";
 import ClubSimilarClubs from "@/components/club-profile/ClubSimilarClubs";
 import ClubImageModal from "@/components/club-profile/ClubImageModal";
-import { calculateActivityScore } from "@/components/club-profile/clubDetailUtils";
 
 function normalizeList(input) {
   if (input?.results && Array.isArray(input.results)) return input.results;
@@ -40,11 +40,10 @@ export default function ClubDetail({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [selectedImageData, setSelectedImageData] = useState(null);
-
-  const activityInfo = useMemo(
-    () => calculateActivityScore(clubPosts, clubData?.followers || 0),
-    [clubPosts, clubData?.followers],
+  const [extraCategories, setExtraCategories] = useState(() =>
+    categoryNames(clubData?.categories),
   );
+
 
   useEffect(() => {
     const check = async () => {
@@ -66,6 +65,34 @@ export default function ClubDetail({
     document.addEventListener("keydown", onEsc);
     return () => document.removeEventListener("keydown", onEsc);
   }, [isModalOpen]);
+
+
+  // Single-club API omits categories; enrich from smart-search when missing.
+  useEffect(() => {
+    if (categoryNames(clubData?.categories).length) {
+      setExtraCategories(categoryNames(clubData.categories));
+      return;
+    }
+    const handle = clubData?.instagram_handle;
+    if (!handle) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await fetchSmartSearch(handle, 1, 5);
+        const match =
+          (results.results || []).find(
+            (c) => c.instagram_handle === handle,
+          ) || (results.results || [])[0];
+        const cats = categoryNames(match?.categories);
+        if (!cancelled && cats.length) setExtraCategories(cats);
+      } catch (e) {
+        console.error("Error enriching categories:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [clubData]);
 
   useEffect(() => {
     const fetchSimilar = async () => {
@@ -166,12 +193,11 @@ export default function ClubDetail({
       </div>
 
       <ClubProfileHeader
-        clubData={clubData}
+        clubData={{ ...clubData, categories: extraCategories }}
         postCount={clubPosts.length}
         isLiked={isLiked}
         isLikeLoading={isLikeLoading}
         onFavoriteToggle={handleFavoriteToggle}
-        activityLabel={activityInfo.label}
       />
 
       <ClubProfileTabs tab={tab} onTabChange={setTab} />
