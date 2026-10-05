@@ -24,7 +24,7 @@
   },
   "overrides": [
     {
-      "includes": ["src/app/auth/callback/route.js", "src/app/middleware.js"],
+      "includes": ["src/app/auth/callback/route.js", "src/proxy.js"],
       "linter": { "rules": { "suspicious": { "useIterableCallbackReturn": "off" } } }
     },
     {
