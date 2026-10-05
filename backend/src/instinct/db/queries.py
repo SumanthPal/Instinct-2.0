@@ -665,32 +665,23 @@ class SupabaseQueries:
         self, offset: int, limit: int, category: Optional[str] = None
     ) -> Dict:
         """Fetch clubs with database-level pagination and optional category filtering"""
+        if category:
+            # Filter in Python so the total and each club's full category list
+            # are right; there is no category RPC.
+            return self._get_clubs_paginated_fallback(offset, limit, category)
+
         cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         try:
-            # Build the query with only essential fields to reduce data transfer
-            if category:
-                # For category filtering, we need to use a different approach
-                # since direct filtering on joined tables can be complex
-                query = self.supabase.rpc(
-                    "get_clubs_by_category_paginated",
-                    {
-                        "category_name": category,
-                        "page_offset": offset,
-                        "page_limit": limit,
-                    },
+            query = (
+                self.supabase.table("clubs")
+                .select(
+                    "id, name, instagram_handle, profile_image_path, description, followers, categories(name)",
+                    count="exact",
                 )
-            else:
-                # Simple pagination without category filter
-                query = (
-                    self.supabase.table("clubs")
-                    .select(
-                        "id, name, instagram_handle, profile_image_path, description, followers, categories(name)",
-                        count="exact",
-                    )
-                    .range(offset, offset + limit - 1)
-                    .order("name")
-                )
+                .range(offset, offset + limit - 1)
+                .order("name")
+            )
 
             response = query.execute()
 
@@ -709,8 +700,7 @@ class SupabaseQueries:
 
         except Exception as e:
             logger.error(f"Error in get_clubs_paginated: {str(e)}")
-            # Fallback to original method if RPC doesn't exist
-            return self._get_clubs_paginated_fallback(offset, limit, category)
+            return self._get_clubs_paginated_fallback(offset, limit)
 
     def _get_clubs_paginated_fallback(
         self, offset: int, limit: int, category: Optional[str] = None
