@@ -12,6 +12,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
   const [isVisible, setIsVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
 
   const cardRef = useRef(null);
   const { user } = useAuth();
@@ -131,16 +132,17 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
     <div
       className={`relative shrink-0 overflow-hidden rounded-full border border-border ${sizeClass}`}
     >
-      {club.profilePicture ? (
+      {club.profilePicture && !imgFailed ? (
         <Image
           src={club.profilePicture}
-          alt={`${club.name} logo`}
+          alt=""
           fill
           className="object-cover"
           sizes="80px"
           priority={index < 6}
           loading={index < 6 ? "eager" : "lazy"}
           unoptimized
+          onError={() => setImgFailed(true)}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-muted">
