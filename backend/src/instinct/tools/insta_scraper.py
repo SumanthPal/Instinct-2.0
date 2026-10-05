@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 from typing_extensions import Tuple
+from urllib.parse import urlparse
 import base64
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -25,17 +26,64 @@ from instinct.tools.logger import logger
 from instinct.tools.scraper import selectors
 from instinct.storage import get_storage
 
-from instinct.db.queries import SupabaseQueries
+from instinct.db.queries import SupabaseQueries, normalize_handle
 import datetime
 
 # Keep each scrape small and slow so one session does not look like a bot.
 MAX_POSTS_PER_CLUB = 3
 PAGE_DELAY_SECONDS = (3, 8)
 
-# Instagram sends a session here when it wants a human: a challenge, a
-# checkpoint, a suspension, or a logged-out session. Retrying from any of these
-# only adds logins to the account, so they stop the run instead.
-HARD_STOP_PATHS = ("/challenge/", "/checkpoint", "/accounts/login", "/suspended")
+# Shortcode alphabet; a shortcode is the base-64 form of the post's media id.
+_SHORTCODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+
+def is_hard_stop_url(url: str) -> bool:
+    """True when Instagram sent the session to a challenge, checkpoint,
+    suspension or login page. Retrying from any of these only adds logins to
+    the account, so they stop the run instead.
+
+    Checks the URL path only, so a ?next= query string cannot trigger it.
+    """
+    path = urlparse(url).path.lower()
+    return (
+        path.startswith(("/challenge/", "/accounts/login", "/accounts/suspended"))
+        or "/checkpoint" in path
+    )
+
+
+def post_recency_key(post_url: str) -> int:
+    """Sort key that is larger for newer posts.
+
+    The shortcode in /p/<shortcode>/ is the base-64 media id, and media ids
+    start with a creation timestamp, so a larger id is a newer post. Stored
+    rows carry no usable date (posts.created_at is a date column filled at
+    insert time), and pinned posts break grid order. Shortcodes that do not
+    decode sort last.
+    """
+    shortcode = post_url.rstrip("/").split("/")[-1]
+    if not shortcode or len(shortcode) > 11:
+        return -1
+    media_id = 0
+    for char in shortcode:
+        index = _SHORTCODE_ALPHABET.find(char)
+        if index < 0:
+            return -1
+        media_id = media_id * 64 + index
+    return media_id
+
+
+def is_plausible_club_name(name: Optional[str], club_username: str) -> bool:
+    """Reject empty values, nav labels like "Home", the handle and count text."""
+    text = (name or "").strip().lower()
+    if not text or text in selectors.NAV_LABELS:
+        return False
+    if text.lstrip("@") == club_username.lower():
+        return False
+    if re.fullmatch(r"[\d.,\s]+[km]?", text):
+        return False
+    return not (
+        re.search(r"\d", text) and re.search(r"\b(followers?|following|posts?)\b", text)
+    )
 
 
 class RateLimitDetected(Exception):
@@ -234,7 +282,7 @@ class InstagramScraper:
             # Challenge, checkpoint, suspension and logged-out pages are not
             # rate limits: retrying or swapping accounts from here only adds
             # logins. Raise a hard stop and let the caller end the run.
-            if any(path in current_url for path in HARD_STOP_PATHS):
+            if is_hard_stop_url(current_url):
                 logger.error(
                     f"Instagram requires attention: redirected to {current_url}"
                 )
@@ -468,9 +516,7 @@ class InstagramScraper:
         :param club_username: the instagram tag of the club
         """
         try:
-            club_username = (
-                club_username[1:] if club_username.startswith("@") else club_username
-            )
+            club_username = normalize_handle(club_username)
             club_info = self.get_club_info(club_username)
 
             self.save_club_info(club_info)
@@ -579,8 +625,13 @@ class InstagramScraper:
         if not post_links_response:
             logger.info(f"No unprocessed posts found for {club_username}")
             return
-        # Each post is a page load; leave the rest for a later run.
-        post_links_response = post_links_response[:MAX_POSTS_PER_CLUB]
+        # Each post is a page load, so visit only the newest few and leave the
+        # rest for a later run. The query itself returns rows in no set order.
+        post_links_response = sorted(
+            post_links_response,
+            key=lambda post: post_recency_key(post["post_url"]),
+            reverse=True,
+        )[:MAX_POSTS_PER_CLUB]
 
         processed = 0
         failures = []
@@ -659,11 +710,13 @@ class InstagramScraper:
                         "scrapped": False,
                     }
 
-                    self.db.insert_post_link(post_data)
-                    stored += 1
-                    logger.info(
-                        f"Post link {instagram_post_id} stored or refreshed in database"
-                    )
+                    if self.db.insert_post_link(post_data):
+                        stored += 1
+                        logger.info(f"Stored new post link {instagram_post_id}")
+                    else:
+                        logger.info(
+                            f"Post link {instagram_post_id} already stored; left unchanged"
+                        )
 
                 except Exception as e:
                     logger.error(f"Error storing post link {post_url}: {str(e)}")
@@ -786,26 +839,52 @@ class InstagramScraper:
         except (NoSuchElementException, TimeoutException, WebDriverException) as exc:
             logger.info(f"More... button unavailable; continuing without it: {exc}")
 
+    def _find_club_name(
+        self, profile_soup: BeautifulSoup, club_username: str
+    ) -> Optional[str]:
+        """Return the profile's display name, or None when no source is trustworthy.
+
+        Tries the og:title and description meta tags, which both read
+        "... Name (@handle) ...", then text inside the profile <header>. Never
+        the whole page: when logged in, its first span[dir=auto] is the
+        sidebar's "Home" link.
+        """
+        handle = re.escape(club_username)
+        og_title = profile_soup.select_one(selectors.PROFILE_OG_TITLE[1])
+        description = profile_soup.find("meta", {"name": "description"})
+        candidates = []
+        for tag, pattern in (
+            (og_title, rf"^\s*(.*?)\s*\(@{handle}\)"),
+            (description, rf"\bfrom\s+(.*?)\s*\(@{handle}\)"),
+        ):
+            # A <meta> Tag has no children, so it is falsy; compare with None.
+            content = tag.get("content", "") if tag is not None else ""
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                candidates.append(match.group(1))
+        candidates += [
+            element.get_text(" ", strip=True)
+            for element in profile_soup.select(selectors.PROFILE_HEADER_NAME[1])
+        ]
+        return next(
+            (
+                name.strip()
+                for name in candidates
+                if is_plausible_club_name(name, club_username)
+            ),
+            None,
+        )
+
     def _find_club_name_pfp(
         self, profile_soup: BeautifulSoup, club_username: str
-    ) -> Tuple[str, str]:
-        """Extract club name and profile picture with simple robust selectors."""
-
-        # Find club name - look for span with dir="auto" attribute (more reliable than classes)
-        club_name = None
-        span_elements = profile_soup.find_all("span", {"dir": "auto"})
-        for span in span_elements:
-            text = span.text.strip()
-            # Look for meaningful text (not just numbers or common UI text)
-            if text and len(text) > 2 and not text.isdigit():
-                skip_words = ["followers", "following", "posts", "more"]
-                if not any(word in text.lower() for word in skip_words):
-                    club_name = text
-                    break
-
-        # Fallback: use username if name not found
+    ) -> Tuple[Optional[str], str]:
+        """Extract club name (None if not trustworthy) and profile picture URL."""
+        club_name = self._find_club_name(profile_soup, club_username)
         if not club_name:
-            club_name = club_username
+            logger.warning(
+                f"No trustworthy display name found for {club_username}; "
+                "an existing club keeps its stored name."
+            )
 
         # Find profile picture - use alt text (more reliable than classes)
         club_tag = profile_soup.find("img", alt=f"{club_username}'s profile picture")

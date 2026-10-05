@@ -1193,6 +1193,7 @@ def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
     and the first failure stops the whole run. This path never starts the
     rotation loop, never retries and never switches accounts.
     """
+    from instinct.db.queries import normalize_handle
     from instinct.tools.insta_scraper import InstagramScraper
     from instinct.storage import get_storage
 
@@ -1202,7 +1203,8 @@ def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
             os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
         )
         scraper.login()
-        for index, instagram_handle in enumerate(instagram_handles):
+        handles = [normalize_handle(handle) for handle in instagram_handles]
+        for index, instagram_handle in enumerate(handles):
             if index > 0:
                 delay = random.uniform(*ONCE_CLUB_DELAY_SECONDS)
                 logger.info(f"Waiting {delay:.0f}s before the next club...")
@@ -1210,8 +1212,10 @@ def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
             if dry_run:
                 club_info = scraper.get_club_info(instagram_handle)
                 logger.info(
-                    "Dry run scraped %s with %s recent post link(s); no data was written.",
+                    "Dry run scraped %s (name %r) with %s recent post link(s); "
+                    "no data was written.",
                     instagram_handle,
+                    club_info["Club Name"],
                     len(club_info["Recent Posts"]),
                 )
             elif not scraper.store_club_data(instagram_handle):
