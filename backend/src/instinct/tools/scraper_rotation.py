@@ -17,6 +17,10 @@ from instinct.tools.ai_validation import EventParser
 from instinct.tools.calendar_connection import CalendarConnection
 from instinct.tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
 
+# --once runs a small, supervised batch on one browser session.
+MAX_ONCE_HANDLES = 3
+ONCE_CLUB_DELAY_SECONDS = (30, 90)
+
 
 class ScraperRotation:
     def __init__(self):
@@ -1160,6 +1164,11 @@ class ScraperRotation:
                 logger.info(f"Successfully scraped {username}")
                 return True
 
+            except InstagramLoginError:
+                # A challenge or logged-out session must reach the session-level
+                # handler, which stops without trying another account.
+                raise
+
             except RateLimitDetected as rate_limit_exc:
                 logger.warning(
                     f"Rate limit detected during attempt {attempt + 1} for {username}: {rate_limit_exc}"
@@ -1177,8 +1186,13 @@ class ScraperRotation:
         return False
 
 
-def run_once(instagram_handle: str, *, dry_run: bool = False) -> bool:
-    """Scrape one club and exit; this path never starts the rotation loop or retries."""
+def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
+    """Scrape a few clubs on one browser session and exit.
+
+    The browser starts and logs in once, every club reuses that same window,
+    and the first failure stops the whole run. This path never starts the
+    rotation loop, never retries and never switches accounts.
+    """
     from instinct.tools.insta_scraper import InstagramScraper
     from instinct.storage import get_storage
 
@@ -1188,15 +1202,20 @@ def run_once(instagram_handle: str, *, dry_run: bool = False) -> bool:
             os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
         )
         scraper.login()
-        if dry_run:
-            club_info = scraper.get_club_info(instagram_handle)
-            logger.info(
-                "Dry run scraped %s with %s recent post link(s); no data was written.",
-                instagram_handle,
-                len(club_info["Recent Posts"]),
-            )
-        elif not scraper.store_club_data(instagram_handle):
-            raise RuntimeError(f"Scrape failed for {instagram_handle}")
+        for index, instagram_handle in enumerate(instagram_handles):
+            if index > 0:
+                delay = random.uniform(*ONCE_CLUB_DELAY_SECONDS)
+                logger.info(f"Waiting {delay:.0f}s before the next club...")
+                time.sleep(delay)
+            if dry_run:
+                club_info = scraper.get_club_info(instagram_handle)
+                logger.info(
+                    "Dry run scraped %s with %s recent post link(s); no data was written.",
+                    instagram_handle,
+                    len(club_info["Recent Posts"]),
+                )
+            elif not scraper.store_club_data(instagram_handle):
+                raise RuntimeError(f"Scrape failed for {instagram_handle}")
         logger.info(get_storage().report())
         return True
     except (InstagramLoginError, RateLimitDetected) as exc:
@@ -1214,7 +1233,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run the Instagram scraper rotation or exactly one safe smoke-test scrape.",
         epilog=(
-            "--once never enters the rotation loop and never retries. COOKIE_1 and "
+            f"--once scrapes up to {MAX_ONCE_HANDLES} clubs on one browser session "
+            "and one login, never enters the rotation loop, never retries, and stops "
+            "the whole run on a challenge, checkpoint or rate limit. COOKIE_1 and "
             "optional COOKIE_2 must be base64-encoded JSON arrays exported from a "
             "logged-in browser session (Chrome DevTools > Application > Cookies). "
             "Refresh them in your secret manager, never in a repository file or logs. "
@@ -1228,16 +1249,21 @@ def main() -> int:
         ),
     )
     parser.add_argument(
-        "--once", metavar="INSTAGRAM_HANDLE", help="scrape one club and exit"
+        "--once",
+        nargs="+",
+        metavar="INSTAGRAM_HANDLE",
+        help=f"scrape up to {MAX_ONCE_HANDLES} clubs on one session and exit",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="with --once, fetch one club without writing to Supabase or storage",
+        help="with --once, fetch the clubs without writing to Supabase or storage",
     )
     args = parser.parse_args()
     if args.dry_run and not args.once:
         parser.error("--dry-run requires --once INSTAGRAM_HANDLE")
+    if args.once and len(args.once) > MAX_ONCE_HANDLES:
+        parser.error(f"--once accepts at most {MAX_ONCE_HANDLES} handles per run")
     if args.once:
         return 0 if run_once(args.once, dry_run=args.dry_run) else 1
 

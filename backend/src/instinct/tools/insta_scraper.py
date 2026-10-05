@@ -28,6 +28,15 @@ from instinct.storage import get_storage
 from instinct.db.queries import SupabaseQueries
 import datetime
 
+# Keep each scrape small and slow so one session does not look like a bot.
+MAX_POSTS_PER_CLUB = 3
+PAGE_DELAY_SECONDS = (3, 8)
+
+# Instagram sends a session here when it wants a human: a challenge, a
+# checkpoint, a suspension, or a logged-out session. Retrying from any of these
+# only adds logins to the account, so they stop the run instead.
+HARD_STOP_PATHS = ("/challenge/", "/checkpoint", "/accounts/login", "/suspended")
+
 
 class RateLimitDetected(Exception):
     """Raised when a potential rate limit is detected during scraping."""
@@ -222,13 +231,20 @@ class InstagramScraper:
         try:
             current_url = self._driver.current_url
 
+            # Challenge, checkpoint, suspension and logged-out pages are not
+            # rate limits: retrying or swapping accounts from here only adds
+            # logins. Raise a hard stop and let the caller end the run.
+            if any(path in current_url for path in HARD_STOP_PATHS):
+                logger.error(
+                    f"Instagram requires attention: redirected to {current_url}"
+                )
+                raise InstagramLoginError(
+                    f"Instagram redirected to {current_url}; stopping without retrying."
+                )
+
             # Fast URL-based checks first (these are much quicker than page parsing)
             rate_limit_redirects = [
-                "/challenge/",
                 "/login",
-                "/accounts/login",
-                "/accounts/suspended",
-                "/checkpoint",
                 "/confirm",
                 "/unusual_activity",
             ]
@@ -293,6 +309,8 @@ class InstagramScraper:
 
             return False
 
+        except InstagramLoginError:
+            raise
         except Exception as e:
             logger.error(
                 f"Error checking for rate limit: {str(e)[:100]}"
@@ -315,7 +333,7 @@ class InstagramScraper:
         """
         try:
             # Add random delay to avoid detection patterns
-            delay = random.uniform(0.25, 0.8)
+            delay = random.uniform(*PAGE_DELAY_SECONDS)
             time.sleep(delay)
 
             # Navigate to the URL
@@ -330,8 +348,8 @@ class InstagramScraper:
 
             return True
 
-        except RateLimitDetected:
-            # Re-raise RateLimitDetected for caller to handle
+        except RateLimitDetected, InstagramLoginError:
+            # Re-raise for the caller to handle; never retry these here.
             raise
 
         except Exception as e:
@@ -561,6 +579,8 @@ class InstagramScraper:
         if not post_links_response:
             logger.info(f"No unprocessed posts found for {club_username}")
             return
+        # Each post is a page load; leave the rest for a later run.
+        post_links_response = post_links_response[:MAX_POSTS_PER_CLUB]
 
         processed = 0
         failures = []
@@ -588,6 +608,9 @@ class InstagramScraper:
                 )
                 processed += 1
                 logger.info(f"Updated post {post_id} in database")
+            except InstagramLoginError, RateLimitDetected:
+                # Stop at once rather than loading the next post on a flagged session.
+                raise
             except Exception as exc:
                 failures.append(str(post_id))
                 logger.error(f"Error processing post {post_id}: {exc}")
@@ -830,6 +853,8 @@ class InstagramScraper:
             if "/p/" in href:
                 post_url = f"https://www.instagram.com{href}"
                 post_links.append(post_url)
+        # The grid can link the same post more than once (e.g. pinned posts).
+        post_links = list(dict.fromkeys(post_links))
         if not post_links:
             raise SelectorNotFoundError("PROFILE_POST_LINKS did not match any posts")
         logger.info(f"obtained {len(post_links)} post links")
@@ -1032,6 +1057,10 @@ def scrape_with_retries(scraper, username, max_retries=3, base_delay=10):
             scraper.store_club_data(username)
             logger.info(f"Scraping of {username} complete.")
             return scraper
+
+        except InstagramLoginError:
+            # Never retry or swap accounts on a challenge or logged-out session.
+            raise
 
         except RateLimitDetected as rate_limit_exc:
             logger.warning(
