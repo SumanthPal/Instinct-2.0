@@ -1,0 +1,6 @@
+# Heroku container stack (#54). Heroku sets the build context to the
+# Dockerfile's directory, which is why Dockerfile.web lives at the repo root.
+# No run section: the Dockerfile CMD already serves on 0.0.0.0:$PORT.
+build:
+  docker:
+    web: Dockerfile.web
