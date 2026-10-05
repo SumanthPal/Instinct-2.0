@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/toast';
 
 const AuthContext = createContext()
@@ -13,7 +13,6 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     const getSession = async () => {
