@@ -847,27 +847,16 @@ class SupabaseQueries:
 
         query = self.supabase.table("clubs").select(select_fields).limit(limit)
 
-        if category:
-            # Use RPC or fallback to client filtering
-            try:
-                response = self.supabase.rpc(
-                    "get_clubs_manifest_by_category",
-                    {"category_name": category, "result_limit": limit},
-                ).execute()
-            except:
-                # Fallback to full fetch and filter (less efficient)
-                response = query.execute()
-                if response.data:
-                    response.data = [
-                        club
-                        for club in response.data
-                        if any(
-                            cat.get("name") == category
-                            for cat in club.get("categories", [])
-                        )
-                    ][:limit]
-        else:
-            response = query.execute()
+        response = query.execute()
+        if category and response.data:
+            # No category RPC exists for the manifest; filter in Python.
+            response.data = [
+                club
+                for club in response.data
+                if any(
+                    cat.get("name") == category for cat in club.get("categories", [])
+                )
+            ][:limit]
 
         clubs = response.data if response.data else []
 
