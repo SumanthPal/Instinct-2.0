@@ -294,7 +294,7 @@ export default function Home() {
                 <p className="mt-2 text-muted-foreground">
                   Search by name or interest and filter by category.
                 </p>
-                <div className="mt-8">
+                <div className="mt-auto pt-8">
                   <Button asChild className="instinct-btn h-10 rounded-md px-5 text-white">
                     <Link href="/clubs">Browse clubs</Link>
                   </Button>
@@ -306,7 +306,7 @@ export default function Home() {
                   Not listed yet? Sign in and submit your club's Instagram handle to get
                   it into the directory.
                 </p>
-                <div className="mt-8">
+                <div className="mt-auto pt-8">
                   <Button asChild variant="outline" className="h-10 rounded-md px-5">
                     <Link href="/club/add">Add your club</Link>
                   </Button>
