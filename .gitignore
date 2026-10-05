@@ -13,6 +13,10 @@ dist/
 .env
 .env.*
 !.env.example
+# Real data for the local DB (see README); never commit
+supabase/seed.local.sql
+# Supabase CLI scratch state
+supabase/.temp/
 
 # Node.js / Next.js
 node_modules/

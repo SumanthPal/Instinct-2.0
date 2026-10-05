@@ -1,0 +1,10 @@
+# Minimal Supabase CLI config for `make db-local`; unset keys use CLI defaults.
+project_id = "instinct"
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+# scripts/db-local.sh loads seed.sql (or the gitignored seed.local.sql) itself.
+enabled = false
