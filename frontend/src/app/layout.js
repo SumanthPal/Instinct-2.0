@@ -6,6 +6,8 @@ import { DarkModeProvider } from "@/context/dark-mode-context";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SerwistProvider } from "@serwist/next/react";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 
 export const metadata = {
 	title: "Instinct for UCI",
@@ -40,11 +42,11 @@ export const metadata = {
 		siteName: "Instinct for UCI",
 		images: [
 			{
-				url: "/logo.png", // Removed absolute URL to let metadataBase handle it
+				url: "/logo.png",
 				width: 1200,
 				height: 630,
 				alt: "Instinct for UCI Clubs and Events",
-				type: "image/png", // Changed to SVG type
+				type: "image/png",
 			},
 		],
 		locale: "en_US",
@@ -56,7 +58,7 @@ export const metadata = {
 		creator: "@lifeofsumpal_",
 		title: "Instinct for UC Irvine",
 		description: "Find your community. Explore UCI clubs and events.",
-		images: ["/logo.png"], // Removed absolute URL
+		images: ["/logo.png"],
 	},
 	other: {
 		"mobile-web-app-capable": "yes",
@@ -71,18 +73,31 @@ export const metadata = {
 	},
 };
 
-const themeScript =
-	"try{if(localStorage.getItem('isDarkMode')==='true')document.documentElement.classList.add('dark')}catch(e){}";
+// Resolve theme before first paint: instinct-theme (system|light|dark),
+// with fallback to legacy isDarkMode, then prefers-color-scheme.
+const themeScript = `try{
+var t=localStorage.getItem('instinct-theme');
+if(t!=='light'&&t!=='dark'&&t!=='system'){
+  var legacy=localStorage.getItem('isDarkMode');
+  t=legacy==='true'?'dark':legacy==='false'?'light':'system';
+}
+var dark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+if(dark)document.documentElement.classList.add('dark');
+else document.documentElement.classList.remove('dark');
+}catch(e){}`;
 
 export default function RootLayout({ children }) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html
+			lang="en"
+			suppressHydrationWarning
+			className={`${GeistSans.variable} ${GeistMono.variable}`}
+		>
 			<head>
-				{/* Apply the saved theme before first paint so server-rendered pages don't flash light. */}
-				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script, no user input */}
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline theme bootstrap, no user input */}
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>
-			<body>
+			<body className="min-h-screen bg-background font-sans text-foreground antialiased">
 				<SerwistProvider
 					swUrl="/sw.js"
 					disable={process.env.NODE_ENV !== "production"}
@@ -101,4 +116,3 @@ export default function RootLayout({ children }) {
 		</html>
 	);
 }
-

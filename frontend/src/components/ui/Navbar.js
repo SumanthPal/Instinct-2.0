@@ -39,7 +39,6 @@ export default function Navbar() {
     }
   };
 
-  // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -59,122 +58,103 @@ export default function Navbar() {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Close mobile menu when window is resized to desktop size
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsOpen(false);
-      }
+      if (window.innerWidth >= 768) setIsOpen(false);
     };
-
     window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
 
-  const navLinkClass = (href) => `
-    text-lg font-medium transition duration-200 relative py-2
-    ${
-      pathname === href
-        ? 'text-indigo-600 dark:text-indigo-400 font-semibold after:content-[""] after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-indigo-500 dark:after:bg-indigo-400 after:rounded-full'
-        : 'text-gray-700 dark:text-gray-300 hover:text-indigo-500 dark:hover:text-indigo-400 after:content-[""] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-indigo-400 hover:after:w-full after:transition-all after:duration-300'
-    }
-  `;
+  const desktopLink = (href) => {
+    const active = pathname === href;
+    return active
+      ? "instinct-nav-active text-sm font-medium text-foreground"
+      : "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
+  };
 
   return (
-    <nav className="fixed w-full bg-white/60 dark:bg-dark-profile-card/80 backdrop-blur-lg z-50 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <img
-            src="/logo.svg"
-            alt="Logo"
-            className="h-9 w-9 sm:h-10 sm:w-10 cursor-pointer"
-          />
-          <span className="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
-            Instinct
-          </span>
-        </Link>
-
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
-          <Link href="/" className={navLinkClass("/")}>
-            Home
-          </Link>
-          <Link href="/clubs" className={navLinkClass("/clubs")}>
-            Clubs
-          </Link>
-          <Link href="/events" className={navLinkClass("/events")}>
-            Events
-          </Link>
-          <Link href="/news" className={navLinkClass("/news")}>
-            News
+    <nav className="fixed top-0 z-50 w-full border-b border-border/80 bg-background/90 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="Instinct"
+              className="h-7 w-7 sm:h-8 sm:w-8"
+            />
+            <span className="instinct-text text-lg font-semibold tracking-tight sm:text-xl">
+              Instinct
+            </span>
           </Link>
 
-          {user && (
-            <Link href="/dashboard" className={navLinkClass("/dashboard")}>
-              Dashboard
+          <div className="hidden items-center gap-6 md:flex">
+            <Link href="/" className={desktopLink("/")}>
+              Home
             </Link>
-          )}
-          <Link href="/about" className={navLinkClass("/about")}>
-            About
-          </Link>
+            <Link href="/clubs" className={desktopLink("/clubs")}>
+              Clubs
+            </Link>
+            <Link href="/events" className={desktopLink("/events")}>
+              Events
+            </Link>
+            <Link href="/news" className={desktopLink("/news")}>
+              News
+            </Link>
+            <Link href="/about" className={desktopLink("/about")}>
+              About
+            </Link>
+            {user && (
+              <Link href="/dashboard" className={desktopLink("/dashboard")}>
+                Dashboard
+              </Link>
+            )}
+          </div>
         </div>
 
-        {/* Right Side */}
-        <div className="flex items-center space-x-3 lg:space-x-4">
-          {!loading && user ? (
+        <div className="flex items-center gap-2">
+          {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
+                type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center space-x-2 focus:outline-hidden"
-                aria-label="User menu"
+                className="flex items-center rounded-full"
+                aria-label="Open account menu"
               >
                 {user.user_metadata?.avatar_url ? (
-                  <div className="group relative">
-                    <div className="absolute -inset-0.5 bg-linear-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 group-hover:opacity-100 blur-xs transition duration-200"></div>
-                    <img
-                      src={user.user_metadata.avatar_url}
-                      alt="Avatar"
-                      className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover border-2 border-white dark:border-gray-800"
-                    />
-                  </div>
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt=""
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
+                  />
                 ) : (
-                  <div className="rounded-full p-1 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10">
-                    <FaUserCircle
-                      size={32}
-                      className="text-indigo-600 dark:text-indigo-400"
-                    />
-                  </div>
+                  <FaUserCircle className="h-8 w-8 text-muted-foreground" />
                 )}
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 origin-top-right backdrop-blur-xs bg-white/90 dark:bg-dark-card/90 rounded-xl shadow-lg py-2 z-200 border border-white/20 dark:border-dark-text/10 transition ease-out duration-100 transform scale-100">
-                  <div className="px-4 py-3 border-b dark:border-gray-700/30">
-                    <p className="text-base font-semibold text-gray-800 dark:text-white truncate">
+                <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-lg">
+                  <div className="border-b border-border px-4 py-3">
+                    <p className="truncate text-sm font-semibold">
                       {user.user_metadata.full_name || user.email}
                     </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                    <p className="truncate text-xs text-muted-foreground">
                       {user.email}
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={handleSignOut}
-                    className="w-full text-left px-4 py-2 text-base text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-dark-gradient-start/50 transition rounded-lg mx-1"
+                    className="flex w-full items-center px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    <FaSignOutAlt className="inline mr-2" />
+                    <FaSignOutAlt className="mr-2" />
                     Sign Out
                   </button>
                 </div>
@@ -183,34 +163,35 @@ export default function Navbar() {
           ) : (
             !loading && (
               <button
+                type="button"
                 onClick={handleGoogleSignIn}
-                className="hidden md:flex items-center px-4 py-2 text-base font-medium text-white bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-full hover:shadow-md hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-600 transition duration-300 transform hover:scale-105"
+                className="instinct-btn hidden items-center rounded-full px-3.5 py-1.5 text-xs font-medium md:inline-flex"
               >
-                <FaGoogle className="mr-2" size={16} />
-                <span>Sign in with UCI</span>
+                <FaGoogle className="mr-2" size={12} />
+                Sign in with UCI
               </button>
             )
           )}
           <DarkModeToggle />
           <button
+            type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden rounded-lg p-1.5 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10 text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-white transition duration-200"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
             aria-label="Toggle mobile menu"
           >
-            {isOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
+            {isOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
           </button>
         </div>
       </div>
 
-      {/* Mobile Menu - Compact version with height limit */}
       <div
         ref={mobileMenuRef}
-        className={`md:hidden transition-all duration-300 ease-in-out ${
-          isOpen ? "max-h-[60vh] opacity-100" : "max-h-0 opacity-0"
-        } overflow-hidden`}
+        className={`overflow-hidden border-b border-border/80 transition-all duration-300 ease-in-out md:hidden ${
+          isOpen ? "max-h-[60vh] opacity-100" : "max-h-0 border-b-0 opacity-0"
+        }`}
       >
-        <div className="px-4 pt-3 pb-4 backdrop-blur-md bg-white/70 dark:bg-dark-profile-card/90 mx-3 my-2 rounded-xl shadow-lg border border-white/20 dark:border-dark-text/10">
-          <div className="flex flex-col space-y-1">
+        <div className="mx-3 mb-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+          <div className="flex flex-col gap-0.5">
             <NavLink href="/" active={pathname === "/"}>
               Home
             </NavLink>
@@ -235,48 +216,42 @@ export default function Navbar() {
 
           {!loading && !user && (
             <button
+              type="button"
               onClick={handleGoogleSignIn}
-              className="mt-3 w-full flex items-center justify-center py-2.5 text-base font-medium text-white bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-500 dark:to-purple-500 rounded-lg hover:shadow-md transition duration-200"
+              className="instinct-btn mt-3 flex w-full items-center justify-center rounded-lg py-2.5 text-sm font-medium"
             >
-              <FaGoogle className="mr-2" size={16} />
+              <FaGoogle className="mr-2" size={14} />
               Sign in with UCI
             </button>
           )}
 
           {!loading && user && (
-            <div className="mt-3 pt-2 border-t dark:border-gray-700/30">
-              <div className="flex items-center space-x-3 mb-2">
+            <div className="mt-3 border-t border-border pt-3">
+              <div className="mb-2 flex items-center gap-3">
                 {user.user_metadata?.avatar_url ? (
-                  <div className="relative">
-                    <div className="absolute -inset-0.5 bg-linear-to-r from-indigo-500 to-purple-500 rounded-full opacity-75 blur-xs"></div>
-                    <img
-                      src={user.user_metadata.avatar_url}
-                      className="relative h-10 w-10 rounded-full object-cover border-2 border-white dark:border-gray-800"
-                      alt="User avatar"
-                    />
-                  </div>
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    className="h-9 w-9 rounded-full object-cover ring-1 ring-border"
+                    alt=""
+                  />
                 ) : (
-                  <div className="rounded-full p-1.5 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/10">
-                    <FaUserCircle
-                      size={28}
-                      className="text-indigo-600 dark:text-indigo-400"
-                    />
-                  </div>
+                  <FaUserCircle className="h-9 w-9 text-muted-foreground" />
                 )}
-                <div className="text-left">
-                  <p className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                <div className="min-w-0 text-left">
+                  <p className="truncate text-sm font-semibold">
                     {user.user_metadata.full_name || user.email}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                  <p className="truncate text-xs text-muted-foreground">
                     {user.email}
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={handleSignOut}
-                className="w-full flex items-center justify-center py-2 text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-red-600 hover:bg-accent dark:text-red-400"
               >
-                <FaSignOutAlt className="mr-2" size={16} />
+                <FaSignOutAlt className="mr-2" size={14} />
                 Sign Out
               </button>
             </div>
@@ -287,20 +262,16 @@ export default function Navbar() {
   );
 }
 
-// Mobile navigation link component
 function NavLink({ href, active, children }) {
   return (
     <Link
       href={href}
-      className={`relative px-3 py-2 text-lg font-medium rounded-lg transition-all duration-200 ${
+      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
         active
-          ? "bg-linear-to-r from-indigo-500/10 to-purple-500/10 text-indigo-600 dark:text-indigo-400 pl-4"
-          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/20"
+          ? "bg-accent text-foreground"
+          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
       }`}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-linear-to-b from-indigo-500 to-purple-500 rounded-full" />
-      )}
       {children}
     </Link>
   );
