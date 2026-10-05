@@ -18,7 +18,7 @@ export default function ClubSimilarClubs({ clubs }) {
             <Link
               key={club.instagram_handle || index}
               href={`/club/${club.instagram_handle}`}
-              className="instinct-card w-44 shrink-0 rounded-xl border border-border bg-card p-3 transition-shadow"
+              className="instinct-card w-44 shrink-0 rounded-md border border-border bg-card p-3"
             >
               <div className="mb-2 flex justify-center">
                 <div className="relative h-14 w-14 overflow-hidden rounded-full border border-border">

@@ -110,18 +110,8 @@ export default function HomeClient({
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
-      {/* Hidden SVG defs for gradient favorite star */}
-      <svg width="0" height="0" className="absolute" aria-hidden="true">
-        <defs>
-          <linearGradient id="instinct-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--instinct-pink)" />
-            <stop offset="50%" stopColor="var(--instinct-purple)" />
-            <stop offset="100%" stopColor="var(--instinct-sky)" />
-          </linearGradient>
-        </defs>
-      </svg>
 
-      <Navbar />
+<Navbar />
 
       <main className="container mx-auto flex-1 px-3 pb-10 pt-[100px] text-center sm:px-4 sm:pb-16 sm:pt-[120px] md:pb-20">
         <div className="mb-8 sm:mb-12">

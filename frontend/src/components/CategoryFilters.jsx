@@ -68,7 +68,7 @@ export default function CategoryFilters({
   const moreIsActive = selected != null && moreChips.includes(selected);
 
   const chipClass = (active) =>
-    `instinct-chip shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+    `instinct-chip shrink-0 rounded-md border px-3 py-1.5 text-xs transition-colors ${
       active ? "instinct-chip-active" : ""
     }`;
 

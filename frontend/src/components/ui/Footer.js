@@ -28,7 +28,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="mt-auto w-full border-t border-border bg-background/80 backdrop-blur-sm">
+    <footer className="mt-auto w-full border-t border-border bg-background">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-center space-y-4 px-6 py-8 text-center">
         <div className="flex items-center space-x-2">
           <div
@@ -45,7 +45,7 @@ const Footer = () => {
           href="https://airtable.com/app6eZfxp1tX3cTr1/pag44eL08NgLSEdu0/form"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Share Feedback
         </a>
