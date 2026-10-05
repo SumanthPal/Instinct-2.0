@@ -96,9 +96,6 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden items-center gap-6 md:flex">
-            <Link href="/" className={desktopLink("/")}>
-              Home
-            </Link>
             <Link href="/clubs" className={desktopLink("/clubs")}>
               Clubs
             </Link>
@@ -192,9 +189,6 @@ export default function Navbar() {
       >
         <div className="mx-3 mb-3 rounded-md border border-border bg-card p-3">
           <div className="flex flex-col gap-0.5">
-            <NavLink href="/" active={pathname === "/"}>
-              Home
-            </NavLink>
             <NavLink href="/about" active={pathname === "/about"}>
               About
             </NavLink>
