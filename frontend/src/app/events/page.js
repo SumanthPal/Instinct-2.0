@@ -184,7 +184,7 @@ export default function CampusEventsPage() {
 			<div className="min-h-screen bg-background text-foreground">
 				<Navbar />
 				<main className="container mx-auto px-4 py-24 flex items-center justify-center">
-					<div className="bg-card/60 p-8 rounded-xl shadow-lg text-center border border-border">
+					<div className="bg-card p-8 rounded-md text-center border border-border">
 						<div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-border border-t-transparent dark:border-t-transparent mb-4"></div>
 						<h2 className="text-xl font-medium text-foreground">
 							Loading Upcoming Events...
@@ -243,7 +243,7 @@ export default function CampusEventsPage() {
 						{/* Filter button */}
 						<button
 							onClick={() => setShowFilters(!showFilters)}
-							className={`px-4 py-3 backdrop-blur-xs border rounded-xl font-semibold transition-all flex items-center gap-2 ${
+							className={`px-4 py-3 border rounded-md font-semibold transition-all flex items-center gap-2 ${
 								showFilters || hasActiveFilters
 									? "bg-muted border-border text-foreground"
 									: "bg-card/70 border-border text-foreground hover:bg-muted"
@@ -460,7 +460,7 @@ export default function CampusEventsPage() {
 						{viewMode === "list" ? (
 							/* List View - Grouped by Date */
 							groupedEvents.map((group, groupIndex) => (
-								<div key={groupIndex} className="bg-card/60 rounded-xl border border-border shadow-lg p-4 sm:p-6 lg:p-8">
+								<div key={groupIndex} className="bg-card rounded-md border border-border p-4 sm:p-6 lg:p-8">
 									{/* Date Header */}
 									<div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
 										<div className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-muted border-2 border-border">
@@ -506,7 +506,7 @@ export default function CampusEventsPage() {
 											return (
 												<div
 													key={`event-${eventId}`}
-													className="group bg-card/80 rounded-xl border border-border overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+													className="group bg-card rounded-md border border-border overflow-hidden"
 												>
 													{/* Event Image */}
 													{event.image_url && (
@@ -526,9 +526,9 @@ export default function CampusEventsPage() {
 																loading="lazy"
 																unoptimized
 															/>
-															<div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent"></div>
+															<div className="absolute inset-0 bg-black/40"></div>
 															{/* Category badge on image */}
-															<div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-xs ${categoryColors[category]}`}>
+															<div className={`absolute top-3 right-3 px-3 py-1 rounded-md text-xs font-semibold border bg-card/90 ${categoryColors[category]}`}>
 																{category}
 															</div>
 														</div>
@@ -670,7 +670,7 @@ export default function CampusEventsPage() {
 									return (
 										<div
 											key={`event-${eventId}`}
-											className="group bg-card/80 rounded-xl border border-border overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+											className="group bg-card rounded-md border border-border overflow-hidden"
 										>
 											{/* Event Image */}
 											{event.image_url && (
@@ -690,9 +690,9 @@ export default function CampusEventsPage() {
 														loading="lazy"
 														unoptimized
 													/>
-													<div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent"></div>
+													<div className="absolute inset-0 bg-black/40"></div>
 													{/* Category badge on image */}
-													<div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold border backdrop-blur-xs ${categoryColors[category]}`}>
+													<div className={`absolute top-3 right-3 px-3 py-1 rounded-md text-xs font-semibold border bg-card/90 ${categoryColors[category]}`}>
 														{category}
 													</div>
 													{/* Date badge on image */}
@@ -840,7 +840,7 @@ export default function CampusEventsPage() {
 							<div className="flex justify-center pt-4">
 								<button
 									onClick={loadMore}
-									className="inline-flex items-center gap-2 px-6 py-3 bg-card/70 hover:bg-muted rounded-full border border-border shadow-lg hover:shadow-xl transition-all duration-300 text-foreground font-semibold"
+									className="inline-flex items-center gap-2 px-6 py-3 bg-card hover:bg-muted rounded-md border border-border text-foreground font-semibold"
 								>
 									<span>Load More Events</span>
 									<FaChevronDown className="w-4 h-4" />
@@ -849,7 +849,7 @@ export default function CampusEventsPage() {
 						)}
 					</div>
 				) : (
-					<div className="flex flex-col items-center justify-center py-16 sm:py-20 bg-card/60 rounded-xl border border-border shadow-lg">
+					<div className="flex flex-col items-center justify-center py-16 sm:py-20 bg-card rounded-md border border-border">
 						<FaCalendarAlt className="w-20 h-20 sm:w-24 sm:h-24 text-muted-foreground mb-4" />
 						<p className="text-xl sm:text-2xl font-semibold text-foreground mb-2">
 							No Upcoming Events
@@ -863,17 +863,17 @@ export default function CampusEventsPage() {
 				{/* Modal for Enlarged Image */}
 				{isModalOpen && (
 					<div
-						className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xs p-2 sm:p-4"
+						className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4"
 						onClick={closeModal}
 					>
 						<div
 							className="relative w-full h-full max-w-6xl max-h-full overflow-hidden"
 							onClick={(e) => e.stopPropagation()}
 						>
-							<div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-2 sm:p-4 bg-linear-to-b from-black/50 to-transparent">
+							<div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-2 sm:p-4 bg-black/40">
 								<button
 									onClick={closeModal}
-									className="backdrop-blur-xs bg-black/50 hover:bg-red-500/70 text-white p-2.5 sm:p-3 rounded-full transition-all duration-200 hover:scale-110 min-w-[44px] min-h-[44px] flex items-center justify-center"
+									className="bg-black/50 hover:bg-red-500/70 text-white p-2.5 sm:p-3 rounded-md transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 								>
 									<svg
 										xmlns="http://www.w3.org/2000/svg"

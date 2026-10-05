@@ -24,7 +24,7 @@ export default function ClubImageModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute -top-12 right-0 rounded-full bg-black/30 p-3 text-white/90 hover:text-white"
+          className="absolute -top-12 right-0 rounded-md bg-black/50 p-2 text-white/90 hover:text-white"
           aria-label="Close"
         >
           ✕

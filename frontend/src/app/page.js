@@ -38,7 +38,6 @@ export default function Home() {
       if (cancelled) return;
       setClubs(manifest.results || []);
       if (cats?.length) {
-        // Prefer a few recognizable chips that exist in the API list
         const preferred = [
           "Technology",
           "Cultural and Social",
@@ -74,71 +73,54 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <svg width="0" height="0" className="absolute" aria-hidden="true">
-        <defs>
-          <linearGradient id="instinct-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--instinct-pink)" />
-            <stop offset="50%" stopColor="var(--instinct-purple)" />
-            <stop offset="100%" stopColor="var(--instinct-sky)" />
-          </linearGradient>
-        </defs>
-      </svg>
-
       <Navbar />
 
       <main className="flex-1">
-        <section className="mx-auto max-w-5xl px-6 pb-16 pt-28 sm:pt-32">
-          <p className="mb-4 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        <section className="mx-auto max-w-5xl px-6 pb-14 pt-24 sm:pt-28">
+          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             UC Irvine
           </p>
-          <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl sm:leading-[1.08]">
+          <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Find your <span className="instinct-text">people.</span>
           </h1>
-          <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground">
-            Discover campus clubs with a quieter UI — Instinct accents, same
-            cards.
-          </p>
 
-          <div className="relative mt-10 max-w-xl">
-            <FaSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative mt-8 max-w-md">
+            <FaSearch className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search clubs…"
-              className="h-11 rounded-lg border-border bg-card pl-10 shadow-none focus-visible:ring-0"
+              className="h-10 rounded-md border-border bg-card pl-9 shadow-none focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {chips.map((name) => (
               <button
                 key={name}
                 type="button"
                 onClick={() => setQ(name)}
-                className="instinct-chip rounded-full border px-3 py-1 text-xs"
+                className="instinct-chip rounded-md border px-2.5 py-1 text-xs"
               >
                 {name}
               </button>
             ))}
           </div>
 
-          <div className="mt-8">
-            <Button asChild size="sm" className="instinct-btn rounded-full px-5 text-white">
+          <div className="mt-6">
+            <Button asChild size="sm" className="instinct-btn rounded-md px-4 text-white">
               <Link href="/clubs">Browse clubs</Link>
             </Button>
           </div>
         </section>
 
-        <section className="border-t border-border bg-card/30">
-          <div className="mx-auto max-w-5xl px-6 py-14">
-            <div className="mb-8 flex items-end justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                  Clubs
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">Featured clubs</p>
-              </div>
-              <Button asChild size="sm" className="instinct-btn rounded-full text-white">
+        <section className="border-t border-border">
+          <div className="mx-auto max-w-5xl px-6 py-12">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <h2 className="text-sm font-medium tracking-tight text-foreground">
+                Clubs
+              </h2>
+              <Button asChild size="sm" variant="outline" className="rounded-md">
                 <Link href="/clubs">View all</Link>
               </Button>
             </div>

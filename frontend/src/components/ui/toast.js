@@ -77,35 +77,35 @@ const ToastItem = ({ toast, dismiss }) => {
       case 'success':
         return {
           icon: <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />,
-          gradient: 'from-green-400/20 to-green-500/30 dark:from-green-500/40 dark:to-green-400/30',
+          bg: 'bg-card',
           border: 'border-green-500/30 dark:border-green-400/30',
           iconBg: 'bg-green-100 dark:bg-green-900/50'
         };
       case 'error':
         return {
           icon: <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />,
-          gradient: 'from-red-400/20 to-red-500/30 dark:from-red-500/40 dark:to-red-400/30',
+          bg: 'bg-card',
           border: 'border-red-500/30 dark:border-red-400/30',
           iconBg: 'bg-red-100 dark:bg-red-900/50'
         };
       case 'warning':
         return {
           icon: <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />,
-          gradient: 'from-yellow-400/20 to-yellow-500/30 dark:from-yellow-500/40 dark:to-yellow-400/30',
+          bg: 'bg-card',
           border: 'border-yellow-500/30 dark:border-yellow-400/30',
           iconBg: 'bg-yellow-100 dark:bg-yellow-900/50'
         };
       case 'info':
         return {
           icon: <InfoIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" />,
-          gradient: 'from-blue-400/20 to-blue-500/30 dark:from-blue-500/40 dark:to-blue-400/30',
+          bg: 'bg-card',
           border: 'border-blue-500/30 dark:border-blue-400/30',
           iconBg: 'bg-blue-100 dark:bg-blue-900/50'
         };
       default:
         return {
           icon: <InfoIcon className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />,
-          gradient: 'from-indigo-400/20 to-purple-500/30 dark:from-indigo-500/40 dark:to-purple-400/30',
+          bg: 'bg-card',
           border: 'border-indigo-500/30 dark:border-indigo-400/30',
           iconBg: 'bg-indigo-100 dark:bg-indigo-900/50'
         };
@@ -116,8 +116,8 @@ const ToastItem = ({ toast, dismiss }) => {
   
   return (
     <div
-      className={`backdrop-blur-xs bg-white/70 dark:bg-dark-card/70 border ${config.border} 
-      bg-linear-to-r ${config.gradient} rounded-xl shadow-lg overflow-hidden flex items-start p-3`}
+      className={`border ${config.border} ${config.bg}
+      rounded-md shadow-sm overflow-hidden flex items-start p-3`}
       role="alert"
     >
       <div className={`shrink-0 p-1.5 rounded-full mr-3 ${config.iconBg}`}>

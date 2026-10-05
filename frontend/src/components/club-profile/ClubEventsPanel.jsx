@@ -71,7 +71,7 @@ export default function ClubEventsPanel({
       )}
 
       {links.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 text-left">
+        <div className="rounded-md border border-border bg-card p-4 text-left">
           <h3 className="mb-3 text-sm font-semibold text-foreground">Links</h3>
           <div className="space-y-2">
             {links.map((linkData, index) => (
@@ -96,7 +96,7 @@ export default function ClubEventsPanel({
       )}
 
       {calendarUrl && (
-        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-center">
+        <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-center">
           <h4 className="mb-1 text-sm font-semibold text-foreground">
             Never miss an event
           </h4>
@@ -126,7 +126,7 @@ export default function ClubEventsPanel({
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-3 shadow-sm calendar-responsive">
+      <div className="rounded-md border border-border bg-card p-3 calendar-responsive">
         <h3 className="mb-3 text-left text-sm font-semibold text-foreground">
           Activity calendar
         </h3>

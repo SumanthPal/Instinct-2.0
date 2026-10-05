@@ -13,8 +13,8 @@ const About = () => {
 
 			<main className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
 				{/* Hero Section */}
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto bg-card/60 rounded-3xl border border-border p-6 sm:p-10 shadow-xl">
-					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-linear-to-r from-[var(--instinct-pink)] via-[var(--instinct-purple)] to-[var(--instinct-sky)] text-center">
+				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto bg-card rounded-md border border-border p-6 sm:p-10">
+					<h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-6 text-left sm:text-center">
 						About Instinct
 					</h1>
 					<p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 text-center leading-relaxed">
@@ -48,15 +48,15 @@ const About = () => {
 				{/* Why Instinct */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-border to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
 							Why Instinct?
 						</h2>
-						<div className="h-px bg-linear-to-r from-border via-border to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-						<div className="bg-card/60 rounded-xl border border-border p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
+						<div className="bg-card rounded-md border border-border p-6">
 							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-foreground">
 								For Students
 							</h3>
@@ -70,7 +70,7 @@ const About = () => {
 							</p>
 						</div>
 
-						<div className="bg-card/60 rounded-xl border border-border p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
+						<div className="bg-card rounded-md border border-border p-6">
 							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-foreground">
 								For Clubs
 							</h3>
@@ -87,11 +87,11 @@ const About = () => {
 				{/* How It Works */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-border to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-foreground">
 							How It Works
 						</h2>
-						<div className="h-px bg-linear-to-r from-border via-border to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="bg-card/60 rounded-xl border border-border p-6 sm:p-8 shadow-md">
@@ -105,11 +105,11 @@ const About = () => {
 				</section>
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto bg-card/60 rounded-xl border border-border p-6 sm:p-10 shadow-md">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-border to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-foreground">
 							Listen More About It
 						</h2>
-						<div className="h-px bg-linear-to-r from-border via-border to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 					<div className="max-w-3xl mx-auto rounded-xl overflow-hidden shadow-md">
 						<iframe
@@ -127,15 +127,15 @@ const About = () => {
 
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-border to-transparent w-12 sm:w-16 mr-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
 						<h2 className="text-3xl sm:text-4xl font-bold text-foreground">
 							FAQs
 						</h2>
-						<div className="h-px bg-linear-to-r from-border via-border to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
-						<details className="group bg-card/70 rounded-xl p-4 sm:p-5 shadow-md border border-border hover:shadow-lg transition-all duration-300">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
@@ -161,7 +161,7 @@ const About = () => {
 							</p>
 						</details>
 
-						<details className="group bg-card/70 rounded-xl p-4 sm:p-5 shadow-md border border-border hover:shadow-lg transition-all duration-300">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
@@ -187,7 +187,7 @@ const About = () => {
 							</p>
 						</details>
 
-						<details className="group bg-card/70 rounded-xl p-4 sm:p-5 shadow-md border border-border hover:shadow-lg transition-all duration-300">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
@@ -214,7 +214,7 @@ const About = () => {
 							</p>
 						</details>
 
-						<details className="group bg-card/70 rounded-xl p-4 sm:p-5 shadow-md border border-border hover:shadow-lg transition-all duration-300">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
 							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg

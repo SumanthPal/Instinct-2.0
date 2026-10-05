@@ -183,14 +183,14 @@ export default function NewsPage() {
 				{/* Main Feed */}
 				<section className="mb-20">
 					<div className="flex items-center justify-center mb-8">
-						<div className="h-px bg-linear-to-r from-transparent via-border to-transparent w-16 mr-4"></div>
+						<div className="h-px bg-border w-16 mr-4"></div>
 						<h2 className="text-3xl font-bold text-foreground flex items-center">
 							<span className="mr-2">
 								{categoryEmojis[selectedCategory] || "📄"}
 							</span>
 							{selectedCategory}
 						</h2>
-						<div className="h-px bg-linear-to-r from-border via-border to-transparent w-16 ml-4"></div>
+						<div className="h-px bg-border w-16 ml-4"></div>
 					</div>
 
 					<RssFeed

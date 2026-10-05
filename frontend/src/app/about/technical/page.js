@@ -69,8 +69,8 @@ const TechnicalAbout = () => {
       <Navbar />
       <main className="container mx-auto px-4 pt-24 pb-12 md:pt-28 md:pb-20">
         {/* Hero Section */}
-        <div className="max-w-6xl mx-auto mb-20 bg-card/60 rounded-3xl border border-border p-6 sm:p-10 shadow-xl">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-center mb-6 bg-clip-text text-transparent bg-linear-to-r from-[var(--instinct-pink)] via-[var(--instinct-purple)] to-[var(--instinct-sky)]">
+        <div className="max-w-6xl mx-auto mb-20 bg-card rounded-md border border-border p-6 sm:p-10">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground text-left sm:text-center mb-6">
             Technical Details
           </h1>
 
@@ -103,7 +103,7 @@ const TechnicalAbout = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
             
             {/* Frontend */}
-            <div className="bg-card/60 p-6 rounded-xl border border-border shadow-md hover:shadow-lg transition duration-300">
+            <div className="bg-card p-6 rounded-md border border-border">
               <div className="flex items-center mb-4">
                 <FaReact className="text-3xl text-foreground mr-3" />
                 <h3 className="text-2xl font-semibold text-foreground">Frontend</h3>
@@ -117,7 +117,7 @@ const TechnicalAbout = () => {
             </div>
 
             {/* Backend */}
-            <div className="bg-card/60 p-6 rounded-xl border border-border shadow-md hover:shadow-lg transition duration-300">
+            <div className="bg-card p-6 rounded-md border border-border">
               <div className="flex items-center mb-4">
                 <FaPython className="text-3xl text-blue-600 dark:text-blue-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-foreground">Backend</h3>
@@ -131,7 +131,7 @@ const TechnicalAbout = () => {
             </div>
 
             {/* Search System */}
-            <div className="bg-card/60 p-6 rounded-xl border border-border shadow-md hover:shadow-lg transition duration-300">
+            <div className="bg-card p-6 rounded-md border border-border">
               <div className="flex items-center mb-4">
                 <FaSearch className="text-3xl text-green-600 dark:text-green-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-foreground">Search System</h3>
@@ -144,7 +144,7 @@ const TechnicalAbout = () => {
             </div>
 
             {/* Scraper System */}
-            <div className="bg-card/60 p-6 rounded-xl border border-border shadow-md hover:shadow-lg transition duration-300">
+            <div className="bg-card p-6 rounded-md border border-border">
               <div className="flex items-center mb-4">
                 <FaInstagram className="text-3xl text-pink-600 dark:text-pink-400 mr-3" />
                 <h3 className="text-2xl font-semibold text-foreground">Scraper System</h3>
@@ -198,7 +198,7 @@ const TechnicalAbout = () => {
                       </p>
                       
                       {/* Desktop tooltip - Only shows on hover */}
-                      <div className="hidden md:block absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 rounded-xl backdrop-blur-xs bg-white/90 dark:bg-gray-900/90 text-gray-800 dark:text-gray-200 px-4 py-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 border border-border pointer-events-none mt-2">
+                      <div className="hidden md:block absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 rounded-md bg-popover text-popover-foreground px-4 py-3 shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-border pointer-events-none mt-2">
                         <p className="text-sm leading-relaxed">{tool.description}</p>
                       </div>
                     </div>

@@ -108,10 +108,10 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
     user ? (
       <button
         type="button"
-        className={`star-button z-20 rounded-full border p-2 backdrop-blur transition-colors ${
+        className={`star-button z-20 rounded-md border p-2 transition-colors ${
           isLiked
-            ? "instinct-star-fav"
-            : "border-border bg-background/80 text-muted-foreground hover:text-foreground"
+            ? "instinct-star-fav is-active"
+            : "border-border bg-card text-muted-foreground hover:text-foreground"
         } ${className}`}
         onClick={handleLikeToggle}
         aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
@@ -127,47 +127,41 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
       </button>
     ) : null;
 
-  const Avatar = ({ sizeClass }) => {
-    const [failed, setFailed] = useState(false);
-    const show = club.profilePicture && !failed;
-    return (
-      <div
-        className={`relative shrink-0 overflow-hidden rounded-full border-2 border-border bg-muted shadow-sm ${sizeClass}`}
-      >
-        {show ? (
-          <Image
-            src={club.profilePicture}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="80px"
-            priority={index < 6}
-            loading={index < 6 ? "eager" : "lazy"}
-            unoptimized
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <FaUserCircle className="h-full w-full text-muted-foreground" aria-hidden="true" />
-            <span className="sr-only">{club.name || "Club"}</span>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const Avatar = ({ sizeClass }) => (
+    <div
+      className={`relative shrink-0 overflow-hidden rounded-full border border-border ${sizeClass}`}
+    >
+      {club.profilePicture ? (
+        <Image
+          src={club.profilePicture}
+          alt={`${club.name} logo`}
+          fill
+          className="object-cover"
+          sizes="80px"
+          priority={index < 6}
+          loading={index < 6 ? "eager" : "lazy"}
+          unoptimized
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-muted">
+          <FaUserCircle className="h-full w-full text-muted-foreground" />
+        </div>
+      )}
+    </div>
+  );
 
   const CategoryTags = ({ limit }) => (
     <div className="flex max-h-[60px] flex-wrap justify-center gap-1 overflow-hidden">
       {club.categories?.slice(0, limit).map((category, i) => (
         <span
           key={i}
-          className="instinct-tag whitespace-nowrap rounded-full border px-2 py-0.5 text-xs"
+          className="instinct-tag whitespace-nowrap rounded-md border px-2 py-0.5 text-xs"
         >
           {typeof category === "string" ? category : category.name}
         </span>
       ))}
       {club.categories?.length > limit && (
-        <span className="instinct-tag whitespace-nowrap rounded-full border px-2 py-0.5 text-xs">
+        <span className="instinct-tag whitespace-nowrap rounded-md border px-2 py-0.5 text-xs">
           +{club.categories.length - limit} more
         </span>
       )}
@@ -175,7 +169,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
   );
 
   const GridCard = () => (
-    <div className="instinct-card relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card">
+    <div className="instinct-card relative flex h-full flex-col overflow-hidden rounded-md border border-border bg-card">
       <div className="relative">
         <StarButton className="absolute right-3 top-3" />
       </div>
@@ -205,7 +199,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
   );
 
   const ListCard = () => (
-    <div className="instinct-card relative w-full overflow-hidden rounded-xl border border-border bg-card">
+    <div className="instinct-card relative w-full overflow-hidden rounded-md border border-border bg-card">
       <div className="flex p-4">
         <div className="mr-4 shrink-0">
           <Avatar sizeClass="h-16 w-16 sm:h-20 sm:w-20" />
@@ -240,7 +234,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
     <div
       className={`${
         viewMode === "grid" ? "h-[360px]" : "h-[120px]"
-      } animate-pulse rounded-xl border border-border bg-muted/40`}
+      } animate-pulse rounded-md border border-border bg-muted/40`}
     >
       <div className="flex h-full flex-col items-center justify-center p-4">
         <div className="mb-3 h-16 w-16 rounded-full bg-muted" />
