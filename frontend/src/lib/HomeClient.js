@@ -113,14 +113,11 @@ export default function HomeClient({
 
 <Navbar />
 
-      <main className="container mx-auto flex-1 px-3 pb-10 pt-[100px] text-center sm:px-4 sm:pb-16 sm:pt-[120px] md:pb-20">
-        <div className="mb-8 sm:mb-12">
-          <h1 className="mb-2 text-3xl font-semibold tracking-tight text-foreground sm:mb-3 sm:text-4xl md:text-5xl">
-            Clubs & Organizations
+      <main className="container mx-auto flex-1 px-3 pb-10 pt-[100px] sm:px-4 sm:pb-16 sm:pt-[120px] md:pb-20">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            Clubs
           </h1>
-          <p className="text-base text-muted-foreground sm:text-lg">
-            Find and connect with campus organizations
-          </p>
         </div>
 
         <SearchSection
