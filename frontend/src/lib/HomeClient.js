@@ -35,6 +35,12 @@ export default function HomeClient({
     handleLoadMore,
   } = useClubsData(initialClubs, totalCount, hasMore, currentPage, user);
 
+  // Seed search from /clubs?search=... (landing page search routes here)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("search");
+    if (q?.trim()) setSearchInput(q.trim());
+  }, [setSearchInput]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
