@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: heroku-deploy
+
+env:
+  HEROKU_APP: instinct
+  HEALTH_URL: https://instinct-f4ae805488a8.herokuapp.com/health
+
+jobs:
+  heroku:
+    # Only deploy commits pushed to main whose CI passed (a fork PR from a
+    # branch named main also matches the branches filter, hence the event check).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      # Heroku builds the image from heroku.yml on the container stack.
+      - name: Push to Heroku
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: git push -f "https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP}.git" HEAD:refs/heads/main
+
+      - name: Health check
+        run: curl --fail --silent --show-error --retry 10 --retry-delay 10 --retry-all-errors "$HEALTH_URL"
