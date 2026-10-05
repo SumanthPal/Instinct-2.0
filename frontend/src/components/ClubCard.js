@@ -129,7 +129,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
 
   const Avatar = ({ sizeClass }) => (
     <div
-      className={`relative overflow-hidden rounded-full border-2 border-border shadow-sm ${sizeClass}`}
+      className={`relative shrink-0 overflow-hidden rounded-full border-2 border-border shadow-sm ${sizeClass}`}
     >
       {club.profilePicture ? (
         <Image

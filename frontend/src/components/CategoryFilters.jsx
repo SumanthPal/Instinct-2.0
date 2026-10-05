@@ -1,24 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+
+const MoreCategoriesPopover = dynamic(
+  () => import("@/components/MoreCategoriesPopover"),
+  { ssr: false, loading: () => null },
+);
 
 /**
  * Quiet filters: All + 4 top categories + More (popover/command).
  * `allCategories` from /categories; top ranked by frequency in `clubs`.
+ * More popover/cmdk is lazy-loaded on first open or idle.
  */
 export default function CategoryFilters({
   selectedCategories = [],
@@ -28,6 +21,29 @@ export default function CategoryFilters({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreQuery, setMoreQuery] = useState("");
+  const [moreReady, setMoreReady] = useState(false);
+
+  useEffect(() => {
+    if (moreOpen) setMoreReady(true);
+  }, [moreOpen]);
+
+  // Prefetch the chunk during idle so first open is snappy
+  useEffect(() => {
+    let idleId;
+    let timeoutId;
+    const warm = () => setMoreReady(true);
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(warm, { timeout: 2500 });
+    } else {
+      timeoutId = setTimeout(warm, 1500);
+    }
+    return () => {
+      if (idleId != null && window.cancelIdleCallback) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
 
   const { topChips, moreChips } = useMemo(() => {
     const counts = new Map();
@@ -39,9 +55,7 @@ export default function CategoryFilters({
       }
     }
     const ranked = (
-      allCategories.length
-        ? [...allCategories]
-        : [...counts.keys()]
+      allCategories.length ? [...allCategories] : [...counts.keys()]
     ).sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0));
 
     return {
@@ -89,48 +103,35 @@ export default function CategoryFilters({
           {name}
         </button>
       ))}
-      {moreChips.length > 0 && (
-        <Popover open={moreOpen} onOpenChange={setMoreOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              data-filter-more
-              className={`${chipClass(moreIsActive)} inline-flex items-center gap-1`}
-            >
-              {moreIsActive ? selected : "More"}
-              <ChevronDown className="h-3 w-3 opacity-70" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-0" align="center">
-            <Command shouldFilter={false} className="border-0 shadow-none">
-              <CommandInput
-                placeholder="Find category…"
-                value={moreQuery}
-                onValueChange={setMoreQuery}
-              />
-              <CommandList>
-                <CommandEmpty>No categories.</CommandEmpty>
-                <CommandGroup heading="More categories">
-                  {moreFiltered.map((name) => (
-                    <CommandItem
-                      key={name}
-                      value={name}
-                      onSelect={() => select(selected === name ? null : name)}
-                    >
-                      <span className="truncate">{name}</span>
-                      {selected === name && (
-                        <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground">
-                          active
-                        </span>
-                      )}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      )}
+      {moreChips.length > 0 &&
+        (moreReady ? (
+          <MoreCategoriesPopover
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
+            moreIsActive={moreIsActive}
+            selected={selected}
+            chipClass={chipClass}
+            moreQuery={moreQuery}
+            setMoreQuery={setMoreQuery}
+            moreFiltered={moreFiltered}
+            onSelect={select}
+          />
+        ) : (
+          <button
+            type="button"
+            data-filter-more
+            className={`${chipClass(moreIsActive)} inline-flex items-center gap-1`}
+            onClick={() => {
+              setMoreReady(true);
+              setMoreOpen(true);
+            }}
+          >
+            {moreIsActive ? selected : "More"}
+            <span className="text-[10px] opacity-70" aria-hidden>
+              ▾
+            </span>
+          </button>
+        ))}
     </div>
   );
 }
