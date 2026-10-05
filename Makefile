@@ -5,7 +5,8 @@ COMPOSE := docker compose
 
 .PHONY: help up down restart logs ps build clean \
         up-all up-discord up-scraper \
-        dev-api dev-web web-build install check fmt test shell-web redis-cli
+        dev-api dev-web web-build install check fmt test shell-web redis-cli \
+        db-local db-reset
 
 help: ## Show this help
 	@grep -hE '^[a-z0-9_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -58,6 +59,13 @@ dev-web: ## Run the Next dev server on the host (fast HMR — preferred)
 install: ## Install backend (uv) and frontend (bun) dependencies
 	uv sync --all-extras --group dev
 	cd frontend && bun install
+
+## ---- local database (never touches the live Supabase project) ---------
+db-local: ## Start a throwaway local DB with migrations + seed, print DATABASE_URL
+	scripts/db-local.sh up
+
+db-reset: ## Wipe the local DB and rebuild it from migrations + seed
+	scripts/db-local.sh reset
 
 ## ---- checks ------------------------------------------------------------
 check: ## Verify the backend imports with an empty environment
