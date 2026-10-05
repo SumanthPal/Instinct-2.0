@@ -2,11 +2,11 @@
 import SearchBar from "./ui/SearchBar";
 import { useToast } from "@/components/ui/toast";
 
-export default function SearchSection({ 
-  searchInput, 
-  onSearchChange, 
-  onSearch, 
-  user 
+export default function SearchSection({
+  searchInput,
+  onSearchChange,
+  onSearch,
+  user,
 }) {
   const { toast } = useToast();
 
@@ -15,7 +15,8 @@ export default function SearchSection({
       if (!user) {
         toast({
           title: "Authentication Required",
-          description: "Sign in to use hybrid search capabilities for better results",
+          description:
+            "Sign in to use hybrid search capabilities for better results",
           status: "info",
           duration: 5000,
           isClosable: true,
@@ -26,14 +27,14 @@ export default function SearchSection({
   };
 
   return (
-    <div className="mb-6 sm:mb-8 max-w-2xl mx-auto">
-      <div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 p-1 shadow-md">
+    <div className="relative mx-auto mb-8 max-w-2xl">
+      <div className="rounded-full border border-border bg-card/80 p-1 shadow-sm backdrop-blur-sm">
         <SearchBar
           value={searchInput}
           onChange={onSearchChange}
           onEnter={handleSearch}
           placeholder="Search clubs..."
-          className="w-full bg-transparent text-dark-base dark:text-dark-text py-2 sm:py-3 px-4 sm:px-5 rounded-full outline-hidden placeholder:text-dark-base/50 dark:placeholder:text-dark-text/50 text-sm sm:text-base"
+          className="w-full rounded-full bg-transparent px-4 py-2.5 text-sm text-foreground outline-hidden placeholder:text-muted-foreground sm:px-5 sm:py-3 sm:text-base"
         />
       </div>
     </div>

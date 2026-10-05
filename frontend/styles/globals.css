@@ -275,3 +275,49 @@
   border-radius: 999px;
   background-image: var(--instinct-gradient);
 }
+
+.instinct-chip {
+  border-color: color-mix(in srgb, hsl(var(--border)) 55%, transparent);
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+}
+.instinct-chip:hover {
+  color: hsl(var(--foreground));
+  border-color: color-mix(in srgb, hsl(var(--border)) 80%, transparent);
+}
+.instinct-chip-active {
+  background-image: var(--instinct-gradient);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px -6px color-mix(in srgb, var(--instinct-pink) 55%, transparent);
+}
+.instinct-tag {
+  border-color: color-mix(in srgb, hsl(var(--border)) 45%, transparent);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+.instinct-card {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.instinct-card:hover {
+  border-color: color-mix(in srgb, var(--instinct-purple) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--instinct-pink) 35%, transparent),
+    0 0 24px -4px color-mix(in srgb, var(--instinct-purple) 45%, transparent),
+    0 10px 32px -14px color-mix(in srgb, var(--instinct-sky) 40%, transparent);
+}
+.dark .instinct-card {
+  border-color: hsl(240 3% 18% / 0.85);
+}
+.instinct-star-fav {
+  border-color: color-mix(in srgb, var(--instinct-purple) 40%, transparent);
+  background: color-mix(in srgb, var(--instinct-purple) 12%, hsl(var(--background)));
+}
+
+.instinct-divider {
+  border-color: color-mix(in srgb, hsl(var(--border)) 70%, transparent);
+}
+.instinct-star-fill {
+  fill: url(#instinct-grad);
+  stroke: url(#instinct-grad);
+}
