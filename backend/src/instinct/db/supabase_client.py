@@ -1,7 +1,7 @@
 """Lazy Supabase client.
 
 Importing this module must never require configuration or a network round trip:
-everything downstream (the FastAPI app, the Discord bots, the scraper) imports it
+everything downstream (the FastAPI app, the scraper) imports it
 transitively, so an import-time `create_client()` made the whole backend
 unimportable without a full environment. The client is built on first attribute
 access instead, and missing configuration surfaces as a readable error at that

@@ -73,12 +73,14 @@ def get_db() -> SupabaseQueries:
 
 
 def require_internal_token(request: Request) -> None:
-    """Authenticate an internal caller (the Discord bot) on admin endpoints.
+    """Authenticate an internal caller on admin endpoints.
 
-    Uses INTERNAL_API_TOKEN, a secret whose only purpose is bot -> API auth.
+    Uses INTERNAL_API_TOKEN, a secret whose only purpose is internal -> API auth.
+    The Discord bots that used to call these endpoints are retired; the token
+    still gates them for admin scripts and tooling.
     This used to compare against the Supabase service_role key, which meant the
     API bearer token doubled as full, RLS-bypassing database access and that
-    rotating the database key silently broke bot auth (#50).
+    rotating the database key silently broke internal auth (#50).
     """
     expected = os.getenv("INTERNAL_API_TOKEN")
     if not expected:

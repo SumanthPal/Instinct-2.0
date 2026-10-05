@@ -26,8 +26,7 @@ def _default_log_dir() -> str:
     return str(Path.cwd() / "logs")
 
 
-# Single source of truth for where logs go; every reader (job_bot's !logs,
-# scraper_rotation) imports LOG_FILE_PATH from here rather than recomputing it.
+# Single source of truth for where logs go; every reader (scraper_rotation) imports LOG_FILE_PATH from here rather than recomputing it.
 LOG_DIR = os.getenv("LOG_DIR") or _default_log_dir()
 LOG_FILE_PATH = os.path.join(LOG_DIR, "logfile.log")
 

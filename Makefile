@@ -4,7 +4,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 
 .PHONY: help up down restart logs ps build clean \
-        up-all up-discord up-scraper \
+        up-all up-scraper \
         dev-api dev-web web-build install check fmt test shell-web redis-cli \
         db-local db-reset
 
@@ -26,10 +26,7 @@ down: ## Stop the stack (keeps the redis volume)
 restart: down up ## Restart the stack
 
 up-all: ## Start every service, including optional profiles
-	$(COMPOSE) --profile discord --profile scraper up -d
-
-up-discord: ## Start the Discord bots (needs AUX_BOT_TOKEN / JOB_BOT_TOKEN)
-	$(COMPOSE) --profile discord up -d discord
+	$(COMPOSE) --profile scraper up -d
 
 up-scraper: ## Start the scraper in Docker (builds Chromium; usually run locally instead)
 	$(COMPOSE) --profile scraper up -d scraper
@@ -47,7 +44,7 @@ build: ## Rebuild all images
 	$(COMPOSE) build
 
 clean: ## Stop everything and delete volumes (DESTROYS local redis data)
-	$(COMPOSE) --profile discord --profile scraper down -v --remove-orphans
+	$(COMPOSE) --profile scraper down -v --remove-orphans
 
 ## ---- local dev (no containers) -----------------------------------------
 dev-api: ## Run the API on the host with reload
