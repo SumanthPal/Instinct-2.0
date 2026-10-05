@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase'
 import { useToast } from '@/components/ui/toast';
@@ -9,17 +9,11 @@ const AuthContext = createContext()
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function AuthProvider({ children }) {
-  const searchParams = useSearchParams();
-
   const [user, setUser] = useState(null)
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
-  const { toast } = useToast();
-
-  const [toastShown, setToastShown] = useState(false); // 🔥 NEW GUARD
-
 
   useEffect(() => {
     const getSession = async () => {
@@ -37,27 +31,6 @@ export function AuthProvider({ children }) {
       subscription.unsubscribe()
     }
   }, [])
-  useEffect(() => {
-    const error = searchParams.get('error');
-
-    if (error === 'invalid-email' && !toastShown) {
-      
-      setTimeout(() => {
-        toast({
-          title: 'Invalid Email',
-          description: 'Please sign in with your UCI email address.',
-          status: 'error', // Make sure your toast component supports 'status'
-          duration: 4000,
-          isClosable: true,
-        });
-      }, 100);
-
-      setToastShown(true); // ✅ Mark as shown
-      const url = new URL(window.location.href);
-      url.searchParams.delete('error');
-      window.history.replaceState({}, '', url);
-    }
-  }, [searchParams, router, toast, toastShown]); // watch toastShown too!
 
 
   const handleSession = async (session) => {
@@ -132,7 +105,49 @@ export function AuthProvider({ children }) {
     loading,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {/* useSearchParams() opts its subtree out of static rendering, so it
+          lives in its own Suspense boundary instead of wrapping the app. */}
+      <Suspense fallback={null}>
+        <InvalidEmailToast />
+      </Suspense>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+// Shows a toast when the OAuth callback redirects back with ?error=invalid-email.
+function InvalidEmailToast() {
+  const searchParams = useSearchParams();
+  const router = useRouter()
+  const { toast } = useToast();
+
+  const [toastShown, setToastShown] = useState(false); // 🔥 NEW GUARD
+
+  useEffect(() => {
+    const error = searchParams.get('error');
+
+    if (error === 'invalid-email' && !toastShown) {
+      
+      setTimeout(() => {
+        toast({
+          title: 'Invalid Email',
+          description: 'Please sign in with your UCI email address.',
+          status: 'error', // Make sure your toast component supports 'status'
+          duration: 4000,
+          isClosable: true,
+        });
+      }, 100);
+
+      setToastShown(true); // ✅ Mark as shown
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      window.history.replaceState({}, '', url);
+    }
+  }, [searchParams, router, toast, toastShown]); // watch toastShown too!
+
+  return null
 }
 
 export function useAuth() {
