@@ -76,26 +76,26 @@ export default function Navbar() {
   const desktopLink = (href) => {
     const active = pathname === href;
     return active
-      ? "instinct-nav-active text-sm font-medium text-foreground"
-      : "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
+      ? "instinct-nav-active text-[15px] font-medium text-foreground"
+      : "text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground";
   };
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border bg-background">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-10">
+          <Link href="/" className="flex items-center gap-2.5">
             <img
               src="/logo.png"
               alt="Instinct"
-              className="h-7 w-7 sm:h-8 sm:w-8"
+              className="h-9 w-9 sm:h-10 sm:w-10"
             />
-            <span className="instinct-text text-lg font-semibold tracking-tight sm:text-xl">
+            <span className="text-xl font-semibold tracking-tight text-foreground sm:text-[22px]">
               Instinct
             </span>
           </Link>
 
-          <div className="hidden items-center gap-6 md:flex">
+          <div className="hidden items-center gap-7 md:flex">
             <Link href="/clubs" className={desktopLink("/clubs")}>
               Clubs
             </Link>
@@ -116,7 +116,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
@@ -129,10 +129,10 @@ export default function Navbar() {
                   <img
                     src={user.user_metadata.avatar_url}
                     alt=""
-                    className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
+                    className="h-9 w-9 rounded-full object-cover ring-1 ring-border"
                   />
                 ) : (
-                  <FaUserCircle className="h-8 w-8 text-muted-foreground" />
+                  <FaUserCircle className="h-9 w-9 text-muted-foreground" />
                 )}
               </button>
 
@@ -162,9 +162,9 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="instinct-btn hidden items-center rounded-md px-3.5 py-1.5 text-xs font-medium md:inline-flex"
+                className="instinct-btn hidden h-9 items-center rounded-md px-4 text-sm font-medium md:inline-flex"
               >
-                <FaGoogle className="mr-2" size={12} />
+                <FaGoogle className="mr-2" size={13} />
                 Sign in with UCI
               </button>
             )
@@ -189,9 +189,6 @@ export default function Navbar() {
       >
         <div className="mx-3 mb-3 rounded-md border border-border bg-card p-3">
           <div className="flex flex-col gap-0.5">
-            <NavLink href="/about" active={pathname === "/about"}>
-              About
-            </NavLink>
             <NavLink href="/clubs" active={pathname === "/clubs"}>
               Clubs
             </NavLink>
@@ -200,6 +197,9 @@ export default function Navbar() {
             </NavLink>
             <NavLink href="/news" active={pathname === "/news"}>
               News
+            </NavLink>
+            <NavLink href="/about" active={pathname === "/about"}>
+              About
             </NavLink>
             {user && (
               <NavLink href="/dashboard" active={pathname === "/dashboard"}>
@@ -260,7 +260,7 @@ function NavLink({ href, active, children }) {
   return (
     <Link
       href={href}
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+      className={`rounded-md px-3 py-2.5 text-[15px] font-medium transition-colors ${
         active
           ? "bg-accent text-foreground"
           : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
