@@ -42,7 +42,7 @@ export default function HomeServer() {
       <div className="flex min-h-screen flex-col bg-background text-foreground">
         <Navbar />
         <main className="container mx-auto flex flex-1 items-center justify-center px-4 py-24">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
+          <div className="w-full max-w-md rounded-md border border-border bg-card p-8">
             <h2 className="mb-4 text-center text-2xl font-semibold text-destructive">
               Error Loading Clubs
             </h2>
@@ -50,7 +50,7 @@ export default function HomeServer() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="instinct-btn w-full rounded-full py-3 font-medium text-white"
+              className="instinct-btn w-full rounded-md py-3 font-medium text-white"
             >
               Retry
             </button>
@@ -66,7 +66,7 @@ export default function HomeServer() {
       <div className="flex min-h-screen flex-col bg-background text-foreground">
         <Navbar />
         <main className="container mx-auto flex flex-1 items-center justify-center px-4 py-24">
-          <div className="rounded-xl border border-border bg-card px-8 py-10 text-center shadow-sm">
+          <div className="rounded-md border border-border bg-card px-8 py-10 text-center">
             <div className="mb-4 inline-block h-10 w-10 animate-spin rounded-full border-4 border-muted border-t-foreground" />
             <h2 className="text-xl font-medium text-foreground">
               Loading Anteater Clubs...

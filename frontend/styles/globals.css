@@ -278,47 +278,50 @@
 }
 
 .instinct-chip {
-  border-color: color-mix(in srgb, hsl(var(--border)) 55%, transparent);
+  border-color: hsl(var(--border));
   color: hsl(var(--muted-foreground));
   background: transparent;
 }
 .instinct-chip:hover {
   color: hsl(var(--foreground));
-  border-color: color-mix(in srgb, hsl(var(--border)) 80%, transparent);
+  border-color: hsl(var(--foreground) / 0.25);
 }
 .instinct-chip-active {
-  background-image: var(--instinct-gradient);
+  background-color: var(--accent-brand);
   color: #fff;
-  border-color: transparent;
-  box-shadow: 0 4px 16px -6px color-mix(in srgb, var(--instinct-pink) 55%, transparent);
+  border-color: var(--accent-brand);
+  box-shadow: none;
 }
 .instinct-tag {
-  border-color: color-mix(in srgb, hsl(var(--border)) 45%, transparent);
+  border-color: hsl(var(--border));
   background: transparent;
   color: hsl(var(--muted-foreground));
 }
 .instinct-card {
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.15s ease;
 }
 .instinct-card:hover {
-  border-color: color-mix(in srgb, var(--instinct-purple) 55%, transparent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--instinct-pink) 35%, transparent),
-    0 0 24px -4px color-mix(in srgb, var(--instinct-purple) 45%, transparent),
-    0 10px 32px -14px color-mix(in srgb, var(--instinct-sky) 40%, transparent);
+  border-color: var(--accent-brand);
+  box-shadow: none;
 }
 .dark .instinct-card {
   border-color: hsl(240 3% 18% / 0.85);
 }
 .instinct-star-fav {
-  border-color: color-mix(in srgb, var(--instinct-purple) 40%, transparent);
-  background: color-mix(in srgb, var(--instinct-purple) 12%, hsl(var(--background)));
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+}
+.instinct-star-fav[aria-pressed="true"],
+.instinct-star-fav.is-active {
+  border-color: var(--accent-brand);
+  background: color-mix(in srgb, var(--accent-brand) 12%, hsl(var(--background)));
 }
 
 .instinct-divider {
-  border-color: color-mix(in srgb, hsl(var(--border)) 70%, transparent);
+  border-color: hsl(var(--border));
 }
 .instinct-star-fill {
-  fill: url(#instinct-grad);
-  stroke: url(#instinct-grad);
+  fill: var(--accent-brand);
+  stroke: var(--accent-brand);
+  color: var(--accent-brand);
 }
