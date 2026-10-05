@@ -1,8 +1,8 @@
-import { fetchClubData, fetchClubEvents, fetchClubPosts } from '@/lib/api';
-import ClubDetail from '@/components/ClubDetail';
-import '../../../../styles/globals.css';
-import Footer from '@/components/ui/Footer';
-import Navbar from '@/components/ui/Navbar';
+import { fetchClubData, fetchClubEvents, fetchClubPosts } from "@/lib/api";
+import ClubDetail from "@/components/ClubDetail";
+import "../../../../styles/globals.css";
+import Footer from "@/components/ui/Footer";
+import Navbar from "@/components/ui/Navbar";
 
 export default async function ClubPage({ params }) {
   const { username } = await params;
@@ -12,15 +12,16 @@ export default async function ClubPage({ params }) {
     fetchClubPosts(username),
     fetchClubEvents(username),
   ]);
+
   return (
-    <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue  dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Navbar />
-      <main className="w-full max-w-7xl mx-auto px-4 py-24 flex flex-col items-center justify-center text-center dark:text-dark-text overflow-hidden">
-      <ClubDetail
-      clubData={clubData}
-      initialClubPosts={clubPosts}
-      initialClubEvents={clubEvents}
-    />
+      <main className="mx-auto w-full max-w-3xl flex-1 px-0 pb-10 pt-[88px] sm:px-4 sm:pt-[100px]">
+        <ClubDetail
+          clubData={clubData}
+          initialClubPosts={clubPosts}
+          initialClubEvents={clubEvents}
+        />
       </main>
       <Footer />
     </div>

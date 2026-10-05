@@ -321,3 +321,33 @@
   fill: url(#instinct-grad);
   stroke: url(#instinct-grad);
 }
+
+.instinct-story-ring {
+  background-image: var(--instinct-gradient);
+  padding: 3px;
+  border-radius: 9999px;
+  display: inline-flex;
+}
+.instinct-story-ring-inner {
+  border-radius: 9999px;
+  background: hsl(var(--background));
+  padding: 2px;
+  display: inline-flex;
+}
+.instinct-tab-active {
+  position: relative;
+  color: hsl(var(--foreground));
+}
+.instinct-tab-active::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 1.5px;
+  border-radius: 999px;
+  background-image: var(--instinct-gradient);
+}
+.instinct-post-tile {
+  background: hsl(var(--muted));
+}
