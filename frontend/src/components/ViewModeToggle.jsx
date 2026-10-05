@@ -2,12 +2,12 @@ export default function ViewModeToggle({ viewMode, setViewMode }) {
   const btn = (active) =>
     `rounded-md p-2 transition-colors ${
       active
-        ? "bg-background text-foreground shadow-sm"
+        ? "bg-background text-foreground"
         : "text-muted-foreground hover:text-foreground"
     }`;
 
   return (
-    <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+    <div className="inline-flex rounded-md border border-border bg-muted/40 p-1">
       <button
         type="button"
         onClick={() => setViewMode("grid")}
