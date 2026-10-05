@@ -5,12 +5,12 @@
 #   scripts/db-local.sh up      start it if needed (make db-local)
 #   scripts/db-local.sh reset   wipe and rebuild from scratch (make db-reset)
 #
-# With the Supabase CLI installed this uses `supabase start` / `supabase db
+# With the Supabase CLI installed this uses `supabase db start` / `supabase db
 # reset`. Otherwise it runs one plain Postgres + pgvector container and loads
 # scripts/db-local-stub.sql (roles, auth.uid() etc.) before the migrations.
-# Seeds from supabase/seed.local.sql when present, else supabase/seed.sql.
-# A container whose public.clubs is empty was never fully initialised and is
-# rebuilt.
+# Seeds from supabase/seed.local.sql when present, else supabase/seed.sql, and
+# only while public.clubs is empty, so a restarted database is never re-seeded
+# and a half-built one is rebuilt (Docker) or re-seeded (CLI).
 #
 # Env: DOCKER="sudo docker" if your user can't reach the Docker socket;
 # DB_IMAGE, DB_PORT, DB_CONTAINER to override the defaults below.
@@ -56,15 +56,12 @@ wait_pg() { # the image's init server is socket-only; TCP answers once the real 
 }
 
 if command -v supabase >/dev/null; then
-  # supabase/config.toml disables CLI seeding so both modes load the same file.
-  if supabase status >/dev/null 2>&1; then
-    [ "$MODE" = reset ] || { supabase status; exit 0; }
-    supabase db reset
-  else
-    supabase start
-  fi
-  run_sql supabase_db_instinct "$SEED"
-  supabase status
+  # A no-op when running. On a fresh volume it applies the migrations; seeding
+  # is off in config.toml so both modes load the seed the same way, below.
+  supabase db start
+  if [ "$MODE" = reset ]; then supabase db reset; fi
+  seeded supabase_db_instinct || run_sql supabase_db_instinct "$SEED"
+  echo "DATABASE_URL=$URL"
   exit 0
 fi
 
