@@ -32,3 +32,18 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run build
+
+  db-migrations:
+    runs-on: ubuntu-latest
+    env:
+      DB_IMAGE: pgvector/pgvector:pg15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Apply stub, migrations and seed to a fresh database
+        run: scripts/db-local.sh reset
+      - name: Sanity check
+        run: |
+          clubs=$(docker exec -e PGPASSWORD=postgres instinct-db \
+            psql -X -h 127.0.0.1 -U postgres -tAc 'select count(*) from public.clubs')
+          echo "public.clubs rows: $clubs"
+          test "$clubs" -gt 0
