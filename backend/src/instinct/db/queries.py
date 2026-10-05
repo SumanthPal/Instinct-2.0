@@ -16,6 +16,14 @@ from instinct.db.supabase_client import (
 from instinct.storage import get_storage
 from instinct.tools.logger import logger
 
+# Every clubs column except `embedding` (1536 floats) and `search_vector`, which
+# are search internals: returning them put ~30 KB on every club page (#92).
+CLUB_DETAIL_COLUMNS = (
+    "id, name, instagram_handle, profile_pic, description, updated_at, "
+    "followers, following, club_links, last_scraped, profile_image_path, "
+    "needs_embedding_update, last_embedding_update"
+)
+
 
 class SupabaseQueries:
     def __init__(self):
@@ -66,10 +74,10 @@ class SupabaseQueries:
     # ----- Club Methods -----
 
     def get_club_by_instagram(self, instagram_handle: str) -> Optional[Dict]:
-        """Fetch a club by Instagram handle"""
+        """Fetch a club by Instagram handle, without its search vectors."""
         response = (
             self.supabase.table("clubs")
-            .select("*")
+            .select(CLUB_DETAIL_COLUMNS)
             .eq("instagram_handle", instagram_handle)
             .execute()
         )
