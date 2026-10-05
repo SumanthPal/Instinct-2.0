@@ -51,15 +51,17 @@ CI/CD: Implemented a full CI/CD pipeline with GitHub Actions to automate deploym
 
 `make db-local` starts a throwaway Postgres, applies `supabase/migrations/` and the fake data in `supabase/seed.sql`, and prints its `DATABASE_URL`. `make db-reset` wipes it and rebuilds from scratch. Neither touches the live Supabase project.
 
-With the Supabase CLI installed it uses `supabase start` (`supabase status` shows the local API URL and keys). Without the CLI it runs one `pgvector/pgvector:pg15` container with a small auth stub (`scripts/db-local-stub.sql`), which gives you Postgres only, no REST API. Set `DOCKER="sudo docker"` if Docker needs sudo. Grants aren't in the migrations yet (#73), so local access rules don't match prod exactly.
+With the Supabase CLI installed it uses `supabase db start` (Postgres only, no API containers). Without the CLI it runs one `pgvector/pgvector:pg15` container with a small auth stub (`scripts/db-local-stub.sql`). Set `DOCKER="sudo docker"` if Docker needs sudo. The seed only loads into an empty database, so restarting keeps your data. Grants are stripped from the migrations until #73, so locally `anon` and `authenticated` get `permission denied` on every table, and RLS policies can't be tested locally yet.
 
-For real data, create the gitignored `supabase/seed.local.sql`; it is loaded instead of `seed.sql`. Refresh it with a read-only, data-only dump of the public tables, never `pending_clubs` (submitter emails) or `user_liked_clubs` (user IDs):
+For real data, create the gitignored `supabase/seed.local.sql`; it is loaded instead of `seed.sql`. Refresh it with a read-only, data-only dump of the public tables, never `pending_clubs` (submitter emails) or `user_liked_clubs` (user IDs). `calendar_files` only holds per-club `.ics` files built from public events, so it is included.
 
 ```bash
 supabase db dump --linked --data-only -s public \
-  -x public.pending_clubs,public.user_liked_clubs,public.calendar_files \
+  -x public.pending_clubs,public.user_liked_clubs \
   -f supabase/seed.local.sql
 ```
+
+> **Before you ever run `supabase db push` against the live project**, mark the baseline as already applied: `supabase migration repair --linked --status applied 20261004050858`. The live database already has that schema, but the baseline was made with pg_dump, so the project's migration history won't list it until you repair it, and `db push` would try to run it against prod.
 
 ## Project Status
 Currently Offline: The application is temporarily offline. After the initial launch, which garnered over 3,000 page views and 200+ registered users, the Azure instance was accidentally overprovisioned, leading to unforeseen costs that exhausted the initial credits.
