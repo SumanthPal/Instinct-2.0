@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, memo } from 'react';
-import Image from 'next/image';
+import ClubAvatar from './ClubAvatar';
 import Link from 'next/link';
 import { Card, CardHeader, CardContent, CardFooter } from './ui/Card';
-import { FaUserCircle } from 'react-icons/fa';
 import { FaStar, FaRegStar } from 'react-icons/fa';
 import { useAuth } from '@/context/auth-context';
 import { likesService } from '@/lib/like-service';
@@ -58,7 +57,6 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
   const [imageExtractedColor, setImageExtractedColor] = useState(null);
   
   const cardRef = useRef(null);
-  const imageRef = useRef(null);
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -307,23 +305,12 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
       <div className="flex flex-col items-center pt-6 pb-3">
         <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shadow-lg mb-3" 
           style={{ borderColor: finalColors.gradientColors.dark }}>
-          {club.profilePicture ? (
-            <Image
-              ref={imageRef}
-              src={club.profilePicture}
-              alt={`${club.name} logo`}
-              fill
-              className="object-cover"
-              sizes="(max-width: 80px) 100vw, 80px"
-              priority={index < 6} // Only prioritize first 6 images
-              loading={index < 6 ? "eager" : "lazy"}
-              unoptimized
-            />
-          ) : (
-            <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
-              <FaUserCircle className="text-gray-500 w-full h-full" />
-            </div>
-          )}
+          <ClubAvatar
+            src={club.profilePicture}
+            alt={`${club.name} logo`}
+            sizes="(max-width: 80px) 100vw, 80px"
+            priority={index < 6}
+          />
         </div>
         <h3 className="text-xl font-bold text-gray-700 dark:text-white flex items-center gap-1">
           {club.name}
@@ -384,23 +371,12 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
         <div className="mr-4 shrink-0">
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 shadow-lg" 
             style={{ borderColor: finalColors.gradientColors.dark }}>
-            {club.profilePicture ? (
-              <Image
-                ref={imageRef}
-                src={club.profilePicture}
-                alt={`${club.name} logo`}
-                fill
-                className="object-cover"
-                sizes="(max-width: 80px) 100vw, 80px"
-                priority={index < 6}
-                loading={index < 6 ? "eager" : "lazy"}
-                unoptimized
-              />
-            ) : (
-              <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
-                <FaUserCircle className="text-gray-500 w-full h-full" />
-              </div>
-            )}
+            <ClubAvatar
+              src={club.profilePicture}
+              alt={`${club.name} logo`}
+              sizes="(max-width: 80px) 100vw, 80px"
+              priority={index < 6}
+            />
           </div>
         </div>
         
