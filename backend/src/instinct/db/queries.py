@@ -768,7 +768,22 @@ class SupabaseQueries:
             ).execute()
 
             clubs = response.data if response.data else []
-            total_count = len(clubs) if clubs else 0
+            # Every row carries the full match count (COUNT(*) OVER ()).
+            total_count = clubs[0]["total_count"] if clubs else 0
+            for club in clubs:
+                club.pop("total_count", None)
+            if not clubs and offset > 0:
+                # A page past the end has no rows to read the count from.
+                first = self.supabase.rpc(
+                    "search_clubs_paginated",
+                    {
+                        "search_query": query,
+                        "page_offset": 0,
+                        "page_limit": 1,
+                        "filter_category": category,
+                    },
+                ).execute()
+                total_count = first.data[0]["total_count"] if first.data else 0
 
             # Add CDN prefix to profile images
             for club in clubs:
@@ -834,20 +849,18 @@ class SupabaseQueries:
         """Optimized club manifest with selective field loading"""
 
         cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
+        include_categories = "categories" in select_fields
 
-        query = self.supabase.table("clubs").select(select_fields).limit(limit)
+        if category:
+            # An inner join on a second, aliased categories embed drops clubs
+            # outside the category in SQL, before the limit, and leaves the
+            # categories(name) embed with each club's full list.
+            select_fields += ", category_filter:categories!inner(name)"
+        query = self.supabase.table("clubs").select(select_fields)
+        if category:
+            query = query.eq("category_filter.name", category)
 
-        response = query.execute()
-        if category and response.data:
-            # No category RPC exists for the manifest; filter in Python.
-            response.data = [
-                club
-                for club in response.data
-                if any(
-                    cat.get("name") == category for cat in club.get("categories", [])
-                )
-            ][:limit]
-
+        response = query.order("name").limit(limit).execute()
         clubs = response.data if response.data else []
 
         # Process manifest data
@@ -867,7 +880,7 @@ class SupabaseQueries:
                 )
 
             # Add categories if requested
-            if "categories" in select_fields:
+            if include_categories:
                 manifest_item["categories"] = [
                     cat["name"] for cat in club.get("categories", [])
                 ]
@@ -880,23 +893,23 @@ class SupabaseQueries:
 
     def get_posts_by_club_id(
         self, club_id: str, limit: int = 10, offset: int = 0
-    ) -> List[Dict]:
-        """Optimized posts fetching with selective fields"""
+    ) -> Dict:
+        """One page of a club's posts, newest first, and the club's post total."""
         try:
             # Only fetch essential fields
             response = (
                 self.supabase.table("posts")
-                .select("id, post_url, caption, image_path, posted")
+                .select("id, post_url, caption, image_path, posted", count="exact")
                 .eq("club_id", club_id)
                 .order("posted", desc=True)
                 .range(offset, offset + limit - 1)
                 .execute()
             )
 
-            return response.data or []
+            return {"posts": response.data or [], "total": response.count or 0}
         except Exception as e:
             logger.error(f"Error in get_posts_by_club_id: {e}")
-            return []
+            return {"posts": [], "total": 0}
 
     def get_all_clubs(self) -> List[Dict]:
         """Cached version of get_all_clubs - use only when necessary"""
