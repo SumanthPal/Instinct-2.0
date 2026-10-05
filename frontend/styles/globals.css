@@ -327,8 +327,8 @@
 }
 
 .instinct-story-ring {
-  background-image: var(--instinct-gradient);
-  padding: 3px;
+  background-color: var(--accent-brand);
+  padding: 2px;
   border-radius: 9999px;
   display: inline-flex;
 }
@@ -348,9 +348,9 @@
   left: 18%;
   right: 18%;
   bottom: 0;
-  height: 1.5px;
-  border-radius: 999px;
-  background-image: var(--instinct-gradient);
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--accent-brand);
 }
 .instinct-post-tile {
   background: hsl(var(--muted));

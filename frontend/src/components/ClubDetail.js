@@ -172,17 +172,7 @@ export default function ClubDetail({
 
   return (
     <div className="mx-auto w-full max-w-3xl pb-16">
-      <svg width="0" height="0" className="absolute" aria-hidden="true">
-        <defs>
-          <linearGradient id="instinct-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--instinct-pink)" />
-            <stop offset="50%" stopColor="var(--instinct-purple)" />
-            <stop offset="100%" stopColor="var(--instinct-sky)" />
-          </linearGradient>
-        </defs>
-      </svg>
-
-      <div className="mb-6 px-4 sm:px-0">
+<div className="mb-6 px-4 sm:px-0">
         <Link
           href="/clubs"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"

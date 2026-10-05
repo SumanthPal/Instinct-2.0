@@ -78,7 +78,7 @@ function FavoriteButton({ isLiked, isLoading, onToggle, className = "" }) {
     <Button
       type="button"
       size="sm"
-      className={`instinct-btn h-8 gap-1.5 rounded-lg px-4 text-xs text-white ${className}`}
+      className={`instinct-btn h-8 gap-1.5 rounded-md px-4 text-xs text-white ${className}`}
       onClick={onToggle}
       disabled={isLoading}
       aria-pressed={isLiked}
@@ -100,7 +100,7 @@ function InstagramButton({ handle, className = "" }) {
       asChild
       size="sm"
       variant="outline"
-      className={`h-8 rounded-lg border-border/50 px-3 text-xs ${className}`}
+      className={`h-8 rounded-md border-border px-3 text-xs ${className}`}
     >
       <a
         href={`https://instagram.com/${handle}`}
