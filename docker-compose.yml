@@ -30,7 +30,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: backend/Dockerfile.web
+      dockerfile: Dockerfile.web
     command: ["python", "-m", "instinct.server"]
     env_file: .env
     environment:
