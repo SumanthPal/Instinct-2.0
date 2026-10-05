@@ -29,12 +29,12 @@
 	font-size: 1rem;
 	padding: 8px;
 	border-radius: 6px;
-	color: #333 !important; /* Fix for light mode visibility */
+	color: #333 ; /* Fix for light mode visibility */
 	border: none;
 }
 
 .dark .react-calendar__navigation button {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 .react-calendar__navigation button:enabled:hover,
@@ -49,11 +49,11 @@
 
 /* Navigation Labels (Month/Year) */
 .react-calendar__navigation__label {
-	color: #333 !important; /* Fix for light mode */
+	color: #333 ; /* Fix for light mode */
 }
 
 .dark .react-calendar__navigation__label {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 /* Month View */
@@ -67,11 +67,11 @@
 
 .react-calendar__month-view__weekdays__weekday {
 	padding: 8px;
-	color: #333 !important; /* Fix for light mode visibility */
+	color: #333 ; /* Fix for light mode visibility */
 }
 
 .dark .react-calendar__month-view__weekdays__weekday {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 .react-calendar__month-view__days__day {
@@ -86,30 +86,30 @@
 	background: none;
 	border-radius: 6px;
 	position: relative;
-	color: #333 !important; /* Critical fix for light mode text visibility */
+	color: #333 ; /* Critical fix for light mode text visibility */
 	border: none;
 }
 
 .dark .react-calendar__tile {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 /* Ensure abbr elements (day numbers) inherit color */
 .react-calendar__tile abbr {
-	color: inherit !important;
+	color: inherit ;
 	text-decoration: none;
 }
 
 .react-calendar__tile:enabled:hover,
 .react-calendar__tile:enabled:focus {
 	background-color: #f0f0f0;
-	color: #333 !important;
+	color: #333 ;
 }
 
 .dark .react-calendar__tile:enabled:hover,
 .dark .react-calendar__tile:enabled:focus {
 	background-color: #3d3b48;
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 /* Highlight styles for dates with content */
@@ -125,35 +125,35 @@
 /* Today's date */
 .react-calendar__tile--now {
 	background-color: rgba(66, 153, 225, 0.2);
-	color: #333 !important;
+	color: #333 ;
 }
 
 .dark .react-calendar__tile--now {
 	background-color: rgba(66, 153, 225, 0.3);
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 /* Selected date */
 .react-calendar__tile--active {
-	background-color: #007bff !important;
-	color: white !important;
+	background-color: #007bff ;
+	color: white ;
 }
 
 .dark .react-calendar__tile--active {
-	background-color: #5d4e8c !important;
-	color: white !important;
+	background-color: #5d4e8c ;
+	color: white ;
 }
 
 .react-calendar__tile--active:enabled:hover,
 .react-calendar__tile--active:enabled:focus {
-	background-color: #0069d9 !important;
-	color: white !important;
+	background-color: #0069d9 ;
+	color: white ;
 }
 
 .dark .react-calendar__tile--active:enabled:hover,
 .dark .react-calendar__tile--active:enabled:focus {
-	background-color: #6e5ca6 !important;
-	color: white !important;
+	background-color: #6e5ca6 ;
+	color: white ;
 }
 
 /* Styles for different indicator types */
@@ -185,22 +185,22 @@
 	align-items: center;
 	justify-content: center;
 	position: relative;
-	color: #333 !important; /* Ensure mobile text visibility */
+	color: #333 ; /* Ensure mobile text visibility */
 }
 
 .dark .calendar-responsive .react-calendar__tile {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 .calendar-responsive .react-calendar__navigation button {
 	font-size: 0.875rem !important;
 	padding: 0.5rem !important;
 	min-height: 2.75rem;
-	color: #333 !important;
+	color: #333 ;
 }
 
 .dark .calendar-responsive .react-calendar__navigation button {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 .calendar-responsive .react-calendar__month-view__weekdays {
@@ -209,11 +209,11 @@
 
 .calendar-responsive .react-calendar__month-view__weekdays__weekday {
 	padding: 0.5rem 0.25rem !important;
-	color: #333 !important;
+	color: #333 ;
 }
 
 .dark .calendar-responsive .react-calendar__month-view__weekdays__weekday {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 /* Tablet breakpoint */
@@ -254,7 +254,7 @@
 
 /* Ensure all calendar text elements have proper contrast */
 .calendar-responsive .react-calendar *:not(.react-calendar__tile--active) {
-	color: inherit !important;
+	color: inherit ;
 }
 
 /* Override any inherited transparent text */
@@ -262,27 +262,27 @@
 .react-calendar__navigation button,
 .react-calendar__month-view__weekdays__weekday,
 .react-calendar__navigation__label {
-	color: #333 !important;
+	color: #333 ;
 }
 
 .dark .react-calendar__tile:not(.react-calendar__tile--active),
 .dark .react-calendar__navigation button,
 .dark .react-calendar__month-view__weekdays__weekday,
 .dark .react-calendar__navigation__label {
-	color: #e4e0ed !important;
+	color: #e4e0ed ;
 }
 
 /* Additional specificity for stubborn text elements */
 .calendar-responsive .react-calendar__navigation__label__labelText {
-	color: inherit !important;
+	color: inherit ;
 }
 
 /* Ensure proper contrast with backdrop effects */
 .calendar-responsive .react-calendar {
-	background-color: rgba(255, 255, 255, 0.95) !important;
+	background-color: rgba(255, 255, 255, 0.95) ;
 }
 
 .dark .calendar-responsive .react-calendar {
-	background-color: rgba(45, 43, 56, 0.95) !important;
+	background-color: rgba(45, 43, 56, 0.95) ;
 }
 

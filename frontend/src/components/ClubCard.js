@@ -127,28 +127,34 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
       </button>
     ) : null;
 
-  const Avatar = ({ sizeClass }) => (
-    <div
-      className={`relative shrink-0 overflow-hidden rounded-full border-2 border-border shadow-sm ${sizeClass}`}
-    >
-      {club.profilePicture ? (
-        <Image
-          src={club.profilePicture}
-          alt={`${club.name} logo`}
-          fill
-          className="object-cover"
-          sizes="80px"
-          priority={index < 6}
-          loading={index < 6 ? "eager" : "lazy"}
-          unoptimized
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-muted">
-          <FaUserCircle className="h-full w-full text-muted-foreground" />
-        </div>
-      )}
-    </div>
-  );
+  const Avatar = ({ sizeClass }) => {
+    const [failed, setFailed] = useState(false);
+    const show = club.profilePicture && !failed;
+    return (
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-full border-2 border-border bg-muted shadow-sm ${sizeClass}`}
+      >
+        {show ? (
+          <Image
+            src={club.profilePicture}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="80px"
+            priority={index < 6}
+            loading={index < 6 ? "eager" : "lazy"}
+            unoptimized
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <FaUserCircle className="h-full w-full text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">{club.name || "Club"}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const CategoryTags = ({ limit }) => (
     <div className="flex max-h-[60px] flex-wrap justify-center gap-1 overflow-hidden">
