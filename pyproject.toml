@@ -7,7 +7,6 @@ requires-python = ">=3.14"
 dependencies = [
     "beautifulsoup4",
     "boto3",
-    "discord.py",
     "email-validator",
     "fastapi",
     "httpx",
@@ -27,16 +26,6 @@ dependencies = [
     "typing-extensions",
     "uvicorn",
     "webdriver-manager",
-]
-
-[project.optional-dependencies]
-discord = [
-    "matplotlib",
-    "numpy",
-]
-discordbot = [
-    "matplotlib",
-    "numpy",
 ]
 
 [dependency-groups]
@@ -63,9 +52,6 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
 "backend/src/instinct/db/queries.py" = ["E722"]
-# The later send_notification/send_error add silence mode and win today;
-# deleting the earlier copies is a behavior review, not a lint fix.
-"backend/src/instinct/tools/bot/job_bot.py" = ["F811", "E402", "E722"]
 # Imports intentionally follow dotenv.load_dotenv() so env is loaded first.
 "backend/src/instinct/server.py" = ["E402"]
 "backend/src/instinct/tools/redis_queue.py" = ["E402"]
@@ -73,5 +59,3 @@ select = ["E4", "E7", "E9", "F"]
 # changes behavior and needs a per-site review.
 "backend/src/instinct/tools/ai_validation.py" = ["E722"]
 "backend/src/instinct/tools/insta_scraper.py" = ["E722"]
-# Second import block mid-file (files were concatenated); see job_bot too.
-"backend/src/instinct/tools/bot/auxiliary_bot.py" = ["E402", "E722"]

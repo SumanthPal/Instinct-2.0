@@ -9,7 +9,6 @@
 #   docker compose --profile scraper up    # builds Chromium; per #54 the
 #                                          # scraper normally runs on a local
 #                                          # machine, not in this stack
-#   docker compose --profile discord up    # requires AUX_BOT_TOKEN/JOB_BOT_TOKEN
 
 services:
   redis:
@@ -38,21 +37,6 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     ports:
       - "8000:8000"
-    networks: [instinct-net]
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  discord:
-    profiles: [discord]
-    build:
-      context: .
-      dockerfile: backend/Dockerfile.discord
-    command: ["python", "-m", "instinct.tools.discord_bot"]
-    env_file: .env
-    environment:
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     networks: [instinct-net]
     restart: unless-stopped
     depends_on:

@@ -18,7 +18,7 @@ import {
   SiGithubactions,
   SiTypescript
 } from 'react-icons/si';
-import { FaGithub, FaDiscord } from 'react-icons/fa';
+import { FaGithub } from 'react-icons/fa';
 import { FaReact, FaPython, FaSearch, FaInstagram } from 'react-icons/fa';
 import { RiOpenaiFill } from 'react-icons/ri';
 import { VscAzure } from 'react-icons/vsc';
@@ -61,7 +61,6 @@ const TechnicalAbout = () => {
         { icon: <VscAzure />, name: "Azure", description: "Our backend infrastructure is hosted on Azure for scalability and reliability." },
         { icon: <SiDocker />, name: "Docker", description: "Containerization to ensure consistent environments across development and production." },
         { icon: <SiGithubactions />, name: "GitHub Actions", description: "Automated CI/CD pipelines for testing, building, and deployment." },
-        { icon: <FaDiscord />, name: "Discord", description: "Our choice for monitoring system health, logs, and user requests." },
       ]
     }
   ];
@@ -275,7 +274,6 @@ const TechnicalAbout = () => {
               <li><strong>Data Layer:</strong> PostgreSQL database with specialized search capabilities</li>
               <li><strong>Task Layer:</strong> Redis-backed job queues for scraping and notifications</li>
               <li><strong>Storage Layer:</strong> Azure Blob Storage for media files</li>
-              <li><strong>Notification Layer:</strong> Discord bot for system alerts and moderation</li>
             </ul>
           </div>
 

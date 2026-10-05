@@ -1,6 +1,6 @@
 """Central Redis client factory and connection pool configuration (#55).
 
-All processes (FastAPI server, scraper, job_bot, auxiliary_bot) connect to Redis
+All processes (FastAPI server, scraper) connect to Redis
 through this module so that connection pools are uniformly bounded.
 Redis Cloud free tier caps memory at 30 MB and concurrent connections (~30),
 so every connection pool must limit max_connections (default: 5) and enable
