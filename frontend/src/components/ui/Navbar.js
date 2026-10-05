@@ -81,7 +81,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 z-50 w-full border-b border-border/80 bg-background/90 backdrop-blur">
+    <nav className="fixed top-0 z-50 w-full border-b border-border bg-background">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export default function Navbar() {
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-lg">
+                <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-md border border-border bg-popover py-2 text-popover-foreground shadow-sm">
                   <div className="border-b border-border px-4 py-3">
                     <p className="truncate text-sm font-semibold">
                       {user.user_metadata.full_name || user.email}
@@ -165,7 +165,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="instinct-btn hidden items-center rounded-full px-3.5 py-1.5 text-xs font-medium md:inline-flex"
+                className="instinct-btn hidden items-center rounded-md px-3.5 py-1.5 text-xs font-medium md:inline-flex"
               >
                 <FaGoogle className="mr-2" size={12} />
                 Sign in with UCI
@@ -176,7 +176,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
             aria-label="Toggle mobile menu"
           >
             {isOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
@@ -186,11 +186,11 @@ export default function Navbar() {
 
       <div
         ref={mobileMenuRef}
-        className={`overflow-hidden border-b border-border/80 transition-all duration-300 ease-in-out md:hidden ${
+        className={`overflow-hidden border-b border-border transition-all duration-300 ease-in-out md:hidden ${
           isOpen ? "max-h-[60vh] opacity-100" : "max-h-0 border-b-0 opacity-0"
         }`}
       >
-        <div className="mx-3 mb-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+        <div className="mx-3 mb-3 rounded-md border border-border bg-card p-3">
           <div className="flex flex-col gap-0.5">
             <NavLink href="/" active={pathname === "/"}>
               Home
@@ -218,7 +218,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              className="instinct-btn mt-3 flex w-full items-center justify-center rounded-lg py-2.5 text-sm font-medium"
+              className="instinct-btn mt-3 flex w-full items-center justify-center rounded-md py-2.5 text-sm font-medium"
             >
               <FaGoogle className="mr-2" size={14} />
               Sign in with UCI
