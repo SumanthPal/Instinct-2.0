@@ -9,6 +9,8 @@
 # reset`. Otherwise it runs one plain Postgres + pgvector container and loads
 # scripts/db-local-stub.sql (roles, auth.uid() etc.) before the migrations.
 # Seeds from supabase/seed.local.sql when present, else supabase/seed.sql.
+# A container whose public.clubs is empty was never fully initialised and is
+# rebuilt.
 #
 # Env: DOCKER="sudo docker" if your user can't reach the Docker socket;
 # DB_IMAGE, DB_PORT, DB_CONTAINER to override the defaults below.
@@ -31,16 +33,32 @@ PORT=${DB_PORT:-54322}
 CONTAINER=${DB_CONTAINER:-instinct-db}
 SEED=supabase/seed.sql
 [ -f supabase/seed.local.sql ] && SEED=supabase/seed.local.sql
+MODE=${1:-up}
+URL="postgresql://postgres:postgres@localhost:$PORT/postgres"
 
-run_sql() { # run_sql <container> <file>
+psql_in() { # psql_in <container> [psql args...]
+  local c=$1; shift
+  $DOCKER exec -i -e PGPASSWORD=postgres "$c" psql -X -q -h 127.0.0.1 -U postgres -d postgres "$@"
+}
+run_sql() { # run_sql <container> <file>: all or nothing
   echo "  applying $2"
-  $DOCKER exec -i "$1" psql -q -o /dev/null -v ON_ERROR_STOP=1 -U postgres -d postgres < "$2"
+  psql_in "$1" -o /dev/null -v ON_ERROR_STOP=1 --single-transaction < "$2"
+}
+seeded() { # true once public.clubs exists and has rows
+  [ "$(psql_in "$1" -tAc 'select exists (select 1 from public.clubs)' 2>/dev/null)" = t ]
+}
+wait_pg() { # the image's init server is socket-only; TCP answers once the real one is up
+  for _ in $(seq 60); do
+    $DOCKER exec "$1" pg_isready -q -h 127.0.0.1 -U postgres && return 0
+    sleep 1
+  done
+  echo "Postgres in $1 did not come up; try make db-reset" >&2; return 1
 }
 
 if command -v supabase >/dev/null; then
   # supabase/config.toml disables CLI seeding so both modes load the same file.
   if supabase status >/dev/null 2>&1; then
-    [ "${1:-up}" = reset ] || { supabase status; exit 0; }
+    [ "$MODE" = reset ] || { supabase status; exit 0; }
     supabase db reset
   else
     supabase start
@@ -50,20 +68,21 @@ if command -v supabase >/dev/null; then
   exit 0
 fi
 
-[ "${1:-up}" = reset ] && $DOCKER rm -f -v "$CONTAINER" >/dev/null 2>&1 || true
-fresh=
-if [ -z "$($DOCKER ps -aq -f name="^$CONTAINER\$")" ]; then
-  $DOCKER run -d --name "$CONTAINER" -p "127.0.0.1:$PORT:5432" \
-    -e POSTGRES_PASSWORD=postgres "$IMAGE" >/dev/null
-  fresh=1
-else
+if [ "$MODE" = reset ]; then $DOCKER rm -f -v "$CONTAINER" >/dev/null 2>&1 || true; fi
+if [ -n "$($DOCKER ps -aq -f name="^$CONTAINER\$")" ]; then
   $DOCKER start "$CONTAINER" >/dev/null
+  wait_pg "$CONTAINER"
+  if seeded "$CONTAINER"; then echo "DATABASE_URL=$URL"; exit 0; fi
+  echo "  $CONTAINER was never fully initialised; rebuilding"
+  $DOCKER rm -f -v "$CONTAINER" >/dev/null
 fi
-# The image's init server is socket-only; TCP answers once the real one is up.
-until $DOCKER exec "$CONTAINER" pg_isready -q -h 127.0.0.1 -U postgres; do sleep 1; done
-if [ -n "$fresh" ]; then
-  run_sql "$CONTAINER" scripts/db-local-stub.sql
-  for f in supabase/migrations/*.sql; do run_sql "$CONTAINER" "$f"; done
-  run_sql "$CONTAINER" "$SEED"
-fi
-echo "DATABASE_URL=postgresql://postgres:postgres@localhost:$PORT/postgres"
+# Any failure from here on removes the container, so the next run starts clean.
+trap '$DOCKER rm -f -v "$CONTAINER" >/dev/null 2>&1' EXIT
+$DOCKER run -d --name "$CONTAINER" -p "127.0.0.1:$PORT:5432" \
+  -e POSTGRES_PASSWORD=postgres "$IMAGE" >/dev/null
+wait_pg "$CONTAINER"
+run_sql "$CONTAINER" scripts/db-local-stub.sql
+for f in supabase/migrations/*.sql; do run_sql "$CONTAINER" "$f"; done
+run_sql "$CONTAINER" "$SEED"
+trap - EXIT
+echo "DATABASE_URL=$URL"
