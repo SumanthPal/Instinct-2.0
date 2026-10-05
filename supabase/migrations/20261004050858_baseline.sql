@@ -5,10 +5,10 @@
 -- Owners, GRANT/REVOKE and default privileges were stripped; the auth, storage,
 -- realtime, vault and other Supabase-managed schemas are not included.
 --
--- Three lines were removed so the file applies to an empty database: psql 17's
--- \restrict meta-command, SET transaction_timeout (Postgres 17 only), and
--- CREATE EXTENSION pgsodium (its schema is Supabase-managed and nothing in
--- public uses it).
+-- Removed so the file applies to an empty database: psql 17's \restrict
+-- meta-command, SET transaction_timeout (Postgres 17 only), and CREATE EXTENSION
+-- for pgsodium, pgjwt and supabase_vault (Supabase-managed, missing from plain
+-- Postgres images, and unused by anything in public).
 
 --
 -- PostgreSQL database dump
@@ -47,20 +47,6 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 --
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
-
-
---
--- Name: pgjwt; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pgjwt WITH SCHEMA extensions;
-
-
---
--- Name: supabase_vault; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
 
 
 --
