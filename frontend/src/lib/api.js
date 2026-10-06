@@ -215,6 +215,14 @@ export const fetchEventsRange = async (query, { signal } = {}) => {
   return response.json();
 };
 
+/**
+ * Every event of one club, oldest first: GET /events?clubs=<handle> with no
+ * dates (club mode, #123: no range cap, one request). Rows are the /events
+ * shape plus `post_image_url`. Resolves to { count, results }.
+ */
+export const fetchClubEventRows = (handle, { signal } = {}) =>
+  fetchEventsRange(new URLSearchParams({ clubs: handle }).toString(), { signal });
+
 export const fetchCampusWideEvents = async (
   startDate = null,
   endDate = null,

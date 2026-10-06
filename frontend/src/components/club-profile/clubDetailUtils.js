@@ -6,10 +6,6 @@ export function extractQuotedContent(str) {
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-export function isDateOnly(raw) {
-  return typeof raw === "string" && DATE_ONLY.test(raw.trim());
-}
-
 /**
  * Parse an API date. Date-only strings ("2026-02-19") are read as local
  * midnight; `new Date("2026-02-19")` would be UTC midnight, which is the
@@ -22,50 +18,6 @@ export function parseLocalDate(raw) {
   const m = s.match(DATE_ONLY);
   const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
-}
-
-/** Local YYYY-MM-DD key for a Date (no UTC conversion). */
-export function formatDate(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${mm}-${dd}`;
-}
-
-/** Raw date value for an event (falls back to the post time) or a post. */
-export function rawItemDate(item, type = "post") {
-  if (!item) return null;
-  if (type === "event") return item.date || item.parsed?.Date || item.posted || null;
-  return item.posted || null;
-}
-
-/** Full timestamp for an item, or null. */
-export function getItemDateTime(item, type = "post") {
-  return parseLocalDate(rawItemDate(item, type));
-}
-
-/** Calendar day (local midnight) for an item, or null if missing/invalid. */
-export function getPostDate(item, type = "post") {
-  const d = getItemDateTime(item, type);
-  return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
-}
-
-export function getItemsForDate(items, date, type = "post") {
-  const dateStr = formatDate(date);
-  return (items || []).filter((item) => {
-    const itemDate = getPostDate(item, type);
-    return itemDate && formatDate(itemDate) === dateStr;
-  });
-}
-
-/** Set of local YYYY-MM-DD keys that have at least one item. */
-export function dateKeySet(items, type = "post") {
-  const keys = new Set();
-  for (const item of items || []) {
-    const d = getPostDate(item, type);
-    if (d) keys.add(formatDate(d));
-  }
-  return keys;
 }
 
 const compact = new Intl.NumberFormat("en-US", {

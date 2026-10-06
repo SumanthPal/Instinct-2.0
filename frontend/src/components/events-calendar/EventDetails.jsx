@@ -4,7 +4,7 @@ import { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import { Slot } from "@radix-ui/react-slot";
 import { format } from "date-fns";
-import { FiCalendar, FiChevronLeft, FiClock, FiDownload, FiFilter, FiMapPin, FiX } from "react-icons/fi";
+import { FiCalendar, FiChevronLeft, FiClock, FiDownload, FiFilter, FiImage, FiMapPin, FiX } from "react-icons/fi";
 import ClubAvatar from "@/components/ClubAvatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { icsHref, shortTime, timeRange } from "./calendar-utils";
@@ -16,8 +16,12 @@ import { icsHref, shortTime, timeRange } from "./calendar-utils";
 export const CalendarUI = createContext({ isMobile: false, openSheet: () => {}, filterClub: null });
 
 
-/** Body shared by the popover and the Day view side panel. */
-export function EventDetailsBody({ ev, onClose }) {
+/**
+ * Body shared by the popover, the Day view side panel and the club page's
+ * Events tab. showClub=false drops the club card (already on that club's
+ * page); onViewPost adds a "View post" action.
+ */
+export function EventDetailsBody({ ev, onClose, showClub = true, onViewPost = null }) {
 	const { filterClub } = useContext(CalendarUI);
 	const mapsHref = ev.location
 		? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${ev.location} UC Irvine`)}`
@@ -79,7 +83,7 @@ export function EventDetailsBody({ ev, onClose }) {
 				<p className="mt-3 px-4 text-[13px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{ev.details}</p>
 			)}
 
-			{ev.club && (
+			{ev.club && showClub && (
 				<Link
 					href={`/club/${ev.club.handle}`}
 					className="mx-4 mt-4 flex items-center gap-3 rounded-md border border-border px-3 py-2.5 hover:border-foreground/25"
@@ -98,7 +102,7 @@ export function EventDetailsBody({ ev, onClose }) {
 					<span className="shrink-0 text-xs text-muted-foreground">View club</span>
 				</Link>
 			)}
-			{ev.club && filterClub && (
+			{ev.club && showClub && filterClub && (
 				<button
 					type="button"
 					onClick={() => filterClub(ev.club)}
@@ -118,6 +122,16 @@ export function EventDetailsBody({ ev, onClose }) {
 					<FiDownload className="h-3.5 w-3.5" aria-hidden />
 					Add to calendar
 				</a>
+				{onViewPost && (
+					<button
+						type="button"
+						onClick={onViewPost}
+						className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3.5 text-xs font-medium text-foreground hover:bg-muted"
+					>
+						<FiImage className="h-3.5 w-3.5" aria-hidden />
+						View post
+					</button>
+				)}
 				{mapsHref && (
 					<a
 						href={mapsHref}
