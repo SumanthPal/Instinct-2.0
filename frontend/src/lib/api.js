@@ -88,9 +88,11 @@ export const fetchClubData = async (username) => {
     const response = await fetch(url);
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
+      const error = new Error(
         `Failed to fetch club data: ${response.status} ${response.statusText} - ${errorText}`,
       );
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();
