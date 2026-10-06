@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { FaChevronDown } from "react-icons/fa";
 import {
   Popover,
   PopoverContent,
@@ -42,7 +42,7 @@ export default function MoreCategoriesPopover({
           className={`${chipClass(moreIsActive)} inline-flex items-center gap-1`}
         >
           {moreIsActive ? selected : "More"}
-          <ChevronDown className="h-3 w-3 opacity-70" aria-hidden="true" />
+          <FaChevronDown className="h-3 w-3 opacity-70" aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="center">

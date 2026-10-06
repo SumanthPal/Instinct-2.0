@@ -2,6 +2,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase";
+import { resolveClubImageUrl } from "@/lib/club-image";
 
 export const likesService = {
   /**
@@ -36,10 +37,12 @@ export const likesService = {
       // Get the full club details for each liked club using instagram handles
       const instagramHandles = likedData.map((item) => item.instagram_handle);
 
-      // Select all columns from clubs table for the liked clubs
+      // Only the columns ClubCard / the dashboard need — skip embedding vectors.
       const { data: clubsData, error: clubsError } = await supabase
         .from("clubs")
-        .select("*")
+        .select(
+          "id, name, description, instagram_handle, profile_image_path, followers, following, categories(name)",
+        )
         .in("instagram_handle", instagramHandles);
 
       if (clubsError) throw clubsError;
@@ -52,29 +55,13 @@ export const likesService = {
           (item) => item.instagram_handle === club.instagram_handle,
         );
 
-        // Determine which profile picture field to use
-
-        const profilePicture =
-          "https://storage.googleapis.com/uci-club-bucket/" +
-          club.profile_image_path;
-
-        // Extract categories from club_links if available
-        let categories = [];
-        if (club.club_links && Array.isArray(club.club_links)) {
-          // Assuming club_links might contain category information
-          // This is a placeholder - adjust based on your actual data structure
-          categories = club.club_links
-            .filter((link) => link && link.category)
-            .map((link) => ({ name: link.category }));
-        }
-
         return {
           id: club.id,
           name: club.name,
           description: club.description || "",
           instagram: club.instagram_handle,
-          profilePicture: profilePicture,
-          categories: categories,
+          profilePicture: resolveClubImageUrl(club.profile_image_path),
+          categories: club.categories || [],
           followers: club.followers,
           following: club.following,
           liked_at: likeInfo?.created_at,

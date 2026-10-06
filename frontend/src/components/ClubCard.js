@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef, memo } from "react";
-import Image from "next/image";
+import ClubAvatar from "./ClubAvatar";
 import Link from "next/link";
-import { FaUserCircle, FaStar, FaRegStar } from "react-icons/fa";
+import { FaStar, FaRegStar } from "react-icons/fa";
 import { useAuth } from "@/context/auth-context";
 import { likesService } from "@/lib/like-service";
 import { useToast } from "./ui/toast";
@@ -12,9 +12,6 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
   const [isVisible, setIsVisible] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
-  // Remember which URL failed, so a new profilePicture gets a fresh attempt.
-  const [failedSrc, setFailedSrc] = useState(null);
-  const imgFailed = failedSrc != null && failedSrc === club.profilePicture;
 
   const cardRef = useRef(null);
   const { user } = useAuth();
@@ -134,23 +131,8 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
     <div
       className={`relative shrink-0 overflow-hidden rounded-full border border-border ${sizeClass}`}
     >
-      {club.profilePicture && !imgFailed ? (
-        <Image
-          src={club.profilePicture}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="80px"
-          priority={index < 6}
-          loading={index < 6 ? "eager" : "lazy"}
-          unoptimized
-          onError={() => setFailedSrc(club.profilePicture)}
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-muted">
-          <FaUserCircle className="h-full w-full text-muted-foreground" />
-        </div>
-      )}
+      {/* #99's ClubAvatar: onError + pre-hydration 404 check, keyed on src */}
+      <ClubAvatar src={club.profilePicture} alt="" sizes="80px" priority={index < 6} />
     </div>
   );
 

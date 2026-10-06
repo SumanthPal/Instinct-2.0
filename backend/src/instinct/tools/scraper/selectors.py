@@ -52,6 +52,33 @@ PROFILE_LINK_TRIGGERS = (
 CLOSE_DIALOG = (By.CSS_SELECTOR, "div[aria-label='Close']")
 PAGE_BODY = (By.TAG_NAME, "body")
 PROFILE_POST_LINKS = (By.XPATH, "//a[contains(@href, '/p/')]")
+# Club display name sources. The parser applies these CSS locators to
+# page_source with BeautifulSoup. The header locator stays inside the profile
+# <header>: when logged in, the page's first span[dir=auto] is the sidebar's
+# "Home" link.
+PROFILE_OG_TITLE = (By.CSS_SELECTOR, "meta[property='og:title']")
+PROFILE_HEADER_NAME = (
+    By.CSS_SELECTOR,
+    "main header h1, main header h2, main header span[dir='auto']",
+)
+# Sidebar and profile-header button labels that are never a club name.
+NAV_LABELS = frozenset(
+    {
+        "home",
+        "search",
+        "explore",
+        "reels",
+        "messages",
+        "notifications",
+        "create",
+        "profile",
+        "more",
+        "follow",
+        "following",
+        "message",
+        "edit profile",
+    }
+)
 PROFILE_MORE_BUTTON = (
     By.XPATH,
     "//*[@role='button' and (normalize-space()='more' or .//*[normalize-space()='more'])]",

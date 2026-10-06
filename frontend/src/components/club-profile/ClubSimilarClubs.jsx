@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import ClubAvatar from "@/components/ClubAvatar";
 import Link from "next/link";
 import { extractQuotedContent } from "./clubDetailUtils";
 
@@ -22,20 +22,11 @@ export default function ClubSimilarClubs({ clubs }) {
             >
               <div className="mb-2 flex justify-center">
                 <div className="relative h-14 w-14 overflow-hidden rounded-full border border-border">
-                  {club.profile_image_path ? (
-                    <Image
-                      src={club.profile_image_path}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="56px"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted text-sm font-semibold text-muted-foreground">
-                      {club.name?.charAt(0) || "?"}
-                    </div>
-                  )}
+                  <ClubAvatar
+                    src={club.profile_image_path}
+                    alt=""
+                    sizes="56px"
+                  />
                 </div>
               </div>
               <h3 className="line-clamp-2 text-center text-xs font-semibold text-foreground">

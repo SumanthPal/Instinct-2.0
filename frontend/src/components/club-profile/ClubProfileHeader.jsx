@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import { FaInstagram, FaStar, FaRegStar, FaUserCircle } from "react-icons/fa";
+import { FaInstagram, FaStar, FaRegStar } from "react-icons/fa";
+import ClubAvatar from "@/components/ClubAvatar";
 import { Button } from "@/components/ui/button";
 import {
   extractQuotedContent,
@@ -12,32 +11,16 @@ import {
 } from "./clubDetailUtils";
 
 function Avatar({ clubData, sizeClass }) {
-  const src = clubAvatarUrl(clubData);
-  // Track the URL that failed so a different src gets a fresh attempt.
-  const [failedSrc, setFailedSrc] = useState(null);
-  const showImg = Boolean(src) && failedSrc !== src;
   return (
     <div className="instinct-story-ring shrink-0">
       <div className="instinct-story-ring-inner">
         <div className={`relative overflow-hidden rounded-full bg-muted ${sizeClass}`}>
-          {showImg ? (
-            <Image
-              src={src}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 76px, 144px"
-              unoptimized
-              onError={() => setFailedSrc(src)}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted">
-              <FaUserCircle
-                className="h-full w-full text-muted-foreground"
-                aria-hidden="true"
-              />
-            </div>
-          )}
+          <ClubAvatar
+            src={clubAvatarUrl(clubData)}
+            alt=""
+            sizes="(max-width: 640px) 76px, 144px"
+            priority
+          />
         </div>
       </div>
     </div>
