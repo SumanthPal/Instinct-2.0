@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
-import { Search } from "lucide-react";
+import { FaSearch } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 
 export function Command({ className, ...props }) {
@@ -19,7 +19,7 @@ export function Command({ className, ...props }) {
 export function CommandInput({ className, ...props }) {
   return (
     <div className="flex items-center border-b border-border px-3" cmdk-input-wrapper="">
-      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+      <FaSearch className="mr-2 h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden="true" />
       <CommandPrimitive.Input
         className={cn(
           "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
