@@ -43,9 +43,9 @@ function ClubAvatarImage({
 
   if (!src || failed) {
     return (
-      <div className="w-full h-full bg-light-gray flex items-center justify-center dark:bg-gray-700">
-        <FaUserCircle className="text-gray-500 w-full h-full" aria-hidden="true" />
-        <span className="sr-only">{alt || "Club avatar unavailable"}</span>
+      <div className="flex h-full w-full items-center justify-center bg-muted">
+        <FaUserCircle className="h-full w-full text-muted-foreground" aria-hidden="true" />
+        {alt && <span className="sr-only">{alt}</span>}
       </div>
     );
   }
