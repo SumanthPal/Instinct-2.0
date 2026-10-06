@@ -57,14 +57,14 @@ OLD_SYSTEM_PROMPT = (
 
 
 def run_old(client, model, caption, posted):
-    """The old request, exactly as parse_post sent it."""
+    """The old request as parse_post sent it, minus temperature=0.3, which
+    some models (e.g. gpt-6-luna) reject; both variants use the default."""
     completion = client.chat.completions.create(
         model=model,
         messages=[
             {"role": "system", "content": OLD_SYSTEM_PROMPT},
             {"role": "user", "content": f"{caption} context date: {posted}"},
         ],
-        temperature=0.3,
     )
     events = json.loads(completion.choices[0].message.content)
     if not isinstance(events, list) or not all(isinstance(e, dict) for e in events):
