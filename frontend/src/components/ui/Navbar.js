@@ -118,6 +118,9 @@ export default function Navbar() {
             />
             <span className="text-xl font-semibold tracking-tight text-foreground sm:text-[22px]">
               Instinct
+              <span className="ml-1.5 text-xs font-medium tracking-normal text-muted-foreground">
+                v3.0
+              </span>
             </span>
           </Link>
 
