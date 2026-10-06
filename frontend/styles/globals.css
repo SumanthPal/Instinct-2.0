@@ -326,6 +326,32 @@
   color: var(--accent-brand);
 }
 
+/* Club profile header: one DOM tree, two arrangements (see ClubProfileHeader). */
+.club-profile-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "avatar stats"
+    "name name"
+    "handle handle"
+    "info info"
+    "actions actions";
+  column-gap: 1.5rem;
+}
+@media (min-width: 640px) {
+  .club-profile-header {
+    grid-template-columns: auto auto 1fr;
+    grid-template-rows: auto auto auto auto 1fr;
+    grid-template-areas:
+      "avatar name actions"
+      "avatar handle handle"
+      "avatar stats stats"
+      "avatar info info"
+      "avatar . .";
+    column-gap: 0.75rem;
+  }
+}
+
 .instinct-story-ring {
   background-color: var(--accent-brand);
   padding: 2px;

@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { FaArrowLeft } from "react-icons/fa";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
-import { categoryNames } from "@/components/club-profile/clubDetailUtils";
+import {
+  categoryNames,
+  normalizeHandle,
+} from "@/components/club-profile/clubDetailUtils";
 import { useAuth } from "@/context/auth-context";
 import { likesService } from "@/lib/like-service";
 import { useToast } from "@/components/ui/toast";
 import ClubProfileHeader from "@/components/club-profile/ClubProfileHeader";
-import ClubProfileTabs from "@/components/club-profile/ClubProfileTabs";
+import ClubProfileTabs, {
+  panelId,
+  tabId,
+} from "@/components/club-profile/ClubProfileTabs";
 import ClubPostGrid from "@/components/club-profile/ClubPostGrid";
 import ClubEventsPanel from "@/components/club-profile/ClubEventsPanel";
 import ClubSimilarClubs from "@/components/club-profile/ClubSimilarClubs";
@@ -58,14 +64,6 @@ export default function ClubDetail({
     check();
   }, [user, clubData?.instagram_handle]);
 
-  useEffect(() => {
-    const onEsc = (e) => {
-      if (e.key === "Escape" && isModalOpen) closeModal();
-    };
-    document.addEventListener("keydown", onEsc);
-    return () => document.removeEventListener("keydown", onEsc);
-  }, [isModalOpen]);
-
 
   // Single-club API omits categories; enrich from smart-search when missing.
   useEffect(() => {
@@ -79,10 +77,12 @@ export default function ClubDetail({
     (async () => {
       try {
         const results = await fetchSmartSearch(handle, 1, 5);
-        const match =
-          (results.results || []).find(
-            (c) => c.instagram_handle === handle,
-          ) || (results.results || [])[0];
+        // Exact handle match only: a fuzzy top hit would show another
+        // club's categories on this profile.
+        const wanted = normalizeHandle(handle);
+        const match = (results.results || []).find(
+          (c) => normalizeHandle(c.instagram_handle) === wanted,
+        );
         const cats = categoryNames(match?.categories);
         if (!cancelled && cats.length) setExtraCategories(cats);
       } catch (e) {
@@ -110,11 +110,11 @@ export default function ClubDetail({
     fetchSimilar();
   }, [clubData]);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedImage(null);
     setSelectedImageData(null);
-  };
+  }, []);
 
   const handleImageClick = (imageUrl, imageData = null) => {
     if (!imageUrl) return;
@@ -184,7 +184,6 @@ export default function ClubDetail({
 
       <ClubProfileHeader
         clubData={{ ...clubData, categories: extraCategories }}
-        postCount={clubPosts.length}
         isLiked={isLiked}
         isLikeLoading={isLikeLoading}
         onFavoriteToggle={handleFavoriteToggle}
@@ -192,18 +191,21 @@ export default function ClubDetail({
 
       <ClubProfileTabs tab={tab} onTabChange={setTab} />
 
-      {tab === "posts" ? (
-        <ClubPostGrid posts={clubPosts} onImageClick={handleImageClick} />
-      ) : (
-        <ClubEventsPanel
-          clubData={clubData}
-          clubEvents={clubEvents}
-          clubPosts={clubPosts}
-          selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
-          calendarUrl={calendarUrl}
-        />
-      )}
+      <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)}>
+        {tab === "posts" ? (
+          <ClubPostGrid posts={clubPosts} onImageClick={handleImageClick} />
+        ) : (
+          <ClubEventsPanel
+            clubData={clubData}
+            clubEvents={clubEvents}
+            clubPosts={clubPosts}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            calendarUrl={calendarUrl}
+            onImageClick={handleImageClick}
+          />
+        )}
+      </div>
 
       <ClubSimilarClubs clubs={similarClubs} />
 

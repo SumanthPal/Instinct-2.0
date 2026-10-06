@@ -4,36 +4,50 @@ export function extractQuotedContent(str) {
   return matches ? matches.map((m) => m.slice(1, -1)).join(" ") : str;
 }
 
-export function formatDate(date) {
-  if (!date) return "";
-  const normalizedDate = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    12,
-    0,
-    0,
-  );
-  return normalizedDate.toISOString().split("T")[0];
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function isDateOnly(raw) {
+  return typeof raw === "string" && DATE_ONLY.test(raw.trim());
 }
 
-export function getPostDate(item, type = "post") {
+/**
+ * Parse an API date. Date-only strings ("2026-02-19") are read as local
+ * midnight; `new Date("2026-02-19")` would be UTC midnight, which is the
+ * previous evening in US timezones. Returns null for missing/invalid input.
+ */
+export function parseLocalDate(raw) {
+  if (raw == null || raw === "") return null;
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
+  const s = String(raw).trim();
+  const m = s.match(DATE_ONLY);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Local YYYY-MM-DD key for a Date (no UTC conversion). */
+export function formatDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
+
+/** Raw date value for an event (falls back to the post time) or a post. */
+export function rawItemDate(item, type = "post") {
   if (!item) return null;
-  try {
-    if (type === "event") {
-      const raw = item.date || item.parsed?.Date;
-      if (!raw) return null;
-      const dateObj = new Date(raw);
-      return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    }
-    if (item.posted) {
-      const dateObj = new Date(item.posted);
-      return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-    }
-  } catch (e) {
-    console.error("Failed to parse date for", type, item, e);
-  }
-  return null;
+  if (type === "event") return item.date || item.parsed?.Date || item.posted || null;
+  return item.posted || null;
+}
+
+/** Full timestamp for an item, or null. */
+export function getItemDateTime(item, type = "post") {
+  return parseLocalDate(rawItemDate(item, type));
+}
+
+/** Calendar day (local midnight) for an item, or null if missing/invalid. */
+export function getPostDate(item, type = "post") {
+  const d = getItemDateTime(item, type);
+  return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
 }
 
 export function getItemsForDate(items, date, type = "post") {
@@ -44,78 +58,47 @@ export function getItemsForDate(items, date, type = "post") {
   });
 }
 
-export function hasItemsOnDate(items, date, type = "post") {
-  const dateStr = formatDate(date);
-  return (items || []).some((item) => {
-    const itemDate = getPostDate(item, type);
-    return itemDate && formatDate(itemDate) === dateStr;
-  });
+/** Set of local YYYY-MM-DD keys that have at least one item. */
+export function dateKeySet(items, type = "post") {
+  const keys = new Set();
+  for (const item of items || []) {
+    const d = getPostDate(item, type);
+    if (d) keys.add(formatDate(d));
+  }
+  return keys;
 }
 
-export function calculateActivityScore(clubPosts, followers = 0) {
-  if (!clubPosts || clubPosts.length === 0) {
-    return { level: null, score: 0, label: "No Activity Data" };
+const compact = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+const grouped = new Intl.NumberFormat("en-US");
+
+/** 950 -> "950", 12345 -> "12.3K"; non-numbers -> "—". */
+export function formatCount(value) {
+  const n = typeof value === "number" ? value : Number(value);
+  if (value == null || value === "" || !Number.isFinite(n)) return "—";
+  return n >= 10000 ? compact.format(n) : grouped.format(n);
+}
+
+/**
+ * Only allow http(s) links from scraped bios. Scheme-less links
+ * ("linktr.ee/foo") are treated as https. Returns null otherwise.
+ */
+export function safeHttpUrl(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  const s = raw.trim();
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(s);
+  try {
+    const url = new URL(hasScheme ? s : `https://${s}`);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch (_) {
+    return null;
   }
+}
 
-  const posts = clubPosts.slice(0, 9);
-  const postDates = posts
-    .map((p) => (p.posted ? new Date(p.posted) : null))
-    .filter((d) => d !== null)
-    .sort((a, b) => b - a);
-
-  if (postDates.length < 2) {
-    return { level: null, score: 0, label: "Insufficient Data" };
-  }
-
-  const daysSinceLastPost = Math.floor(
-    (new Date() - postDates[0]) / (1000 * 60 * 60 * 24),
-  );
-  let recencyScore = 0;
-  if (daysSinceLastPost < 7) recencyScore = 100;
-  else if (daysSinceLastPost < 14) recencyScore = 80;
-  else if (daysSinceLastPost < 30) recencyScore = 60;
-  else if (daysSinceLastPost < 60) recencyScore = 40;
-  else if (daysSinceLastPost < 90) recencyScore = 20;
-
-  let totalInterval = 0;
-  for (let i = 0; i < postDates.length - 1; i++) {
-    totalInterval += (postDates[i] - postDates[i + 1]) / (1000 * 60 * 60 * 24);
-  }
-  const avgInterval = totalInterval / (postDates.length - 1);
-  let frequencyScore = 0;
-  if (avgInterval < 7) frequencyScore = 100;
-  else if (avgInterval < 14) frequencyScore = 80;
-  else if (avgInterval < 30) frequencyScore = 60;
-  else if (avgInterval < 60) frequencyScore = 40;
-  else frequencyScore = 20;
-
-  let engagementScore = 0;
-  if (followers > 2000) engagementScore = 100;
-  else if (followers > 1000) engagementScore = 80;
-  else if (followers > 500) engagementScore = 60;
-  else if (followers > 100) engagementScore = 40;
-  else engagementScore = 20;
-
-  const finalScore =
-    recencyScore * 0.4 + frequencyScore * 0.4 + engagementScore * 0.2;
-
-  let level = "very-low";
-  let label = "Quiet";
-  if (finalScore >= 80) {
-    level = "very-high";
-    label = "Very Active";
-  } else if (finalScore >= 65) {
-    level = "high";
-    label = "Active";
-  } else if (finalScore >= 45) {
-    level = "medium";
-    label = "Moderate";
-  } else if (finalScore >= 25) {
-    level = "low";
-    label = "Occasional";
-  }
-
-  return { level, score: Math.round(finalScore), label };
+export function normalizeHandle(handle) {
+  return String(handle || "").trim().replace(/^@/, "").toLowerCase();
 }
 
 export function clubAvatarUrl(clubData) {
