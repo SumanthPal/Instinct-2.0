@@ -33,6 +33,12 @@ import datetime
 MAX_POSTS_PER_CLUB = 3
 PAGE_DELAY_SECONDS = (3, 8)
 
+# Whole path segments only, so profiles like /checkpointclub/ never match.
+_HARD_STOP_PATH = re.compile(
+    r"^/(challenge|checkpoint|accounts/login|accounts/suspended)(/|$)"
+)
+_SOFT_BLOCK_PATH = re.compile(r"/(login|confirm|unusual_activity)(/|$)")
+
 # Shortcode alphabet; a shortcode is the base-64 form of the post's media id.
 _SHORTCODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
@@ -45,10 +51,7 @@ def is_hard_stop_url(url: str) -> bool:
     Checks the URL path only, so a ?next= query string cannot trigger it.
     """
     path = urlparse(url).path.lower()
-    return (
-        path.startswith(("/challenge/", "/accounts/login", "/accounts/suspended"))
-        or "/checkpoint" in path
-    )
+    return bool(_HARD_STOP_PATH.match(path))
 
 
 def post_recency_key(post_url: str) -> int:
@@ -291,13 +294,7 @@ class InstagramScraper:
                 )
 
             # Fast URL-based checks first (these are much quicker than page parsing)
-            rate_limit_redirects = [
-                "/login",
-                "/confirm",
-                "/unusual_activity",
-            ]
-
-            if any(redirect in current_url for redirect in rate_limit_redirects):
+            if _SOFT_BLOCK_PATH.search(urlparse(current_url).path.lower()):
                 logger.warning(f"Rate limit detected: Redirected to {current_url}")
                 return True
 
@@ -666,9 +663,16 @@ class InstagramScraper:
                 failures.append(str(post_id))
                 logger.error(f"Error processing post {post_id}: {exc}")
 
-        if failures:
+        # A deleted or broken post fails on every run, so only fail the club
+        # when nothing at all was scraped; partial progress still counts.
+        if failures and not processed:
             raise RuntimeError(
                 f"Failed to scrape {len(failures)} post(s) for {club_username}: "
+                f"{', '.join(failures)}"
+            )
+        if failures:
+            logger.warning(
+                f"Skipped {len(failures)} post(s) for {club_username} that failed: "
                 f"{', '.join(failures)}"
             )
         logger.info(f"Mirrored {processed} post image(s) for {club_username}")

@@ -12,6 +12,8 @@ import json
 
 from instinct.tools.logger import logger, LOG_FILE_PATH
 from instinct.db.queries import SupabaseQueries
+from selenium.common.exceptions import WebDriverException
+
 from instinct.tools.insta_scraper import InstagramLoginError, RateLimitDetected
 from instinct.tools.ai_validation import EventParser
 from instinct.tools.calendar_connection import CalendarConnection
@@ -1186,6 +1188,23 @@ class ScraperRotation:
         return False
 
 
+def scrape_one(scraper, instagram_handle: str, *, dry_run: bool) -> None:
+    """Scrape one club on an existing session; raise on any failure."""
+    if dry_run:
+        club_info = scraper.get_club_info(instagram_handle)
+        if club_info is None:
+            raise RuntimeError(f"Could not load {instagram_handle}")
+        logger.info(
+            "Dry run scraped %s (name %r) with %s recent post link(s); "
+            "no data was written.",
+            instagram_handle,
+            club_info["Club Name"],
+            len(club_info["Recent Posts"]),
+        )
+    elif not scraper.store_club_data(instagram_handle):
+        raise RuntimeError(f"Scrape failed for {instagram_handle}")
+
+
 def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
     """Scrape a few clubs on one browser session and exit.
 
@@ -1203,25 +1222,31 @@ def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
             os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
         )
         scraper.login()
-        handles = [normalize_handle(handle) for handle in instagram_handles]
+        # De-duplicate after normalizing (foo, @Foo) and drop blanks like "@".
+        handles = list(
+            dict.fromkeys(filter(None, map(normalize_handle, instagram_handles)))
+        )
+        failed = []
         for index, instagram_handle in enumerate(handles):
             if index > 0:
                 delay = random.uniform(*ONCE_CLUB_DELAY_SECONDS)
                 logger.info(f"Waiting {delay:.0f}s before the next club...")
                 time.sleep(delay)
-            if dry_run:
-                club_info = scraper.get_club_info(instagram_handle)
-                logger.info(
-                    "Dry run scraped %s (name %r) with %s recent post link(s); "
-                    "no data was written.",
-                    instagram_handle,
-                    club_info["Club Name"],
-                    len(club_info["Recent Posts"]),
-                )
-            elif not scraper.store_club_data(instagram_handle):
-                raise RuntimeError(f"Scrape failed for {instagram_handle}")
+            try:
+                scrape_one(scraper, instagram_handle, dry_run=dry_run)
+            except InstagramLoginError, RateLimitDetected:
+                raise
+            except WebDriverException:
+                # The browser itself is gone; the next club would fail too.
+                raise
+            except Exception as exc:
+                # Not a challenge or rate limit, so move on to the next club.
+                logger.error(f"Scrape failed for {instagram_handle}; continuing: {exc}")
+                failed.append(instagram_handle)
         logger.info(get_storage().report())
-        return True
+        if failed:
+            logger.error(f"One-shot scrape failed for: {', '.join(failed)}")
+        return not failed
     except (InstagramLoginError, RateLimitDetected) as exc:
         logger.error(f"One-shot scrape stopped without retrying: {exc}")
         return False

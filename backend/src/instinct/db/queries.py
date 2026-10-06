@@ -95,6 +95,7 @@ class SupabaseQueries:
             self.supabase.table("clubs")
             .select(columns)
             .ilike("instagram_handle", _like_literal(handle))
+            .order("id")
             .limit(1)
             .execute()
         )
