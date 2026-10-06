@@ -1,10 +1,10 @@
 from instinct.tools.ai_validation import get_embedding
 from instinct.db.supabase_client import supabase
-from instinct.db.queries import SupabaseQueries
+from instinct.db.queries import SupabaseQueries, normalize_handle
 import hmac
 import os
 from typing import List, Optional
-from datetime import datetime
+from datetime import date, datetime
 import dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, APIRouter
@@ -589,6 +589,59 @@ async def get_all_campus_events(
             status_code=500,
             content={"message": f"Error fetching campus events: {str(e)}"},
         )
+
+
+# Longest /events range, inclusive of both ends: a quarter.
+EVENTS_MAX_RANGE_DAYS = 92
+EVENTS_MAX_CLUBS = 100
+
+
+@app.get("/events")
+def get_events_in_range(
+    from_: date = Query(
+        ...,
+        alias="from",
+        description="First day, YYYY-MM-DD (America/Los_Angeles), inclusive",
+    ),
+    to: date = Query(
+        ..., description="Last day, YYYY-MM-DD (America/Los_Angeles), inclusive"
+    ),
+    clubs: Optional[str] = Query(
+        None, description="Comma-separated Instagram handles to keep"
+    ),
+    category: Optional[str] = Query(
+        None, description="Keep events whose club has this category"
+    ),
+):
+    """Events in a date range for the calendar, filtered in the database."""
+    if to < from_:
+        raise HTTPException(status_code=400, detail="`to` is before `from`")
+    days = (to - from_).days + 1
+    if days > EVENTS_MAX_RANGE_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Range is {days} days; the maximum is {EVENTS_MAX_RANGE_DAYS}",
+        )
+    handles = None
+    if clubs is not None:
+        handles = sorted({normalize_handle(h) for h in clubs.split(",")} - {""})
+        if not handles:
+            raise HTTPException(status_code=400, detail="`clubs` has no handles")
+        if len(handles) > EVENTS_MAX_CLUBS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"`clubs` has {len(handles)} handles; the maximum is "
+                f"{EVENTS_MAX_CLUBS}",
+            )
+    try:
+        events = get_db().get_events_in_range(
+            from_, to, handles, (category or "").strip() or None
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"message": f"Error fetching events: {str(e)}"}
+        )
+    return {"count": len(events), "results": events}
 
 
 @app.get("/club-manifest")
