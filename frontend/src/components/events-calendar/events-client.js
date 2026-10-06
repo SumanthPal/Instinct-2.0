@@ -20,7 +20,7 @@
 import { addDays, addMonths, differenceInCalendarDays, endOfMonth, format, startOfMonth } from "date-fns";
 import { fetchCampusWideEvents, fetchClubDirectory, fetchEventsRange } from "@/lib/api";
 import { resolveClubImageUrl } from "@/lib/club-image";
-import { normalizeEvent } from "./calendar-utils";
+import { collapseLongSpan, normalizeEvent } from "./calendar-utils";
 import { buildMockEvents, mockClubs } from "./mock-events";
 import { scaleClubs, scaleMonth } from "./mock-scale";
 
@@ -219,7 +219,7 @@ export function createEventsClient({ source = "live", now = new Date(), latency 
 				if (!directory) clubsSnap = null;
 			}
 			const ev = normalizeEvent(r);
-			if (ev) out.push(ev);
+			if (ev) out.push(collapseLongSpan(ev));
 		}
 		return out;
 	}
