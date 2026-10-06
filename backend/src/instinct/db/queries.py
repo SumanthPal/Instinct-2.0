@@ -28,6 +28,20 @@ CLUB_DETAIL_COLUMNS = (
 )
 
 
+def normalize_handle(instagram_handle: str) -> str:
+    """Lower-case a handle and strip whitespace and a leading @.
+
+    Instagram handles are case-insensitive, so "@BlockchainUCI " and
+    "blockchainuci" name the same account and must find the same club row.
+    """
+    return (instagram_handle or "").strip().lstrip("@").strip().lower()
+
+
+def _like_literal(value: str) -> str:
+    """Escape LIKE wildcards (handles often contain "_") so ilike means equality."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class SupabaseQueries:
     def __init__(self):
         """Initialize the Supabase client"""
@@ -76,29 +90,42 @@ class SupabaseQueries:
 
     # ----- Club Methods -----
 
-    def get_club_by_instagram(self, instagram_handle: str) -> Optional[Dict]:
-        """Fetch a club by Instagram handle, without its search vectors."""
+    def _find_club_by_handle(
+        self, columns: str, instagram_handle: str
+    ) -> Optional[Dict]:
+        """Find a club by handle, ignoring case and a leading @.
+
+        Matching case-insensitively finds older rows stored as e.g.
+        "BlockchainUCI", so a scrape updates that row instead of inserting a
+        duplicate club.
+        """
+        handle = normalize_handle(instagram_handle)
+        if not handle:
+            return None
         response = (
             self.supabase.table("clubs")
-            .select(CLUB_DETAIL_COLUMNS)
-            .eq("instagram_handle", instagram_handle)
+            .select(columns)
+            .ilike("instagram_handle", _like_literal(handle))
+            .order("id")
+            .limit(1)
             .execute()
         )
+        return response.data[0] if response.data else None
 
-        if response.data and len(response.data) > 0:
-            return response.data[0]
-        return None
+    def get_club_by_instagram(self, instagram_handle: str) -> Optional[Dict]:
+        """Fetch a club by Instagram handle, without its search vectors."""
+        return self._find_club_by_handle(CLUB_DETAIL_COLUMNS, instagram_handle)
 
     def upsert_club(self, club_info: Dict) -> str:
         """Create or update a club and assign categories"""
-        instagram_handle = club_info.get("Instagram Handle", "")
+        instagram_handle = normalize_handle(club_info.get("Instagram Handle", ""))
         if not instagram_handle:
             raise ValueError("Instagram handle is required")
+        club_name = (club_info.get("Club Name") or "").strip()
 
-        # Prepare club data
+        # Prepare club data. The name is set below so that a scrape that found
+        # no trustworthy name never overwrites the stored one.
         club_data = {
-            "name": club_info.get("Club Name", ""),
-            "instagram_handle": instagram_handle,
             "profile_pic": club_info.get("Profile Picture", ""),
             "description": " ".join(club_info.get("Description", [])),
             "updated_at": datetime.now().isoformat(),
@@ -112,12 +139,17 @@ class SupabaseQueries:
         existing_club = self.get_club_by_instagram(instagram_handle)
 
         if existing_club:
-            # Update existing club
+            # Update existing club, keeping its stored handle and, without a
+            # trustworthy scraped name, its stored name.
             club_id = existing_club["id"]
+            if club_name:
+                club_data["name"] = club_name
             self.supabase.table("clubs").update(club_data).eq("id", club_id).execute()
-            logger.info(f"Updated club: {club_data['name']}")
+            logger.info(f"Updated club: {club_data.get('name', existing_club['name'])}")
         else:
             # Create new club
+            club_data["name"] = club_name or instagram_handle
+            club_data["instagram_handle"] = instagram_handle
             response = self.supabase.table("clubs").insert(club_data).execute()
             if response.data and len(response.data) > 0:
                 club_id = response.data[0]["id"]
@@ -310,7 +342,12 @@ class SupabaseQueries:
         return deleted_count
 
     def insert_post_link(self, post_data):
-        """Insert a minimal post entry with just the link information if determinant doesn't already exist"""
+        """Insert a minimal post row unless its determinant already exists.
+
+        Existing rows are left untouched: a re-scrape must not reset
+        `scrapped`, `club_id` or `created_at` on posts it has already seen.
+        Returns the new row's id, or None when the post was already stored.
+        """
         response = (
             self.supabase.from_("posts")
             .upsert(
@@ -321,28 +358,20 @@ class SupabaseQueries:
                     "determinant": post_data["determinant"],
                     "created_at": post_data["created_at"],
                 },
-                on_conflict=["determinant"],
-            )  # Only insert if determinant is not already present
+                on_conflict="determinant",
+                ignore_duplicates=True,
+            )
             .execute()
         )
 
-        # If insert was skipped due to conflict, you might get empty `response.data`, so return None or handle accordingly
+        # PostgREST returns only inserted rows, so a skipped duplicate is empty.
         return response.data[0]["id"] if response.data else None
 
     def get_club_by_instagram_handle(self, instagram_handle: str):
-        """Fetch the club row matching the given Instagram handle."""
+        """Fetch the id of the club matching the given Instagram handle."""
         logger.info(f"Fetching club with Instagram handle: {instagram_handle}")
-        response = (
-            self.supabase.from_("clubs")
-            .select("id")
-            .eq("instagram_handle", instagram_handle)
-            .execute()
-        )
-
-        if not response.data:
-            return None  # or raise an exception if preferred
-
-        return response.data[0]["id"]
+        club = self._find_club_by_handle("id", instagram_handle)
+        return club["id"] if club else None
 
     def get_unscrapped_posts_by_club_id(self, club_id: int):
         """Fetch all unscrapped posts for a given club."""

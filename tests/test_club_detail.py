@@ -32,15 +32,32 @@ class StubQuery:
 
     def __init__(self):
         self.columns = None
+        self.matches = True
 
     def select(self, columns, **kwargs):
         self.columns = columns
         return self
 
     def eq(self, column, value):
+        self.matches = self.matches and ROW[column] == value
+        return self
+
+    def ilike(self, column, pattern):
+        # The lookup escapes LIKE wildcards, so the pattern is a literal.
+        literal = pattern.replace("\\_", "_").replace("\\%", "%")
+        literal = literal.replace("\\\\", "\\")
+        self.matches = self.matches and ROW[column].lower() == literal.lower()
+        return self
+
+    def order(self, *args, **kwargs):
+        return self
+
+    def limit(self, n):
         return self
 
     def execute(self):
+        if not self.matches:
+            return SimpleNamespace(data=[], count=None)
         if self.columns.strip() == "*":
             row = dict(ROW)
         else:
