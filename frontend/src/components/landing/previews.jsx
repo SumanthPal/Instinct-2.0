@@ -1,10 +1,14 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { FaUserCircle, FaStar, FaInstagram } from "react-icons/fa";
+import { FaStar, FaInstagram } from "react-icons/fa";
+import { Avatar } from "./avatar";
 
-/* Helpers shared by the landing previews. All content comes from the API. */
+/*
+ * Landing previews. Server components: data arrives as props from the
+ * revalidated server fetch in app/page.js, so nothing here depends on the
+ * browser's clock or locale (no hydration mismatch). The mockups are
+ * decorative and hidden from assistive tech; the real content is the copy
+ * and links next to them.
+ */
 
 const PICTOGRAPHS = /[\u{2600}-\u{27BF}\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu;
 
@@ -28,46 +32,30 @@ export function categoryList(club) {
 
 export function formatCount(n) {
   const v = Number(n);
-  if (!Number.isFinite(v)) return null;
-  return v.toLocaleString();
+  if (n == null || n === "" || !Number.isFinite(v)) return null;
+  return v.toLocaleString("en-US");
 }
 
-function parseLocalDate(s) {
-  // API dates are naive ("2026-10-28T00:00:00"); treat as local time.
+// API dates are naive ("2026-10-28T00:00:00"); use the calendar day as written.
+export function parseLocalDate(s) {
   if (!s) return null;
-  const [d] = s.split("T");
-  const [y, m, day] = d.split("-").map(Number);
-  return new Date(y, m - 1, day);
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export function Avatar({ src, className = "h-10 w-10" }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <span
-      className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted ${className}`}
-    >
-      {src && !failed ? (
-        // biome-ignore lint/performance/noImgElement: remote R2 avatars, unoptimized like ClubCard
-        <img
-          src={src}
-          alt=""
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <FaUserCircle className="h-full w-full text-muted-foreground" aria-hidden="true" />
-      )}
-    </span>
-  );
-}
+const MONTH_LONG = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+const MONTH_SHORT = new Intl.DateTimeFormat("en-US", { month: "short" });
+const DAY_SHORT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
 /* Clubs: a compact copy of the club profile header for one real club. */
 export function ProfilePreview({ club }) {
-  if (!club) return <PreviewSkeleton rows={4} />;
+  if (!club) return <PreviewEmpty>Club profiles will show up here once the directory loads.</PreviewEmpty>;
   const cats = categoryList(club);
   const followers = formatCount(club.followers);
   return (
-    <div className="rounded-md border border-border bg-card p-6 text-card-foreground">
+    <div aria-hidden="true" className="rounded-md border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-start gap-5">
         <span className="inline-flex rounded-full bg-[color:var(--accent-brand)] p-[2px]">
           <span className="inline-flex rounded-full bg-card p-[2px]">
@@ -110,28 +98,31 @@ export function ProfilePreview({ club }) {
   );
 }
 
-/* Events: month grid with real event days marked, plus the event list. */
-export function EventsPreview({ events, loaded }) {
-  const first = events[0] ? parseLocalDate(events[0].date) : null;
-  const ref = first || new Date();
+/*
+ * Events: month grid for the soonest event's month with its event days
+ * marked, plus the next few events. Events in later months are listed under
+ * the grid so nothing in the list is missing from the calendar.
+ * `todayISO` (YYYY-MM-DD, campus time) comes from the server.
+ */
+export function EventsPreview({ events, todayISO }) {
+  const dated = events
+    .map((e) => ({ e, d: parseLocalDate(e.date) }))
+    .filter((x) => x.d);
+  const today = parseLocalDate(todayISO) || null;
+  const ref = dated[0]?.d || today || new Date(2026, 0, 1);
   const year = ref.getFullYear();
   const month = ref.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const lead = new Date(year, month, 1).getDay();
-  const today = new Date();
-  const eventDays = new Set(
-    events
-      .map((e) => parseLocalDate(e.date))
-      .filter((d) => d && d.getFullYear() === year && d.getMonth() === month)
-      .map((d) => d.getDate()),
-  );
-  const monthLabel = ref.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const inMonth = (d) => d.getFullYear() === year && d.getMonth() === month;
+  const eventDays = new Set(dated.filter((x) => inMonth(x.d)).map((x) => x.d.getDate()));
+  const later = dated.filter((x) => !inMonth(x.d));
   const cells = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <div className="rounded-md border border-border bg-card p-4">
-        <p className="mb-3 text-sm font-medium">{monthLabel}</p>
+      <div aria-hidden="true" className="rounded-md border border-border bg-card p-4">
+        <p className="mb-3 text-sm font-medium">{MONTH_LONG.format(ref)}</p>
         <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] text-muted-foreground">
           {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
             <span key={`${d}-${i}`} className="pb-1">{d}</span>
@@ -139,6 +130,7 @@ export function EventsPreview({ events, loaded }) {
           {cells.map((day, i) => {
             const isToday =
               day &&
+              today &&
               today.getFullYear() === year &&
               today.getMonth() === month &&
               today.getDate() === day;
@@ -155,12 +147,16 @@ export function EventsPreview({ events, loaded }) {
             );
           })}
         </div>
+        {later.length > 0 && (
+          <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+            Later: {later.map((x) => DAY_SHORT.format(x.d)).join(", ")}
+          </p>
+        )}
       </div>
       <div className="flex flex-col gap-2">
-        {!loaded && <PreviewSkeleton rows={3} />}
-        {loaded && events.length === 0 && (
+        {events.length === 0 && (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-            No upcoming events have been posted yet.
+            No upcoming events to show right now.
           </div>
         )}
         {events.slice(0, 3).map((e) => {
@@ -170,7 +166,7 @@ export function EventsPreview({ events, loaded }) {
               <div className="flex items-start gap-3">
                 <div className="w-11 shrink-0 rounded-md border border-border py-1 text-center">
                   <p className="text-[10px] font-medium uppercase text-muted-foreground">
-                    {d?.toLocaleDateString(undefined, { month: "short" })}
+                    {d ? MONTH_SHORT.format(d) : ""}
                   </p>
                   <p className="text-base font-semibold leading-tight tabular-nums">{d?.getDate()}</p>
                 </div>
@@ -195,9 +191,9 @@ export function EventsPreview({ events, loaded }) {
 
 /* Favorites: how starred clubs appear on the dashboard (real clubs, sample selection). */
 export function FavoritesPreview({ clubs }) {
-  if (!clubs?.length) return <PreviewSkeleton rows={3} />;
+  if (!clubs?.length) return <PreviewEmpty>Starred clubs appear on your dashboard.</PreviewEmpty>;
   return (
-    <div className="rounded-md border border-border bg-card">
+    <div aria-hidden="true" className="rounded-md border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <p className="text-sm font-medium">Favorites</p>
         <p className="text-xs text-muted-foreground">Dashboard preview</p>
@@ -216,7 +212,7 @@ export function FavoritesPreview({ clubs }) {
             <span className="hidden truncate text-xs text-muted-foreground sm:block sm:max-w-[9rem]">
               {categoryList(c)[0]}
             </span>
-            <FaStar className="h-4 w-4 shrink-0 text-[color:var(--accent-brand)]" aria-label="Favorited" />
+            <FaStar className="h-4 w-4 shrink-0 text-[color:var(--accent-brand)]" />
           </li>
         ))}
       </ul>
@@ -224,12 +220,11 @@ export function FavoritesPreview({ clubs }) {
   );
 }
 
-function PreviewSkeleton({ rows = 3 }) {
+// Shown when the API returned nothing: a static note, never a pulsing skeleton.
+function PreviewEmpty({ children }) {
   return (
-    <div className="space-y-3 rounded-md border border-border bg-card p-5">
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="h-4 animate-pulse rounded bg-muted" style={{ width: `${90 - i * 12}%` }} />
-      ))}
+    <div className="rounded-md border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
+      {children}
     </div>
   );
 }

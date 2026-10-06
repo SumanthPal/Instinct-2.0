@@ -1,13 +1,9 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import ClubCard from "@/components/ClubCard";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import HeroSearch from "@/components/landing/hero-search";
 import {
   fetchClubManifest,
   fetchCategories,
@@ -23,6 +19,18 @@ import {
   plainText,
 } from "@/components/landing/previews";
 
+// Server component, regenerated at most every 5 minutes (ISR). The data is
+// in the HTML, so nothing pops in after hydration and there is no pending
+// state to get stuck in.
+export const revalidate = 300;
+
+export const metadata = {
+  title: "Instinct: UCI club directory",
+  description:
+    "Search UC Irvine student clubs, see their Instagram posts and upcoming events on one calendar, and star the clubs you care about.",
+  alternates: { canonical: "/" },
+};
+
 const SAMPLE_SIZE = 60;
 
 function toCard(club) {
@@ -36,9 +44,14 @@ function toCard(club) {
   };
 }
 
-function localISODate(d = new Date()) {
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+// "Today" on campus, independent of the server's timezone.
+function campusToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function Section({ eyebrow, title, body, actions, visual, stats, flip = false, framed = false }) {
@@ -63,10 +76,10 @@ function Section({ eyebrow, title, body, actions, visual, stats, flip = false, f
           {stats?.length > 0 && (
             <dl className="mt-10 flex gap-10">
               {stats.map((s) => (
-                <div key={s.label}>
-                  <dt className="sr-only">{s.label}</dt>
+                // Label first in the DOM (read once as dt), shown under the value.
+                <div key={s.label} className="flex flex-col-reverse">
+                  <dt className="mt-1 text-xs text-muted-foreground">{s.label}</dt>
                   <dd className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{s.value}</dd>
-                  <dd className="mt-1 text-xs text-muted-foreground">{s.label}</dd>
                 </div>
               ))}
             </dl>
@@ -86,60 +99,35 @@ function Section({ eyebrow, title, body, actions, visual, stats, flip = false, f
   );
 }
 
-export default function Home() {
-  const router = useRouter();
-  const [q, setQ] = useState("");
-  const [clubs, setClubs] = useState([]);
-  const [clubCount, setClubCount] = useState(null);
-  const [categoryCount, setCategoryCount] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [eventsLoaded, setEventsLoaded] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchClubManifest(1, SAMPLE_SIZE).then((m) => {
-      if (cancelled) return;
-      setClubs(m.results || []);
-      if (m.totalCount > 0) setClubCount(m.totalCount);
-    });
-    fetchCategories().then((cats) => {
-      if (!cancelled && cats?.length) setCategoryCount(cats.length);
-    });
-    fetchCampusWideEvents(localISODate(), null, 6).then((r) => {
-      if (cancelled) return;
-      const sorted = [...(r.results || [])].sort((a, b) =>
-        String(a.date).localeCompare(String(b.date)),
-      );
-      setEvents(sorted);
-      setEventsLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Real clubs from the first page of /club, ordered by Instagram followers.
-  const ranked = useMemo(
-    () =>
-      clubs
-        .filter(
-          (c) => cleanDescription(c.description).length > 30 && categoryList(c).length > 0,
-        )
-        .sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0)),
-    [clubs],
+export default async function Home() {
+  const todayISO = campusToday();
+  // The helpers catch their own errors and return empty results.
+  const [manifest, categories, eventsRes] = await Promise.all([
+    fetchClubManifest(1, SAMPLE_SIZE),
+    fetchCategories(),
+    fetchCampusWideEvents(todayISO, null, 6),
+  ]);
+  const clubs = manifest.results || [];
+  const clubCount = manifest.totalCount > 0 ? manifest.totalCount : null;
+  const categoryCount = categories?.length || null;
+  const events = [...(eventsRes.results || [])].sort((a, b) =>
+    String(a.date).localeCompare(String(b.date)),
   );
+
+  // A sample: clubs from the first page of /club with a usable bio and
+  // categories, ordered by Instagram followers.
+  const ranked = clubs
+    .filter(
+      (c) => cleanDescription(c.description).length > 30 && categoryList(c).length > 0,
+    )
+    .sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0));
   const examples = ranked.slice(0, 8);
   const profileClub = ranked[0];
-  const favoriteClubs = ranked.slice(8, 12);
-
-  const onSubmit = (e) => {
-    e.preventDefault();
-    const term = q.trim();
-    router.push(term ? `/clubs?search=${encodeURIComponent(term)}` : "/clubs");
-  };
+  // Prefer clubs not already shown above; fall back so the preview isn't empty.
+  const favoriteClubs = ranked.length > 8 ? ranked.slice(8, 12) : ranked.slice(0, 4);
 
   const clubStats = [
-    clubCount && { label: "clubs listed", value: clubCount.toLocaleString() },
+    clubCount && { label: "clubs listed", value: clubCount.toLocaleString("en-US") },
     categoryCount && { label: "categories", value: categoryCount },
   ].filter(Boolean);
 
@@ -156,7 +144,7 @@ export default function Home() {
               {clubCount && (
                 <>
                   <span className="h-3 w-px bg-border" />
-                  <span className="tabular-nums">{clubCount.toLocaleString()} clubs</span>
+                  <span className="tabular-nums">{clubCount.toLocaleString("en-US")} clubs</span>
                 </>
               )}
             </p>
@@ -170,19 +158,7 @@ export default function Home() {
               events clubs share on Instagram.
             </p>
 
-            <form onSubmit={onSubmit} className="mt-10 flex max-w-lg gap-2">
-              <Input
-                type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search clubs, e.g. robotics"
-                aria-label="Search clubs"
-                className="h-11 rounded-md border-border bg-card text-base shadow-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-              <Button type="submit" className="instinct-btn h-11 rounded-md px-5 text-white">
-                Search
-              </Button>
-            </form>
+            <HeroSearch />
             <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
               <ArrowLink href="/clubs">Browse all clubs</ArrowLink>
               <Link
@@ -215,21 +191,23 @@ export default function Home() {
                   Clubs on Instinct
                 </h2>
                 <p className="mt-2 text-muted-foreground">
-                  A few of the clubs in the directory right now.
+                  A sample of clubs from the directory, sorted by Instagram followers.
                 </p>
               </div>
               <ArrowLink href="/clubs">View all clubs</ArrowLink>
             </div>
             {examples.length === 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <div key={i} className="h-[360px] animate-pulse rounded-md border border-border bg-muted/40" />
-                ))}
+              <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                Couldn&apos;t load example clubs right now.{" "}
+                <Link href="/clubs" className="font-medium text-foreground underline-offset-4 hover:underline">
+                  Browse the full directory
+                </Link>
+                .
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {examples.map((club, i) => (
-                  <ClubCard key={club.id} club={toCard(club)} viewMode="grid" index={i} />
+                  <ClubCard key={club.id} club={toCard(club)} viewMode="grid" index={i} eager />
                 ))}
               </div>
             )}
@@ -267,7 +245,7 @@ export default function Home() {
               <Link href="/events">See upcoming events</Link>
             </Button>
           }
-          visual={<EventsPreview events={events} loaded={eventsLoaded} />}
+          visual={<EventsPreview events={events} todayISO={todayISO} />}
         />
 
         <Section

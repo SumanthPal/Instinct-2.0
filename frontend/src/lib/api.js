@@ -29,8 +29,6 @@ export const fetchClubManifest = async (
 
     const data = await response.json();
 
-    console.log("Fetched club manifest:", data);
-
     return {
       results: data.results || [],
       totalCount: data.total || 0,
@@ -83,7 +81,6 @@ export const fetchCategories = async () => {
 export const fetchClubData = async (username) => {
   try {
     const url = `${API_BASE_URL}/club/${username}`;
-    console.log(`Fetching data for club ${username} from:`, url);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -96,7 +93,6 @@ export const fetchClubData = async (username) => {
     }
 
     const data = await response.json();
-    console.log(`Fetched data for club ${username}:`, data);
     return data;
   } catch (error) {
     console.error(`Error fetching club data for ${username}:`, error);
