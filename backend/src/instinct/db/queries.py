@@ -16,8 +16,11 @@ from instinct.db.supabase_client import (
 from instinct.storage import get_storage
 from instinct.tools.logger import logger
 
-# Every clubs column except `embedding` (1536 floats) and `search_vector`, which
-# are search internals: returning them put ~30 KB on every club page (#92).
+# Columns get_club_by_instagram returns, and so what GET /club/{handle} sends.
+# It deliberately omits `embedding` (1536 floats) and `search_vector`: they are
+# search internals and put ~30 KB on every club page (#92). This is an
+# allow-list, so a column added to `clubs` later is NOT returned until it is
+# added here too.
 CLUB_DETAIL_COLUMNS = (
     "id, name, instagram_handle, profile_pic, description, updated_at, "
     "followers, following, club_links, last_scraped, profile_image_path, "
@@ -905,19 +908,3 @@ class SupabaseQueries:
         except Exception as e:
             logger.error(f"Error in get_posts_by_club_id: {e}")
             return []
-
-    def get_all_clubs(self) -> List[Dict]:
-        """Cached version of get_all_clubs - use only when necessary"""
-
-        logger.warning("get_all_clubs called - consider using pagination instead")
-
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
-        response = self.supabase.table("clubs").select("*, categories(name)").execute()
-        clubs = response.data if response.data else []
-
-        for club in clubs:
-            image_path = club.get("profile_image_path")
-            if image_path:
-                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
-
-        return clubs
