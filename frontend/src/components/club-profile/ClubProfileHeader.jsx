@@ -3,12 +3,14 @@
 import { FiInstagram, FiStar } from "react-icons/fi";
 import ClubAvatar from "@/components/ClubAvatar";
 import { Button } from "@/components/ui/button";
+import ClubLinks from "./ClubLinks";
 import {
   extractQuotedContent,
   categoryNames,
   clubAvatarUrl,
   formatCount,
 } from "./clubDetailUtils";
+import { linkifyBio, normalizeClubLinks } from "./clubLinkUtils";
 
 function Avatar({ clubData, sizeClass }) {
   return (
@@ -108,6 +110,10 @@ export default function ClubProfileHeader({
     extractQuotedContent(clubData?.description) ||
     clubData?.description ||
     "";
+  const bioParts = linkifyBio(bio);
+  // Links already clickable inline in the bio aren't repeated in the row.
+  const inBio = new Set(bioParts.filter((p) => typeof p !== "string").map((p) => p.key));
+  const links = normalizeClubLinks(clubData?.club_links).filter((l) => !inBio.has(l.key));
 
   return (
     <div className="club-profile-header px-4 text-left sm:px-0">
@@ -135,8 +141,28 @@ export default function ClubProfileHeader({
       <div className="[grid-area:info]">
         {bio && (
           <p className="mt-2 max-w-md text-sm leading-relaxed text-foreground sm:mt-4">
-            {bio}
+            {bioParts.map((part, i) =>
+              typeof part === "string" ? (
+                part
+              ) : (
+                <a
+                  // biome-ignore lint/suspicious/noArrayIndexKey: static split of one string
+                  key={i}
+                  href={part.href}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow ugc"
+                  className="instinct-text break-all font-medium hover:underline"
+                >
+                  {part.text}
+                </a>
+              ),
+            )}
           </p>
+        )}
+        {links.length > 0 && (
+          <div className="mt-1.5 max-w-md sm:mt-2">
+            <ClubLinks links={links} handle={handle} />
+          </div>
         )}
         {cats.length > 0 && (
           <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2">
