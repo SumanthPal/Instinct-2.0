@@ -55,6 +55,9 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [imageExtractedColor, setImageExtractedColor] = useState(null);
+  // Only sample colours once the visible avatar has actually loaded, so a
+  // 404 avatar does not trigger a second failing request.
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
   
   const cardRef = useRef(null);
   const { user } = useAuth();
@@ -126,7 +129,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
 
   // Extract color from image (non-blocking, runs after initial render)
   useEffect(() => {
-    if (!isVisible || !club.profilePicture) return;
+    if (!isVisible || !avatarLoaded || !club.profilePicture) return;
     
     const cacheKey = `${club.name}-${club.profilePicture}`;
     if (colorCache.has(cacheKey + '-extracted')) {
@@ -193,7 +196,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
     } else {
       setTimeout(extractColor, 100);
     }
-  }, [isVisible, club.profilePicture, club.name]);
+  }, [isVisible, avatarLoaded, club.profilePicture, club.name]);
 
   const extractQuotedContent = (str) => {
     if (!str) return '';
@@ -310,6 +313,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
             alt={`${club.name} logo`}
             sizes="(max-width: 80px) 100vw, 80px"
             priority={index < 6}
+            onLoad={() => setAvatarLoaded(true)}
           />
         </div>
         <h3 className="text-xl font-bold text-gray-700 dark:text-white flex items-center gap-1">
@@ -376,6 +380,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = 'grid', index = 0 }) 
               alt={`${club.name} logo`}
               sizes="(max-width: 80px) 100vw, 80px"
               priority={index < 6}
+              onLoad={() => setAvatarLoaded(true)}
             />
           </div>
         </div>

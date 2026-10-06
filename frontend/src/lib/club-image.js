@@ -7,5 +7,10 @@ const R2_PUBLIC_BASE =
 export function resolveClubImageUrl(path) {
   if (!path) return null;
   if (/^https?:\/\//i.test(path)) return path;
-  return `${R2_PUBLIC_BASE}/${path.replace(/^\//, "")}`;
+  const encoded = path
+    .replace(/^\//, "")
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${R2_PUBLIC_BASE}/${encoded}`;
 }
