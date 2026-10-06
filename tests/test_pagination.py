@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+from postgrest.exceptions import APIError
 
 from instinct import server
 from instinct.db.queries import SupabaseQueries
@@ -68,6 +69,7 @@ class StubQuery:
 
     def execute(self):
         rows = self.rows
+        self._raise_past_the_end()
         # Chained orders: the first is the primary key. Ties keep insertion
         # order, like an unordered scan.
         for column, desc in reversed(self.orders):
@@ -89,6 +91,24 @@ class StubQuery:
         return SimpleNamespace(
             data=rows, count=total if self.count == "exact" else None
         )
+
+    def _raise_past_the_end(self):
+        # PostgREST with count=exact: an offset past the last row is a 416.
+        if self.count == "exact" and self.window and self.window[0] > 0:
+            total = len([r for r in self.rows if self._keep(r)])
+            if self.window[0] > total:
+                raise APIError(
+                    {
+                        "code": "PGRST103",
+                        "message": "Requested range not satisfiable",
+                        "details": f"An offset of {self.window[0]} was requested, "
+                        f"but there are only {total} rows.",
+                        "hint": None,
+                    }
+                )
+
+    def _keep(self, row):
+        return all(row.get(c) == v for c, v in self.filters if not isinstance(v, tuple))
 
 
 class StubClient:
@@ -223,3 +243,19 @@ def test_manifest_filters_by_category_before_the_limit(monkeypatch):
 
     unfiltered = api.get("/club-manifest", params={"limit": 2}).json()
     assert [c["name"] for c in unfiltered] == ["A Chess", "B Film"]
+
+
+def test_posts_page_past_the_end_is_empty_not_a_500(monkeypatch):
+    # PostgREST answers offset == total with 206 [] and offset > total with a
+    # 416 PGRST103 (count=exact). Both must be an empty 200 page.
+    api = use_stub(monkeypatch, StubClient(tables={"clubs": [CLUB], "posts": POSTS}))
+    limit = 5
+    at_end = -(-len(POSTS) // limit) + 1  # first page with no rows
+
+    for page in (at_end, at_end + 1):
+        response = api.get("/club/acm/posts", params={"page": page, "limit": limit})
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["results"] == []
+        assert body["total"] == len(POSTS)
+        assert body["hasMore"] is False

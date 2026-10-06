@@ -6,6 +6,7 @@ import uuid
 import requests
 from io import BytesIO
 import httpx
+from postgrest.exceptions import APIError
 
 
 from instinct.db.supabase_client import (
@@ -925,18 +926,34 @@ class SupabaseQueries:
     ) -> Dict:
         """One page of a club's posts, newest first, and the club's post total.
 
-        Errors propagate: an empty page here must mean the club has no posts.
+        Errors propagate: an empty page here must mean the club has no posts
+        or the page is past the end.
         """
-        response = (
-            self.supabase.table("posts")
-            .select("id, post_url, caption, image_path, posted", count="exact")
-            .eq("club_id", club_id)
-            # id breaks ties so posts sharing a `posted` value page stably.
-            .order("posted", desc=True)
-            .order("id")
-            .range(offset, offset + limit - 1)
-            .execute()
-        )
+        try:
+            response = (
+                self.supabase.table("posts")
+                .select("id, post_url, caption, image_path, posted", count="exact")
+                .eq("club_id", club_id)
+                # id breaks ties so posts sharing a `posted` value page stably.
+                .order("posted", desc=True)
+                .order("id")
+                .range(offset, offset + limit - 1)
+                .execute()
+            )
+        except APIError as e:
+            # With count=exact, PostgREST answers an offset past the last row
+            # with 416 PGRST103 instead of an empty page. Return the empty page
+            # with the real total, as the request is valid.
+            if e.code != "PGRST103":
+                raise
+            counted = (
+                self.supabase.table("posts")
+                .select("id", count="exact")
+                .eq("club_id", club_id)
+                .limit(1)
+                .execute()
+            )
+            return {"posts": [], "total": counted.count or 0}
 
         return {"posts": response.data or [], "total": response.count or 0}
 
