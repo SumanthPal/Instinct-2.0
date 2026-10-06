@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 import { fetchCampusWideEvents } from "@/lib/api";
 import Image from "next/image";
+import ClubAvatar from "@/components/ClubAvatar";
 import Link from "next/link";
-import { FaCalendarAlt, FaMapMarkerAlt, FaClock, FaChevronDown, FaUserCircle, FaList, FaTh, FaSearch, FaFilter, FaTimes, FaChevronUp } from "react-icons/fa";
+import { FaCalendarAlt, FaMapMarkerAlt, FaClock, FaChevronDown, FaList, FaTh, FaSearch, FaFilter, FaTimes, FaChevronUp } from "react-icons/fa";
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 
-const GCS_BUCKET_URL = "https://storage.googleapis.com/uci-club-bucket";
 const INITIAL_LOAD = 12;
 const LOAD_MORE_COUNT = 12;
 
@@ -28,11 +28,6 @@ export default function CampusEventsPage() {
 	const [selectedCategory, setSelectedCategory] = useState("");
 	const [showFilters, setShowFilters] = useState(false);
 
-	// Get profile picture URL from instagram handle
-	const getClubProfilePic = (instagramHandle) => {
-		if (!instagramHandle) return null;
-		return `${GCS_BUCKET_URL}/pfps/${instagramHandle}.jpg`;
-	};
 
 	// Fetch all upcoming events
 	useEffect(() => {
@@ -317,8 +312,7 @@ export default function CampusEventsPage() {
 									</button>
 									{uniqueClubs.map(club => {
 										const clubEvent = allEvents.find(e => e.clubs?.name === club);
-										const clubHandle = clubEvent?.clubs?.instagram_handle;
-										const clubProfilePic = clubHandle ? getClubProfilePic(clubHandle) : null;
+										const clubProfilePic = clubEvent?.clubs?.profile_image_path || null;
 
 										return (
 											<button
@@ -330,21 +324,9 @@ export default function CampusEventsPage() {
 														: "bg-white/40 dark:bg-dark-card/40 border-white/20 dark:border-dark-text/10 text-dark-base/60 dark:text-dark-text/60 hover:bg-white/60 dark:hover:bg-dark-card/60"
 												}`}
 											>
-												{clubProfilePic && (
-													<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
-														<Image
-															src={clubProfilePic}
-															alt={club}
-															fill
-															className="object-cover"
-															sizes="20px"
-															unoptimized
-															onError={(e) => {
-																e.target.style.display = 'none';
-															}}
-														/>
-													</div>
-												)}
+												<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0">
+													<ClubAvatar src={clubProfilePic} alt={club} sizes="20px" />
+												</div>
 												<span className="whitespace-nowrap">{club}</span>
 											</button>
 										);
@@ -486,9 +468,7 @@ export default function CampusEventsPage() {
 									{/* Events Grid for this Date */}
 									<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
 										{group.events.map((event, index) => {
-											const clubProfilePic = event.clubs?.instagram_handle
-												? getClubProfilePic(event.clubs.instagram_handle)
-												: null;
+											const clubProfilePic = event.clubs?.profile_image_path || null;
 											const eventId = `${groupIndex}-${index}`;
 											const isExpanded = expandedEventId === eventId;
 											const category = getEventCategory(event);
@@ -543,24 +523,12 @@ export default function CampusEventsPage() {
 																onClick={(e) => e.stopPropagation()}
 																className="inline-flex items-center gap-2 group/club hover:opacity-80 transition-opacity"
 															>
-																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
-																	{clubProfilePic ? (
-																		<Image
-																			src={clubProfilePic}
-																			alt={event.clubs.name}
-																			fill
-																			className="object-cover"
-																			sizes="32px"
-																			unoptimized
-																			onError={(e) => {
-																				e.target.style.display = 'none';
-																				e.target.nextSibling.style.display = 'flex';
-																			}}
-																		/>
-																	) : null}
-																	<div className="absolute inset-0 flex items-center justify-center" style={{ display: clubProfilePic ? 'none' : 'flex' }}>
-																		<FaUserCircle className="w-6 h-6 text-gray-400" />
-																	</div>
+																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/50 dark:border-dark-text/20 shrink-0">
+																	<ClubAvatar
+																		src={clubProfilePic}
+																		alt={event.clubs.name}
+																		sizes="32px"
+																	/>
 																</div>
 																<span className="text-sm font-semibold text-dark-base dark:text-dark-text group-hover/club:underline">
 																	{event.clubs.name}
@@ -649,9 +617,7 @@ export default function CampusEventsPage() {
 							/* Grid View - All events in one grid */
 							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
 								{eventsToShow.map((event, index) => {
-									const clubProfilePic = event.clubs?.instagram_handle
-										? getClubProfilePic(event.clubs.instagram_handle)
-										: null;
+									const clubProfilePic = event.clubs?.profile_image_path || null;
 									const eventId = `grid-${index}`;
 									const isExpanded = expandedEventId === eventId;
 									const category = getEventCategory(event);
@@ -744,24 +710,12 @@ export default function CampusEventsPage() {
 														onClick={(e) => e.stopPropagation()}
 														className="inline-flex items-center gap-1.5 mb-2 group/club hover:opacity-80 transition-opacity"
 													>
-														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
-															{clubProfilePic ? (
-																<Image
-																	src={clubProfilePic}
-																	alt={event.clubs.name}
-																	fill
-																	className="object-cover"
-																	sizes="20px"
-																	unoptimized
-																	onError={(e) => {
-																		e.target.style.display = 'none';
-																		e.target.nextSibling.style.display = 'flex';
-																	}}
-																/>
-															) : null}
-															<div className="absolute inset-0 flex items-center justify-center" style={{ display: clubProfilePic ? 'none' : 'flex' }}>
-																<FaUserCircle className="w-4 h-4 text-gray-400" />
-															</div>
+														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0">
+															<ClubAvatar
+																src={clubProfilePic}
+																alt={event.clubs.name}
+																sizes="20px"
+															/>
 														</div>
 														<span className="text-xs font-medium text-dark-base dark:text-dark-text group-hover/club:underline line-clamp-1">
 															{event.clubs.name}
@@ -913,21 +867,13 @@ export default function CampusEventsPage() {
 												href={`/club/${selectedImageData.clubs.instagram_handle}`}
 												className="inline-flex items-center gap-2 mb-3 hover:opacity-80 transition-opacity"
 											>
-												{selectedImageData.clubs.instagram_handle && (
-													<div className="relative w-6 h-6 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-														<Image
-															src={getClubProfilePic(selectedImageData.clubs.instagram_handle)}
-															alt={selectedImageData.clubs.name}
-															fill
-															className="object-cover"
-															sizes="24px"
-															unoptimized
-															onError={(e) => {
-																e.target.style.display = 'none';
-															}}
-														/>
-													</div>
-												)}
+												<div className="relative w-6 h-6 rounded-full overflow-hidden">
+													<ClubAvatar
+														src={selectedImageData.clubs.profile_image_path}
+														alt={selectedImageData.clubs.name}
+														sizes="24px"
+													/>
+												</div>
 												<span className="font-semibold text-dark-base dark:text-white">
 													{selectedImageData.clubs.name}
 												</span>
