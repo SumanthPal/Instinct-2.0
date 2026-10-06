@@ -538,12 +538,11 @@ class InstagramScraper:
             if not self.safe_get_page(profile_url):
                 raise Exception(f"Failed to access profile for {club_username}")
 
-            # handles all scraping for links. this is dynamic, hence why its in selenium
             self._handle_instagram_more_button()
+            # Parse the profile before the links popup: a mis-click there can
+            # open another dialog or page, and nothing else needs the popup.
+            profile_soup = BeautifulSoup(self._driver.page_source, "html.parser")
             club_links = self._handle_instagram_links_button()
-
-            page_source = self._driver.page_source
-            profile_soup = BeautifulSoup(page_source, "html.parser")
 
             club_name, pfp_url = self._find_club_name_pfp(profile_soup, club_username)
             club_description, followers_count, following_count, posts_count = (
@@ -827,12 +826,22 @@ class InstagramScraper:
 
         except TimeoutException:
             logger.warning("Links button not found within the timeout.")
+            self._close_popup()
             return []
         except Exception as e:
             logger.error(
                 f"An error occurred while trying to interact with the links button: {e}"
             )
             return []
+
+    def _close_popup(self) -> None:
+        """Dismiss whatever a links-trigger click opened; never raise."""
+        try:
+            from selenium.webdriver.common.keys import Keys
+
+            self._driver.find_element(*selectors.PAGE_BODY).send_keys(Keys.ESCAPE)
+        except Exception as exc:
+            logger.warning(f"Could not close popup: {exc}")
 
     def _handle_instagram_more_button(self) -> None:
         try:
