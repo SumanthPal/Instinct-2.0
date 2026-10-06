@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
     try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 
-        await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             queryParams: {
