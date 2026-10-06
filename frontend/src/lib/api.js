@@ -183,11 +183,43 @@ export const getCalendarUrl = (username) => {
   return `${API_BASE_URL}/club/${username}/calendar.ics`;
 };
 
+/**
+ * Every club (id, name, instagram_handle, profile_pic) in one request, for
+ * pickers. /club-manifest defaults to 100 rows, so ask for all of them.
+ */
+export const fetchClubDirectory = async () => {
+  const response = await fetch(`${API_BASE_URL}/club-manifest?limit=1000`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch club directory: ${response.status}`);
+  }
+  const data = await response.json();
+  return Array.isArray(data) ? data : data.results || [];
+};
+
+/**
+ * GET /events?from=YYYY-MM-DD&to=YYYY-MM-DD[&clubs=h1,h2][&category=Name]
+ * (backend PR #113). `query` is the already-built query string; callers
+ * (the calendar's events client) keep requests within the server limits:
+ * from/to inclusive LA dates, at most 92 days, at most 100 clubs, no empty
+ * clubs param. Resolves to { count, results }; rejects with `.status` set.
+ */
+export const fetchEventsRange = async (query, { signal } = {}) => {
+  const response = await fetch(`${API_BASE_URL}/events?${query}`, { signal });
+  if (!response.ok) {
+    const text = await response.text();
+    const error = new Error(`GET /events ${response.status} - ${text}`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+};
+
 export const fetchCampusWideEvents = async (
   startDate = null,
   endDate = null,
   limit = 100,
   offset = 0,
+  { throwOnError = false } = {},
 ) => {
   try {
     let queryParams = `limit=${limit}&offset=${offset}`;
@@ -215,6 +247,8 @@ export const fetchCampusWideEvents = async (
     };
   } catch (error) {
     console.error("Error fetching campus-wide events:", error);
+    // The calendar needs to tell "no events" from "API down".
+    if (throwOnError) throw error;
     return { results: [], count: 0 };
   }
 };

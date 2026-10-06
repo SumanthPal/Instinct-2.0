@@ -369,3 +369,46 @@
 .instinct-post-tile {
   background: hsl(var(--muted));
 }
+
+/* Events calendar (mockup). Category colour = one solid accent or neutral;
+   chips/blocks are opaque tints of it over the card, never gradients. */
+.cal-cat-social { --cat: var(--instinct-pink); }
+.cal-cat-academic { --cat: var(--instinct-sky); }
+.cal-cat-career { --cat: var(--instinct-purple); }
+.cal-cat-general { --cat: hsl(var(--muted-foreground)); }
+.cal-dot { background-color: var(--cat); }
+.cal-chip {
+  background-color: color-mix(in srgb, var(--cat) 13%, hsl(var(--card)));
+  box-shadow: inset 2px 0 0 var(--cat);
+}
+.cal-chip:hover { background-color: color-mix(in srgb, var(--cat) 22%, hsl(var(--card))); }
+.cal-chip-solid {
+  background-color: color-mix(in srgb, var(--cat) 24%, hsl(var(--card)));
+}
+.cal-chip-solid:hover { background-color: color-mix(in srgb, var(--cat) 32%, hsl(var(--card))); }
+.cal-block {
+  background-color: color-mix(in srgb, var(--cat) 14%, hsl(var(--card)));
+  border: 1px solid color-mix(in srgb, var(--cat) 28%, hsl(var(--card)));
+  border-left: 3px solid var(--cat);
+}
+.cal-block:hover { background-color: color-mix(in srgb, var(--cat) 22%, hsl(var(--card))); }
+.cal-block[data-selected="true"] {
+  background-color: color-mix(in srgb, var(--cat) 30%, hsl(var(--card)));
+  border-color: var(--cat);
+}
+.cal-today-dot {
+  background-color: var(--accent-brand-solid);
+  color: #fff;
+}
+.cal-now { background-color: var(--instinct-pink); }
+.cal-now-text { color: var(--instinct-pink); }
+.cal-bar { background-color: var(--cat); }
+/* Trigger of the open details popover stays highlighted. */
+[data-state="open"] > .cal-block,
+[data-state="open"] > .cal-chip,
+[data-state="open"] > .cal-chip-solid {
+  background-color: color-mix(in srgb, var(--cat) 32%, hsl(var(--card)));
+}
+[data-state="open"] > .cal-block { border-color: var(--cat); }
+/* Overlapping week/day blocks: a hard 1px card-coloured edge, no shadow blur. */
+.cal-overlap > button > .cal-block { outline: 1px solid hsl(var(--card)); }
