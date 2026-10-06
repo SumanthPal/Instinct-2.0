@@ -46,9 +46,9 @@ function useIsPhone() {
 
 /* ---------- small pieces ---------- */
 
-function AvatarRing({ club, size = 32 }) {
+function AvatarRing({ club, size = 32, className = "" }) {
   return (
-    <span className="instinct-story-ring shrink-0 self-start" style={{ padding: 1.5 }}>
+    <span className={`instinct-story-ring shrink-0 ${className}`} style={{ padding: 1.5 }}>
       <span className="instinct-story-ring-inner bg-transparent!" style={{ padding: 1.5 }}>
         <span
           className="relative block overflow-hidden rounded-full"
@@ -195,7 +195,7 @@ function EventCards({ events, onShowEvents }) {
 function CaptionBlock({ club, handle, caption, date, avatar = true }) {
   return (
     <div className="flex gap-3">
-      {avatar && <AvatarRing club={club} />}
+      {avatar && <AvatarRing club={club} className="self-start" />}
       <div className="min-w-0 flex-1 pt-1 text-sm leading-[1.45] text-foreground">
         <p className="whitespace-pre-line [overflow-wrap:anywhere]">
           <Link href={`/club/${handle}`} className="mr-1.5 font-semibold hover:opacity-70">
@@ -500,6 +500,9 @@ export default function PostViewer({
   index,
   club,
   eventsByPost,
+  total: totalCount = null,
+  hasMore = false,
+  onNeedMore,
   onIndexChange,
   onClose,
   onShowEvents,
@@ -507,18 +510,42 @@ export default function PostViewer({
   const phone = useIsPhone();
   const post = index != null ? posts?.[index] : null;
   const open = Boolean(post);
-  const total = posts?.length || 0;
+  const loaded = posts?.length || 0;
+  // The club's post count when the API sent it, else what is loaded so far.
+  const total = Math.max(totalCount || 0, loaded);
   const handle = club?.instagram_handle || "";
   const img = useImageMeta(post?.image_url || null);
+  // "Next" pressed on the last loaded post while the next page loads.
+  const pendingNext = useRef(null);
 
   const go = useCallback(
     (delta) => {
       if (index == null) return;
       const next = index + delta;
-      if (next >= 0 && next < total) onIndexChange(next);
+      if (next >= 0 && next < loaded) onIndexChange(next);
+      else if (delta > 0 && next >= loaded && hasMore) {
+        pendingNext.current = index;
+        onNeedMore?.();
+      }
     },
-    [index, total, onIndexChange],
+    [index, loaded, hasMore, onIndexChange, onNeedMore],
   );
+
+  // Page in more posts before the viewer reaches the end of what is loaded.
+  useEffect(() => {
+    if (index != null && hasMore && index >= loaded - 3) onNeedMore?.();
+  }, [index, loaded, hasMore, onNeedMore]);
+
+  // Finish a pending "next" once its page arrives (or give up at the end).
+  useEffect(() => {
+    const from = pendingNext.current;
+    if (from == null) return;
+    if (index !== from) pendingNext.current = null;
+    else if (from + 1 < loaded) {
+      pendingNext.current = null;
+      onIndexChange(from + 1);
+    } else if (!hasMore) pendingNext.current = null;
+  }, [index, loaded, hasMore, onIndexChange]);
 
   // Warm the neighbours (and one more ahead, the usual direction).
   useEffect(() => {
@@ -573,7 +600,7 @@ export default function PostViewer({
     : null;
   const nav = {
     onPrev: index > 0 ? () => go(-1) : null,
-    onNext: index != null && index < total - 1 ? () => go(1) : null,
+    onNext: index != null && (index < loaded - 1 || hasMore) ? () => go(1) : null,
   };
 
   return (

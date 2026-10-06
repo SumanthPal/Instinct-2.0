@@ -57,7 +57,14 @@ function PostTile({ post, index, total, handle, onOpen }) {
   );
 }
 
-export default function ClubPostGrid({ posts, handle, onOpen }) {
+export default function ClubPostGrid({
+  posts,
+  handle,
+  onOpen,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+}) {
   if (!posts?.length) {
     return (
       <p className="px-4 py-12 text-center text-sm text-muted-foreground sm:px-0">
@@ -67,17 +74,31 @@ export default function ClubPostGrid({ posts, handle, onOpen }) {
   }
 
   return (
-    <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
-      {posts.map((post, index) => (
-        <PostTile
-          key={post.id || post.image_url || index}
-          post={post}
-          index={index}
-          total={posts.length}
-          handle={handle}
-          onOpen={onOpen}
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+        {posts.map((post, index) => (
+          <PostTile
+            key={post.id || post.image_url || index}
+            post={post}
+            index={index}
+            total={posts.length}
+            handle={handle}
+            onOpen={onOpen}
+          />
+        ))}
+      </div>
+      {hasMore && (
+        <div className="flex justify-center py-6">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMore}
+            className="inline-flex h-8 items-center rounded-full border border-border px-4 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-60"
+          >
+            {loadingMore ? "Loading…" : "Load more posts"}
+          </button>
+        </div>
+      )}
+    </>
   );
 }

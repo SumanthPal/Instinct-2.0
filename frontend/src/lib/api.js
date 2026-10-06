@@ -149,6 +149,7 @@ export const fetchClubPosts = async (username, page = 1, limit = 10) => {
       hasMore: json.hasMore || false,
       page: json.page || page,
       totalPages: json.pages || 1,
+      total: typeof json.total === "number" ? json.total : null,
     };
   } catch (error) {
     console.error(`Error fetching posts for ${username}:`, error);

@@ -22,6 +22,7 @@ import ClubSimilarClubs from "@/components/club-profile/ClubSimilarClubs";
 import PostViewer from "@/components/club-profile/post-viewer/PostViewer";
 import { eventsByPost } from "@/components/club-profile/post-viewer/post-utils";
 import { usePostParam } from "@/components/club-profile/post-viewer/usePostParam";
+import { useClubPosts } from "@/components/club-profile/post-viewer/useClubPosts";
 
 function normalizeList(input) {
   if (input?.results && Array.isArray(input.results)) return input.results;
@@ -38,7 +39,8 @@ export default function ClubDetail({
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [clubPosts] = useState(() => normalizeList(initialClubPosts));
+  const postFeed = useClubPosts(clubData?.instagram_handle, initialClubPosts);
+  const clubPosts = postFeed.posts;
   const [clubEvents] = useState(() => normalizeList(initialClubEvents));
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [tab, setTab] = useState("posts");
@@ -201,6 +203,9 @@ export default function ClubDetail({
             posts={clubPosts}
             handle={clubData.instagram_handle}
             onOpen={(post) => openPost(post.id)}
+            hasMore={postFeed.hasMore}
+            loadingMore={postFeed.loading}
+            onLoadMore={postFeed.loadMore}
           />
         ) : (
           <ClubEventsPanel
@@ -222,6 +227,9 @@ export default function ClubDetail({
         index={viewer.index}
         club={clubData}
         eventsByPost={postEvents}
+        total={postFeed.total}
+        hasMore={postFeed.hasMore}
+        onNeedMore={postFeed.loadMore}
         onIndexChange={handlePostIndex}
         onClose={closePost}
         onShowEvents={showEvents}
