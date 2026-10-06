@@ -111,33 +111,34 @@ def test_mark_scraped_escapes_wildcards(monkeypatch):
     assert seen == ["acm\\_uci"]
 
 
-def test_dead_browser_stops_session(monkeypatch):
+def test_crashed_browser_stops_session(monkeypatch):
+    from selenium.common.exceptions import InvalidSessionIdException
+
     from instinct.tools import insta_scraper
 
-    class DyingScraper:
-        def __init__(self, *args):
-            self._driver = object()
+    class CrashedDriver:
+        """A driver whose Chrome died: every attribute or call raises."""
 
-        def login(self):
-            pass
+        def __getattr__(self, name):
+            raise InvalidSessionIdException("invalid session id")
 
-        def _driver_quit(self):
-            self._driver = None
-
-    def scrape_one(scraper, handle, *, dry_run):
-        if handle == "b":
-            scraper._driver_quit()  # what get_club_info does on WebDriverException
-        raise RuntimeError(f"Could not load {handle}")
-
+    # The real scraper methods (get_club_info, safe_get_page) on a dead
+    # driver, without starting Chrome or logging in.
+    scraper = insta_scraper.InstagramScraper.__new__(insta_scraper.InstagramScraper)
+    scraper._driver = CrashedDriver()
+    scraper.login = lambda: None
+    sleeps = []
     attempted = []
-    monkeypatch.setattr(insta_scraper, "InstagramScraper", DyingScraper)
-    monkeypatch.setattr(scraper_rotation, "scrape_one", scrape_one)
-    monkeypatch.setattr(scraper_rotation.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(insta_scraper, "InstagramScraper", lambda *args: scraper)
+    monkeypatch.setattr(scraper_rotation, "ONCE_CLUB_DELAY_SECONDS", (999, 999))
+    monkeypatch.setattr(scraper_rotation.time, "sleep", sleeps.append)
     failed, stopped = scraper_rotation.run_session(
         ["a", "b", "c"], dry_run=True, on_attempted=attempted.append
     )
-    assert (failed, stopped) == (["a"], "browser died")
-    assert attempted == ["a"]
+    assert (failed, stopped) == ([], "browser died")
+    assert attempted == []
+    assert 999 not in sleeps  # never waited for the next club
+    assert scraper._driver is None
 
 
 def test_dry_run_writes_nothing(fake):

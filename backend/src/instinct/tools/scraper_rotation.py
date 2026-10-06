@@ -1225,6 +1225,17 @@ def parse_events(instagram_handle: str) -> None:
         logger.error(f"Event parsing failed for {instagram_handle}: {exc}")
 
 
+def driver_alive(scraper) -> bool:
+    """False when the scraper's browser was quit or no longer answers."""
+    if scraper._driver is None:
+        return False
+    try:
+        scraper._driver.current_url
+    except WebDriverException:
+        return False
+    return True
+
+
 def run_session(
     instagram_handles: List[str],
     *,
@@ -1269,9 +1280,9 @@ def run_session(
                 logger.error(f"Scrape stopped without retrying: {exc}")
                 return failed, f"browser died: {exc}"
             except Exception as exc:
-                # get_club_info quits the driver on a WebDriverException and
-                # returns None, so a dead browser only shows up here.
-                if scraper._driver is None:
+                # get_club_info and safe_get_page swallow browser errors, so a
+                # crashed Chrome only shows up here as an ordinary failure.
+                if not driver_alive(scraper):
                     logger.error(f"Browser died on {instagram_handle}; stopping.")
                     return failed, "browser died"
                 # Not a challenge or rate limit, so move on to the next club.

@@ -999,6 +999,9 @@ class InstagramScraper:
         if driver:
             try:
                 driver.quit()
+            except WebDriverException as exc:
+                # A crashed browser cannot be quit cleanly; just drop it.
+                logger.warning(f"Could not quit the browser: {exc}")
             finally:
                 self._driver = None
 
