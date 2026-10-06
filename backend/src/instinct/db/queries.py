@@ -1,6 +1,6 @@
 import os
 from PIL import Image
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
 import uuid
 import requests
@@ -452,7 +452,7 @@ class SupabaseQueries:
         Returns:
             The inserted event data
         """
-        response = self.supabase.from_("events").insert(event_data).execute()
+        response = self.supabase.table("events").insert(event_data).execute()
 
         return response.data
 
@@ -552,7 +552,7 @@ class SupabaseQueries:
             List[Dict]: List of event records
         """
         response = (
-            self.supabase.from_("events").select("*").eq("club_id", club_id).execute()
+            self.supabase.table("events").select("*").eq("club_id", club_id).execute()
         )
 
         return response.data if response.data else []
@@ -579,7 +579,7 @@ class SupabaseQueries:
         cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         # Fetch events with club info in a single efficient query
-        query = self.supabase.from_("events").select(
+        query = self.supabase.table("events").select(
             "*, clubs(id, name, instagram_handle, profile_image_path)"
         )
 
@@ -619,6 +619,69 @@ class SupabaseQueries:
                     f"{cdn_prefix}/{image_path.lstrip('/')}"
                 )
 
+        return events
+
+    # PostgREST caps a response at max-rows (1000 on Supabase), so the
+    # date-range query reads in pages of this size until a short page.
+    EVENTS_PAGE_SIZE = 1000
+
+    def get_events_in_range(
+        self,
+        start: date,
+        end: date,
+        handles: Optional[List[str]] = None,
+        category: Optional[str] = None,
+    ) -> List[Dict]:
+        """Events dated from `start` through `end` (inclusive), by date then id.
+
+        events.date holds naive America/Los_Angeles wall-clock times, so the
+        dates compare directly: start 00:00 <= date < (end + 1 day) 00:00.
+        Each row has the /events/campus-wide shape plus `categories`, the
+        names of its club's categories (events carry no category of their own).
+        """
+        club_embed = "clubs!inner" if handles else "clubs"
+        columns = (
+            f"*, {club_embed}(id, name, instagram_handle, profile_image_path, "
+            "categories(name))"
+        )
+        if category:
+            # A second, aliased inner embed keeps only events whose club has
+            # the category, without trimming the club's full category list.
+            columns += ", category_filter:clubs!inner(categories!inner(name))"
+
+        events: List[Dict] = []
+        while True:
+            query = (
+                self.supabase.table("events")
+                .select(columns)
+                .gte("date", start.isoformat())
+                .lt("date", (end + timedelta(days=1)).isoformat())
+            )
+            if handles:
+                query = query.in_("clubs.instagram_handle", handles)
+            if category:
+                query = query.eq("category_filter.categories.name", category)
+            offset = len(events)
+            page = (
+                query.order("date")
+                .order("id")
+                .range(offset, offset + self.EVENTS_PAGE_SIZE - 1)
+                .execute()
+            ).data or []
+            events.extend(page)
+            if len(page) < self.EVENTS_PAGE_SIZE:
+                break
+
+        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
+        for event in events:
+            event.pop("category_filter", None)
+            club = event.get("clubs") or {}
+            event["categories"] = [
+                c["name"] for c in club.pop("categories", None) or []
+            ]
+            if club.get("profile_image_path"):
+                image_path = club["profile_image_path"]
+                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
         return events
 
     def check_if_post_is_scrapped(self, post_id: str) -> bool:
