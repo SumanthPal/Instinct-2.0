@@ -32,6 +32,8 @@ are stated with the file that produced them so nothing here is guesswork.
 
 ### Deployment & storage — decided 2026-09-01
 
+> **Superseded in October 2026 (#54):** the API runs on Heroku (container stack, deployed by `.github/workflows/deploy.yml`), and the Discord bots were retired in #83, so nothing below runs on Oracle Cloud and the arm64 work (#56) was dropped. The root README's Deployment section is current. The rest of this section is kept as the original decision record.
+
 | Concern | Decision | Cost |
 | --- | --- | --- |
 | Web API + Discord bots | **Oracle Cloud Always Free** ARM VM | $0 |
