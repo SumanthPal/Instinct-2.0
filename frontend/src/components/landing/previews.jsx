@@ -204,7 +204,7 @@ export function FavoritesPreview({ clubs }) {
             key={c.id}
             className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? "border-t border-border" : ""}`}
           >
-            <Avatar src={c.profile_image_path} className="h-9 w-9" />
+            <Avatar src={c.profile_image_path} className="h-9 w-9" sizes="36px" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{plainText(c.name)}</p>
               <p className="truncate font-mono text-xs text-muted-foreground">@{c.instagram_handle}</p>

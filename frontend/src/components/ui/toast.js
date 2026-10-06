@@ -1,9 +1,13 @@
 'use client';
-import { createContext, useContext, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { X, CheckCircle, AlertCircle, AlertTriangle, InfoIcon } from 'lucide-react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import {
+  FaTimes,
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaExclamationTriangle,
+  FaInfoCircle,
+} from 'react-icons/fa';
 
-// Toast Context
 const ToastContext = createContext({
   toasts: [],
   toast: () => {},
@@ -12,28 +16,44 @@ const ToastContext = createContext({
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
-  
-  // Add a new toast
+  const timers = useRef(new Set());
+
+  // Track every pending timer so none fires after the provider unmounts.
+  const schedule = (fn, ms) => {
+    const handle = setTimeout(() => {
+      timers.current.delete(handle);
+      fn();
+    }, ms);
+    timers.current.add(handle);
+  };
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const handle of pending) clearTimeout(handle);
+      pending.clear();
+    };
+  }, []);
+
   const addToast = ({ title, description, status = 'default', duration = 5000, isClosable = true }) => {
     const id = Math.random().toString(36).substring(2, 9);
-    const newToast = { id, title, description, status, duration, isClosable };
-    
+    const newToast = { id, title, description, status, duration, isClosable, leaving: false };
     setToasts((prev) => [...prev, newToast]);
-    
     if (duration) {
-      setTimeout(() => {
-        dismissToast(id);
-      }, duration);
+      schedule(() => dismissToast(id), duration);
     }
-    
     return id;
   };
-  
-  // Remove a toast
+
   const dismissToast = (id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)),
+    );
+    schedule(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 200);
   };
-  
+
   return (
     <ToastContext.Provider value={{ toasts, toast: addToast, dismiss: dismissToast }}>
       {children}
@@ -42,108 +62,93 @@ export const ToastProvider = ({ children }) => {
   );
 };
 
-// Toast Container
 const ToastContainer = ({ toasts, dismiss }) => {
   return (
     <div className="fixed bottom-4 right-4 z-50 space-y-3 max-w-sm sm:max-w-md">
-      <AnimatePresence>
-        {toasts.map((toast) => (
-          <motion.div
-            key={toast.id}
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 400, 
-              damping: 25 
-            }}
-          >
-            <ToastItem toast={toast} dismiss={dismiss} />
-          </motion.div>
-        ))}
-      </AnimatePresence>
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} dismiss={dismiss} />
+      ))}
     </div>
   );
 };
 
-// Individual Toast
 const ToastItem = ({ toast, dismiss }) => {
-  const { id, title, description, status, isClosable } = toast;
-  
-  // Get the appropriate icon and styles based on status
+  const { id, title, description, status, isClosable, leaving } = toast;
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // Solid left accent per variant so error/warning/success/info differ at a glance.
   const getStatusConfig = () => {
     switch (status) {
       case 'success':
         return {
-          icon: <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />,
-          bg: 'bg-card',
+          icon: <FaCheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />,
           accent: 'border-l-green-600 dark:border-l-green-400',
-          iconBg: 'bg-green-100 dark:bg-green-900/50'
+          iconBg: 'bg-green-100 dark:bg-green-900/50',
         };
       case 'error':
         return {
-          icon: <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />,
-          bg: 'bg-card',
+          icon: <FaExclamationCircle className="w-5 h-5 text-red-500 dark:text-red-400" />,
           accent: 'border-l-red-600 dark:border-l-red-400',
-          iconBg: 'bg-red-100 dark:bg-red-900/50'
+          iconBg: 'bg-red-100 dark:bg-red-900/50',
         };
       case 'warning':
         return {
-          icon: <AlertTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
-          bg: 'bg-card',
+          icon: <FaExclamationTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
           accent: 'border-l-amber-500 dark:border-l-amber-400',
-          iconBg: 'bg-amber-100 dark:bg-amber-900/50'
+          iconBg: 'bg-amber-100 dark:bg-amber-900/50',
         };
       case 'info':
         return {
-          icon: <InfoIcon className="w-5 h-5 text-[color:var(--accent-blue)]" />,
-          bg: 'bg-card',
+          icon: <FaInfoCircle className="w-5 h-5 text-[color:var(--accent-blue)]" />,
           accent: 'border-l-[color:var(--accent-blue)]',
-          iconBg: 'bg-blue-100 dark:bg-blue-900/50'
+          iconBg: 'bg-blue-100 dark:bg-blue-900/50',
         };
       default:
         return {
-          icon: <InfoIcon className="w-5 h-5 text-[color:var(--accent-brand)]" />,
-          bg: 'bg-card',
+          icon: <FaInfoCircle className="w-5 h-5 text-[color:var(--accent-brand)]" />,
           accent: 'border-l-[color:var(--accent-brand)]',
-          iconBg: 'bg-muted'
+          iconBg: 'bg-muted',
         };
     }
   };
-  
-  // Solid left accent per variant so error/warning/success/info differ at a glance.
+
   const config = getStatusConfig();
-  
+  const visible = entered && !leaving;
+
   return (
     <div
-      className={`border border-border border-l-4 ${config.accent} ${config.bg}
-      rounded-md shadow-sm overflow-hidden flex items-start p-3`}
+      className={`border border-border border-l-4 ${config.accent} bg-card
+      rounded-md shadow-sm overflow-hidden flex items-start p-3
+      transition-all duration-200 ease-out motion-reduce:transition-none
+      ${visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-95'}`}
       role="alert"
     >
-      <div className={`shrink-0 p-1.5 rounded-full mr-3 ${config.iconBg}`}>
-        {config.icon}
-      </div>
-      
+      <div className={`shrink-0 p-1.5 rounded-full mr-3 ${config.iconBg}`}>{config.icon}</div>
+
       <div className="grow min-w-0">
         <h3 className="font-semibold text-foreground truncate">{title}</h3>
         {description && <p className="text-sm mt-0.5 text-muted-foreground">{description}</p>}
       </div>
-      
+
       {isClosable && (
         <button
+          type="button"
           className="ml-2 shrink-0 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           onClick={() => dismiss(id)}
           aria-label="Close"
         >
-          <X size={16} />
+          <FaTimes className="w-4 h-4" />
         </button>
       )}
     </div>
   );
 };
 
-// Hook for using toast
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (context === undefined) {
