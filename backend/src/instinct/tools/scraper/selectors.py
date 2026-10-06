@@ -42,6 +42,11 @@ PROFILE_EXTERNAL_LINK = (
     "//a[@rel='me nofollow noopener noreferrer' and @target='_blank']",
 )
 PROFILE_LINK_TRIGGERS = (
+    # The "linktr.ee/x and 2 more" control is a plain <button> with no role.
+    (
+        By.XPATH,
+        "//main//header//button[.//*[local-name()='svg' and @aria-label='Link icon']]",
+    ),
     (
         By.XPATH,
         "//*[@role='button' and (normalize-space()='more' or "
