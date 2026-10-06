@@ -17,6 +17,17 @@ from instinct.db.supabase_client import (
 from instinct.storage import get_storage
 from instinct.tools.logger import logger
 
+# Columns get_club_by_instagram returns, and so what GET /club/{handle} sends.
+# It deliberately omits `embedding` (1536 floats) and `search_vector`: they are
+# search internals and put ~30 KB on every club page (#92). This is an
+# allow-list, so a column added to `clubs` later is NOT returned until it is
+# added here too.
+CLUB_DETAIL_COLUMNS = (
+    "id, name, instagram_handle, profile_pic, description, updated_at, "
+    "followers, following, club_links, last_scraped, profile_image_path, "
+    "needs_embedding_update, last_embedding_update"
+)
+
 
 def normalize_handle(instagram_handle: str) -> str:
     """Lower-case a handle and strip whitespace and a leading @.
@@ -103,8 +114,8 @@ class SupabaseQueries:
         return response.data[0] if response.data else None
 
     def get_club_by_instagram(self, instagram_handle: str) -> Optional[Dict]:
-        """Fetch a club by Instagram handle"""
-        return self._find_club_by_handle("*", instagram_handle)
+        """Fetch a club by Instagram handle, without its search vectors."""
+        return self._find_club_by_handle(CLUB_DETAIL_COLUMNS, instagram_handle)
 
     def upsert_club(self, club_info: Dict) -> str:
         """Create or update a club and assign categories"""
@@ -956,19 +967,3 @@ class SupabaseQueries:
             return {"posts": [], "total": counted.count or 0}
 
         return {"posts": response.data or [], "total": response.count or 0}
-
-    def get_all_clubs(self) -> List[Dict]:
-        """Cached version of get_all_clubs - use only when necessary"""
-
-        logger.warning("get_all_clubs called - consider using pagination instead")
-
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
-        response = self.supabase.table("clubs").select("*, categories(name)").execute()
-        clubs = response.data if response.data else []
-
-        for club in clubs:
-            image_path = club.get("profile_image_path")
-            if image_path:
-                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
-
-        return clubs

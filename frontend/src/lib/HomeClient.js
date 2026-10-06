@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
 import SearchSection from "@/components/SearchSection";
@@ -15,7 +15,6 @@ export default function HomeClient({
   hasMore,
   currentPage,
 }) {
-  const supabase = createClient();
   const clubsRef = useRef(null);
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
