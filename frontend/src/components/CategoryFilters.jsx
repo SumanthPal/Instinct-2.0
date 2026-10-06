@@ -3,9 +3,28 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 
+const CHIP_BASE =
+  "instinct-chip shrink-0 rounded-md border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+// Shown while the popover chunk loads so the More chip never disappears.
+function StaticMoreButton() {
+  return (
+    <button
+      type="button"
+      data-filter-more
+      className={`${CHIP_BASE} inline-flex items-center gap-1`}
+    >
+      More
+      <span className="text-[10px] opacity-70" aria-hidden>
+        ▾
+      </span>
+    </button>
+  );
+}
+
 const MoreCategoriesPopover = dynamic(
   () => import("@/components/MoreCategoriesPopover"),
-  { ssr: false, loading: () => null },
+  { ssr: false, loading: () => <StaticMoreButton /> },
 );
 
 /**
@@ -22,6 +41,12 @@ export default function CategoryFilters({
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreQuery, setMoreQuery] = useState("");
   const [moreReady, setMoreReady] = useState(false);
+  // Rank chips once, from the first non-empty club list, so the top four
+  // don't reshuffle (or swallow the selected chip) after every filter.
+  const [rankSource, setRankSource] = useState(clubs);
+  useEffect(() => {
+    if (!rankSource.length && clubs.length) setRankSource(clubs);
+  }, [clubs, rankSource.length]);
 
   useEffect(() => {
     if (moreOpen) setMoreReady(true);
@@ -47,7 +72,7 @@ export default function CategoryFilters({
 
   const { topChips, moreChips } = useMemo(() => {
     const counts = new Map();
-    for (const club of clubs) {
+    for (const club of rankSource) {
       for (const x of club.categories || []) {
         const name = typeof x === "string" ? x : x?.name;
         if (!name) continue;
@@ -62,15 +87,13 @@ export default function CategoryFilters({
       topChips: ranked.slice(0, 4),
       moreChips: ranked.slice(4),
     };
-  }, [allCategories, clubs]);
+  }, [allCategories, rankSource]);
 
   const selected = selectedCategories[0] || null;
   const moreIsActive = selected != null && moreChips.includes(selected);
 
   const chipClass = (active) =>
-    `instinct-chip shrink-0 rounded-md border px-3 py-1.5 text-xs transition-colors ${
-      active ? "instinct-chip-active" : ""
-    }`;
+    `${CHIP_BASE} ${active ? "instinct-chip-active" : ""}`;
 
   const select = (name) => {
     onCategoryChange(name ? [name] : []);
@@ -89,6 +112,7 @@ export default function CategoryFilters({
       <button
         type="button"
         onClick={() => select(null)}
+        aria-pressed={selected == null}
         className={chipClass(selected == null)}
       >
         All
@@ -98,6 +122,7 @@ export default function CategoryFilters({
           key={name}
           type="button"
           onClick={() => select(selected === name ? null : name)}
+          aria-pressed={selected === name}
           className={chipClass(selected === name)}
         >
           {name}
@@ -120,6 +145,9 @@ export default function CategoryFilters({
           <button
             type="button"
             data-filter-more
+            aria-label={
+              moreIsActive ? `More categories, ${selected} selected` : undefined
+            }
             className={`${chipClass(moreIsActive)} inline-flex items-center gap-1`}
             onClick={() => {
               setMoreReady(true);

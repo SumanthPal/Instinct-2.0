@@ -16,6 +16,7 @@ export default function HomeClient({
   totalCount,
   hasMore,
   currentPage,
+  initialSearch = "",
 }) {
   const clubsRef = useRef(null);
   const [user, setUser] = useState(null);
@@ -33,13 +34,14 @@ export default function HomeClient({
     setSearchInput,
     handleCategoryChange,
     handleLoadMore,
-  } = useClubsData(initialClubs, totalCount, hasMore, currentPage, user);
-
-  // Seed search from /clubs?search=... (landing page search routes here)
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("search");
-    if (q?.trim()) setSearchInput(q.trim());
-  }, [setSearchInput]);
+  } = useClubsData(
+    initialClubs,
+    totalCount,
+    hasMore,
+    currentPage,
+    user,
+    initialSearch,
+  );
 
   useEffect(() => {
     let cancelled = false;
