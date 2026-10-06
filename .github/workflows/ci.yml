@@ -44,11 +44,17 @@ jobs:
       - name: Apply stub, migrations and seed to a fresh database
         run: scripts/db-local.sh reset
       - name: Sanity check
-        # One known seed row. Its search_vector is filled by the seed's last
+        # One known seed row. Its content_vector is filled by the seed's last
         # statement, so a non-null value means the whole seed applied.
         run: |
           row=$(docker exec -e PGPASSWORD=postgres instinct-db \
             psql -X -h 127.0.0.1 -U postgres -tAc \
-            "select name, search_vector is not null from public.clubs where instagram_handle = 'example_chess_club'")
+            "select name, content_vector is not null from public.clubs where instagram_handle = 'example_chess_club'")
           echo "example_chess_club: ${row:-<missing>}"
           test "$row" = "Example Chess Club|t"
+      - name: Club search check
+        # Runs search_clubs_paginated against the seed; rolls back.
+        run: |
+          docker exec -i -e PGPASSWORD=postgres instinct-db \
+            psql -X -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -o /dev/null \
+            < scripts/db-search-check.sql

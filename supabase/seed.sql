@@ -65,5 +65,6 @@ INSERT INTO public.events (club_id, post_id, name, date, details, duration) VALU
    'First Meeting', date_trunc('day', now()) - interval '10 days' + interval '18 hours',
    'Past event, kept so date filters have something to exclude.', interval '1 hour');
 
--- Fill clubs.search_vector so the search routes return results.
+-- Fill clubs.content_vector (post and event text) for search. search_vector
+-- is a generated column and needs nothing.
 DO $$ BEGIN PERFORM public.refresh_club_search_vector(); END $$;
