@@ -163,7 +163,7 @@ def extract_events(client, caption: str, posted, model: Optional[str] = None):
         model=model or get_event_model(),
         messages=build_event_messages(caption, posted),
         response_format=EVENT_RESPONSE_FORMAT,
-        temperature=0,
+        # No temperature: some models (e.g. gpt-6-luna) only accept the default.
     )
     message = completion.choices[0].message
     if getattr(message, "refusal", None):
