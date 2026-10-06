@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { FaArrowLeft } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
 import {
   categoryNames,
@@ -177,7 +177,7 @@ export default function ClubDetail({
           href="/clubs"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
         >
-          <FaArrowLeft className="h-3.5 w-3.5" />
+          <FiArrowLeft className="h-4 w-4" aria-hidden="true" />
           Clubs
         </Link>
       </div>

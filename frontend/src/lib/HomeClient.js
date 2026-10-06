@@ -17,6 +17,7 @@ export default function HomeClient({
   hasMore,
   currentPage,
   initialSearch = "",
+  initialCategory = "",
 }) {
   const clubsRef = useRef(null);
   const [user, setUser] = useState(null);
@@ -42,6 +43,11 @@ export default function HomeClient({
     user,
     initialSearch,
   );
+
+  // Apply /clubs?category=... once, after the hook has its initial list.
+  useEffect(() => {
+    if (initialCategory) handleCategoryChange([initialCategory]);
+  }, [initialCategory, handleCategoryChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,19 +127,28 @@ export default function HomeClient({
 
 <Navbar />
 
-      <main className="container mx-auto flex-1 px-3 pb-10 pt-[100px] sm:px-4 sm:pb-16 sm:pt-[120px] md:pb-20">
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Clubs
-          </h1>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-[112px] sm:px-6 sm:pt-[120px] md:pb-20">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="instinct-heading text-3xl font-semibold tracking-tight text-foreground">
+              Clubs
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+              {totalClubCount > 0
+                ? `${totalClubCount.toLocaleString("en-US")} clubs`
+                : "\u00a0"}
+              {selectedCategories.length === 1 && totalClubCount > 0
+                ? ` in ${selectedCategories[0]}`
+                : ""}
+            </p>
+          </div>
+          <SearchSection
+            searchInput={searchInput}
+            onSearchChange={handleSearchChange}
+            onSearch={handleSearch}
+            user={user}
+          />
         </div>
-
-        <SearchSection
-          searchInput={searchInput}
-          onSearchChange={handleSearchChange}
-          onSearch={handleSearch}
-          user={user}
-        />
 
         <ViewControls
           viewMode={viewMode}

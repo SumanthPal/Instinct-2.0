@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 
 const CHIP_BASE =
-  "instinct-chip shrink-0 rounded-md border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "instinct-chip shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 // Shown while the popover chunk loads so the More chip never disappears.
 function StaticMoreButton() {
@@ -108,7 +108,7 @@ export default function CategoryFilters({
   }, [moreChips, moreQuery]);
 
   return (
-    <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => select(null)}

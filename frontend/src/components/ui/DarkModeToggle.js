@@ -14,7 +14,7 @@ export default function DarkModeToggle() {
       type="button"
       onClick={toggleDarkMode}
       aria-label="Toggle dark mode"
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <FaMoon className="h-4 w-4 dark:hidden" aria-hidden="true" />
       <FaSun className="hidden h-4 w-4 dark:block" aria-hidden="true" />

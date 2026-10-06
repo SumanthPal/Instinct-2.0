@@ -1,6 +1,6 @@
 "use client";
 
-import { FaChevronDown } from "react-icons/fa";
+import { FiChevronDown } from "react-icons/fi";
 import {
   Popover,
   PopoverContent,
@@ -42,10 +42,10 @@ export default function MoreCategoriesPopover({
           className={`${chipClass(moreIsActive)} inline-flex items-center gap-1`}
         >
           {moreIsActive ? selected : "More"}
-          <FaChevronDown className="h-3 w-3 opacity-70" aria-hidden="true" />
+          <FiChevronDown className="h-3 w-3 opacity-70" aria-hidden="true" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="center">
+      <PopoverContent className="w-72 p-0" align="start">
         <Command shouldFilter={false} className="border-0 shadow-none">
           <CommandInput
             placeholder="Find category…"

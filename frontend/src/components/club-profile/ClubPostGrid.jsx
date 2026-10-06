@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { FaImage } from "react-icons/fa";
+import { FiImage } from "react-icons/fi";
 
 function postLabel(post, index, total) {
   const caption = post.caption?.trim();
@@ -22,7 +22,7 @@ function PostTile({ post, index, total, onImageClick }) {
   if (!showImg) {
     return (
       <div className="instinct-post-tile relative flex aspect-square items-center justify-center bg-muted">
-        <FaImage className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <FiImage className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
         <span className="sr-only">Post image unavailable</span>
       </div>
     );

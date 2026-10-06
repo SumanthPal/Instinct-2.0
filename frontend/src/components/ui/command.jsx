@@ -56,3 +56,21 @@ export function CommandItem({ className, ...props }) {
     />
   );
 }
+
+// Modal palette: cmdk's Dialog (Radix Dialog under the hood) gives the focus
+// trap, Escape to close and aria-modal; styled to match the mockup palette.
+export function CommandDialog({ open, onOpenChange, label, children, ...props }) {
+  return (
+    <CommandPrimitive.Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      label={label}
+      shouldFilter={false}
+      overlayClassName="fixed inset-0 z-[60] bg-black/40"
+      contentClassName="fixed left-1/2 top-[16vh] z-[61] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl"
+      {...props}
+    >
+      {children}
+    </CommandPrimitive.Dialog>
+  );
+}

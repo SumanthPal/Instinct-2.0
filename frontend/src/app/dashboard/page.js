@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { likesService } from '@/lib/like-service';
 import ClubCard from '@/components/ClubCard';
+import ViewModeToggle from '@/components/ViewModeToggle';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 import { useToast } from '@/components/ui/toast'; 
@@ -121,172 +122,106 @@ export default function Dashboard() {
     }
   };
 
-  // Category emoji mapping similar to news page
-  const categoryEmojis = {
-    'Sports': '🏀',
-    'Academic': '📚',
-    'Arts': '🎨',
-    'Cultural': '🌍',
-    'Professional': '💼',
-    'Social': '👥',
-    'Technology': '💻',
-    'Service': '🤝',
-    'Religious': '🙏',
-    'Greek Life': '🏛️',
-    'Political': '🗣️',
-    'Environmental': '🌱',
-    'Health': '🩺',
-    'All': '⭐'
-  };
+  const chip = (active) =>
+    `instinct-chip shrink-0 rounded-full border px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      active ? 'instinct-chip-active' : ''
+    }`;
 
   return (
-    <div className="min-h-screen overflow-hidden bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Navbar />
-      
-      <main className="container mx-auto px-3 sm:px-4 pt-[100px] sm:pt-[120px] pb-10 sm:pb-16 md:pb-20 text-center">        {/* Heading */}
-        <div className="mb-12">
-          <h1 className="text-5xl font-bold mb-3 text-dark-base dark:text-white">
-            YOUR FAVORITES
+
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-[112px] sm:px-6 sm:pt-[120px] md:pb-20">
+        <div className="mb-8">
+          <h1 className="instinct-heading text-3xl font-semibold tracking-tight text-foreground">
+            Favorites
           </h1>
-          <p className="text-dark-base dark:text-dark-subtext text-lg">
-            {user ? `Welcome back, ${user.email?.split('@')[0] || 'User'}!` : 'Please log in to view your favorites'}
+          <p className="mt-2 text-sm text-muted-foreground">
+            {user ? `Welcome back, ${user.email?.split('@')[0] || 'User'}.` : 'Please log in to view your favorites.'}
           </p>
         </div>
 
-        {/* View Toggle - Similar to news page */}
-        <div className="flex justify-end mb-6">
-          <div className="inline-flex backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-lg p-1 border border-white/20 dark:border-dark-text/10">
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
-              aria-label="Grid view"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button 
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded ${viewMode === 'list' ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white' : 'text-dark-base dark:text-dark-text hover:bg-white/20 dark:hover:bg-dark-text/10'}`}
-              aria-label="List view"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Category Pills with Emojis - Similar to news page */}
-        <div className="flex flex-wrap justify-center gap-2 mb-12 max-w-4xl mx-auto">
-          <button
-            key="all"
-            onClick={() => setActiveFilter('all')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              activeFilter === 'all'
-                ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
-                : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
-            }`}
-          >
-            <span className="mr-1">{categoryEmojis['All'] || '⭐'}</span> All Clubs
-          </button>
-          
-          {uniqueCategories.map((category) => (
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              key={category}
-              onClick={() => setActiveFilter(category)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                category === activeFilter
-                  ? 'bg-lavender dark:bg-dark-gradient-start text-dark-base dark:text-dark-text-white shadow-md'
-                  : 'bg-white/30 dark:bg-dark-card/30 text-dark-base dark:text-dark-text hover:bg-white/50 dark:hover:bg-dark-card/50'
-              }`}
+              type="button"
+              onClick={() => setActiveFilter('all')}
+              aria-pressed={activeFilter === 'all'}
+              className={chip(activeFilter === 'all')}
             >
-              <span className="mr-1">{categoryEmojis[category] || '📄'}</span> {category}
+              All
             </button>
-          ))}
+            {uniqueCategories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveFilter(category)}
+                aria-pressed={category === activeFilter}
+                className={chip(category === activeFilter)}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          <div className="shrink-0">
+            <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
+          </div>
         </div>
 
-        {/* Main Content Section */}
-        <section className="mb-20">
-          <div className="flex items-center justify-center mb-8">
-            <div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-16 mr-4"></div>
-            <h2 className="text-3xl font-bold text-dark-base dark:text-white flex items-center">
-              <span className="mr-2">{categoryEmojis[activeFilter] || '⭐'}</span>
-              {activeFilter === 'all' ? 'All Favorite Clubs' : activeFilter}
-            </h2>
-            <div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-16 ml-4"></div>
-          </div>
-          
-          {/* Loading indicator */}
+        <section>
+          <h2 className="sr-only">
+            {activeFilter === 'all' ? 'All favorite clubs' : activeFilter}
+          </h2>
+
           {isLoading && (
-            <div className="flex justify-center items-center h-64 w-full">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900 dark:border-gray-200"></div>
+            <div className="flex h-64 w-full items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-muted border-t-foreground motion-reduce:animate-none" />
             </div>
           )}
 
-          {/* No liked clubs message - With glass-effect styling */}
           {!isLoading && filteredClubs.length === 0 && (
-            <div className="w-full flex flex-col items-center justify-center py-12 px-6 space-y-8 backdrop-blur-xs bg-white/20 dark:bg-dark-card/20 rounded-xl border border-white/20 dark:border-dark-text/10 shadow-lg">
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-dark-text">
-                {activeFilter !== 'all' 
-                  ? `No ${activeFilter} Clubs Found` 
-                  : (user ? 'No Favorite Clubs Yet' : 'Welcome to Instinct')}
-              </h2>
-              <p className="text-xl text-gray-700 dark:text-dark-subtext max-w-2xl">
-                {activeFilter !== 'all' 
+            <div className="flex w-full flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-12 text-center">
+              <h3 className="text-xl font-semibold tracking-tight text-foreground">
+                {activeFilter !== 'all'
+                  ? `No ${activeFilter} clubs found`
+                  : (user ? 'No favorite clubs yet' : 'Welcome to Instinct')}
+              </h3>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                {activeFilter !== 'all'
                   ? `You don't have any ${activeFilter} clubs in your favorites yet.`
                   : (user
-                    ? 'Start exploring UCI clubs and add them to your favorites by clicking the star icon!'
+                    ? 'Explore UCI clubs and add them to your favorites with the star on each card.'
                     : 'Please sign in to explore and save your favorite clubs across campus.')}
               </p>
               <button
+                type="button"
                 onClick={() => router.push(user ? '/clubs' : '/')}
-                className="px-8 py-4 bg-lavender hover:bg-purple-500 dark:bg-dark-gradient-start dark:hover:bg-indigo-600 text-dark-base dark:text-white text-lg rounded-full transition-all duration-300 shadow-md"
+                className="instinct-btn mt-6 rounded-full px-5 py-2 text-sm font-medium text-white"
               >
-                {user ? 'Explore Clubs' : 'Return Home'}
+                {user ? 'Explore clubs' : 'Return home'}
               </button>
             </div>
           )}
 
-          {/* Club Cards - Adapted for list/grid view like news page */}
           {!isLoading && filteredClubs.length > 0 && (
-            <div className={`
-              ${viewMode === 'grid' 
-                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl' 
-                : 'flex flex-col space-y-6 max-w-3xl'} 
-              mx-auto fade-in
-            `}>
-              {filteredClubs.map((club) => (
-                <div key={club.id || club.instagram} className={`
-                  backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 
-                  rounded-xl border border-white/20 dark:border-dark-text/10 
-                  shadow-lg overflow-hidden transition-all duration-300
-                  ${viewMode === 'list' ? 'w-full' : ''}
-                  hover:shadow-xl hover:scale-[1.02]
-                `}>
-                  <ClubCard
-                    club={club}
-                    viewMode={viewMode} // Pass view mode to ClubCard if it supports different layouts
-                  />
+            <div
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+                  : 'flex flex-col gap-3 sm:gap-4'
+              }
+            >
+              {filteredClubs.map((club, index) => (
+                <div key={club.id || club.instagram} className={viewMode === 'grid' ? 'h-full' : 'w-full'}>
+                  <ClubCard club={club} viewMode={viewMode} index={index} />
                 </div>
               ))}
             </div>
           )}
         </section>
       </main>
-      
-      <Footer />
 
-      {/* Add custom CSS for animations - Same as news page */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-in {
-          animation: fadeIn 0.5s ease-out forwards;
-        }
-      `}</style>
+      <Footer />
     </div>
   );
 }

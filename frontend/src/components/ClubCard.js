@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, memo } from "react";
 import ClubAvatar from "./ClubAvatar";
 import Link from "next/link";
-import { FaStar, FaRegStar } from "react-icons/fa";
+import { FiStar } from "react-icons/fi";
 import { useAuth } from "@/context/auth-context";
 import { likesService } from "@/lib/like-service";
 import { useToast } from "./ui/toast";
@@ -107,50 +107,51 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
     }
   };
 
-  const StarButton = ({ className = "" }) =>
-    user ? (
-      <button
-        type="button"
-        className={`star-button z-20 rounded-md border p-2 transition-colors ${
-          isLiked
-            ? "instinct-star-fav is-active"
-            : "border-border bg-card text-muted-foreground hover:text-foreground"
-        } ${className}`}
-        onClick={handleLikeToggle}
-        aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
-        disabled={isLikeLoading}
-      >
-        {isLikeLoading ? (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-        ) : isLiked ? (
-          <FaStar className="instinct-star-fill text-base star-icon" />
-        ) : (
-          <FaRegStar className="text-base star-icon" />
-        )}
-      </button>
-    ) : null;
+  // Signed out, the star still shows (as in the mockup); pressing it asks
+  // the user to sign in via handleLikeToggle instead of faking a favorite.
+  const StarButton = ({ className = "" }) => (
+    <button
+      type="button"
+      className={`star-button z-20 rounded-full border p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        isLiked
+          ? "instinct-star-fav is-active"
+          : "border-border bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground"
+      } ${className}`}
+      onClick={handleLikeToggle}
+      aria-label={isLiked ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={user ? isLiked : undefined}
+      disabled={isLikeLoading}
+    >
+      {isLikeLoading ? (
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent motion-reduce:animate-none" />
+      ) : (
+        <FiStar
+          className={`star-icon h-4 w-4 ${isLiked ? "instinct-star-fill" : ""}`}
+          aria-hidden="true"
+        />
+      )}
+    </button>
+  );
 
   const Avatar = ({ sizeClass }) => (
-    <div
-      className={`relative shrink-0 overflow-hidden rounded-full border border-border ${sizeClass}`}
-    >
+    <div className={`relative shrink-0 overflow-hidden rounded-full ${sizeClass}`}>
       {/* #99's ClubAvatar: onError + pre-hydration 404 check, keyed on src */}
       <ClubAvatar src={club.profilePicture} alt="" sizes="80px" priority={index < 6} />
     </div>
   );
 
   const CategoryTags = ({ limit }) => (
-    <div className="flex max-h-[60px] flex-wrap justify-center gap-1 overflow-hidden">
+    <div className="flex flex-wrap justify-center gap-1">
       {club.categories?.slice(0, limit).map((category, i) => (
         <span
           key={i}
-          className="instinct-tag whitespace-nowrap rounded-md border px-2 py-0.5 text-xs"
+          className="instinct-tag whitespace-nowrap rounded-full border px-2 py-0.5 text-xs"
         >
           {typeof category === "string" ? category : category.name}
         </span>
       ))}
       {club.categories?.length > limit && (
-        <span className="instinct-tag whitespace-nowrap rounded-md border px-2 py-0.5 text-xs">
+        <span className="instinct-tag whitespace-nowrap rounded-full border px-2 py-0.5 text-xs">
           +{club.categories.length - limit} more
         </span>
       )}
@@ -158,7 +159,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
   );
 
   const GridCard = () => (
-    <div className="instinct-card relative flex h-full flex-col overflow-hidden rounded-md border border-border bg-card">
+    <div className="instinct-card relative flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div className="relative">
         <StarButton className="absolute right-3 top-3" />
       </div>
@@ -170,7 +171,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
         <h3 className="px-2 text-center text-lg font-semibold tracking-tight text-foreground">
           {club.name}
         </h3>
-        <p className="mt-0.5 font-mono text-sm text-muted-foreground">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           @{club.instagram}
         </p>
       </div>
@@ -182,13 +183,13 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
       </div>
 
       <div className="instinct-divider mt-auto border-t bg-muted/20 px-3 py-3">
-        <CategoryTags limit={4} />
+        <CategoryTags limit={3} />
       </div>
     </div>
   );
 
   const ListCard = () => (
-    <div className="instinct-card relative w-full overflow-hidden rounded-md border border-border bg-card">
+    <div className="instinct-card relative w-full overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex p-4">
         <div className="mr-4 shrink-0">
           <Avatar sizeClass="h-16 w-16 sm:h-20 sm:w-20" />
@@ -200,7 +201,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
               <h3 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl">
                 {club.name}
               </h3>
-              <p className="font-mono text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 @{club.instagram}
               </p>
             </div>
@@ -223,7 +224,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
     <div
       className={`${
         viewMode === "grid" ? "h-[360px]" : "h-[120px]"
-      } animate-pulse rounded-md border border-border bg-muted/40 motion-reduce:animate-none`}
+      } animate-pulse rounded-xl border border-border bg-muted/40 motion-reduce:animate-none`}
     >
       <div className="flex h-full flex-col items-center justify-center p-4">
         <div className="mb-3 h-16 w-16 rounded-full bg-muted" />

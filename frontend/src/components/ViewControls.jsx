@@ -11,16 +11,16 @@ export default function ViewControls({
   clubs,
 }) {
   return (
-    <div className="mb-2">
-      <div className="mb-6 flex items-center justify-center">
-        <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
-      </div>
+    <div className="mb-8 flex items-start justify-between gap-4">
       <CategoryFilters
         selectedCategories={selectedCategories}
         onCategoryChange={onCategoryChange}
         allCategories={allCategories}
         clubs={clubs}
       />
+      <div className="shrink-0">
+        <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
+      </div>
     </div>
   );
 }

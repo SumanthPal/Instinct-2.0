@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import DarkModeToggle from "./DarkModeToggle";
 import {
@@ -11,7 +12,11 @@ import {
   FaUserCircle,
   FaSignOutAlt,
 } from "react-icons/fa";
+import { FiSearch } from "react-icons/fi";
 import { useAuth } from "@/context/auth-context";
+
+// cmdk + Radix Dialog load on first open (or idle), not with every page.
+const CommandPalette = dynamic(() => import("./CommandPalette"), { ssr: false });
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,6 +25,27 @@ export default function Navbar() {
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const pathname = usePathname();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteReady, setPaletteReady] = useState(false);
+
+  // ⌘K / Ctrl+K toggles the palette from anywhere.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteReady(true);
+        setPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const openPalette = () => {
+    setIsOpen(false);
+    setPaletteReady(true);
+    setPaletteOpen(true);
+  };
 
   const handleGoogleSignIn = async () => {
     try {
@@ -116,7 +142,28 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openPalette}
+            aria-label="Search clubs"
+            aria-keyshortcuts="Meta+K Control+K"
+            className="hidden h-8 items-center gap-2 rounded-full border border-border bg-transparent pl-3 pr-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+          >
+            Search
+            <kbd className="rounded-md border border-border bg-muted px-1.5 text-[10px] leading-4">
+              ⌘K
+            </kbd>
+          </button>
+          <button
+            type="button"
+            onClick={openPalette}
+            aria-label="Search clubs"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:hidden"
+          >
+            <FiSearch className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <DarkModeToggle />
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
@@ -164,14 +211,13 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
-                className="instinct-btn hidden h-9 items-center rounded-md px-4 text-sm font-medium md:inline-flex"
+                title="Sign in with your UCI Google account"
+                className="hidden h-8 items-center rounded-full border border-border px-3.5 text-sm font-medium text-foreground transition-colors hover:border-foreground/25 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:inline-flex"
               >
-                <FaGoogle className="mr-2" size={13} />
-                Sign in with UCI
+                Sign in
               </button>
             )
           )}
-          <DarkModeToggle />
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
@@ -218,7 +264,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              className="instinct-btn mt-3 flex w-full items-center justify-center rounded-md py-2.5 text-sm font-medium"
+              className="mt-3 flex w-full items-center justify-center rounded-full border border-border py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
               <FaGoogle className="mr-2" size={14} />
               Sign in with UCI
@@ -258,6 +304,9 @@ export default function Navbar() {
           )}
         </div>
       </div>
+      {paletteReady && (
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      )}
     </nav>
   );
 }

@@ -1,22 +1,23 @@
 export default function ViewModeToggle({ viewMode, setViewMode }) {
   const btn = (active) =>
-    `rounded-md p-2 transition-colors ${
+    `rounded-full p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
       active
-        ? "bg-background text-foreground"
+        ? "bg-accent text-foreground"
         : "text-muted-foreground hover:text-foreground"
     }`;
 
   return (
-    <div className="inline-flex rounded-md border border-border bg-muted/40 p-1">
+    <div className="inline-flex rounded-full border border-border p-0.5">
       <button
         type="button"
         onClick={() => setViewMode("grid")}
         className={btn(viewMode === "grid")}
         aria-label="Grid view"
+        aria-pressed={viewMode === "grid"}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 sm:h-5 sm:w-5"
+          className="h-3.5 w-3.5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -34,10 +35,11 @@ export default function ViewModeToggle({ viewMode, setViewMode }) {
         onClick={() => setViewMode("list")}
         className={btn(viewMode === "list")}
         aria-label="List view"
+        aria-pressed={viewMode === "list"}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 sm:h-5 sm:w-5"
+          className="h-3.5 w-3.5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

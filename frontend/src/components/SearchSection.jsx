@@ -27,7 +27,7 @@ export default function SearchSection({
   };
 
   return (
-    <div className="relative mx-auto mb-8 max-w-2xl">
+    <div className="relative w-full sm:max-w-xs">
       <SearchBar
         value={searchInput}
         onChange={onSearchChange}

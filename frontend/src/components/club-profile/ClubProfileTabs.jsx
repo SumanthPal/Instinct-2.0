@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import { FaTh, FaCalendarAlt } from "react-icons/fa";
+import { FiGrid, FiCalendar } from "react-icons/fi";
 
 export const CLUB_TABS = [
-  { id: "posts", label: "Posts", Icon: FaTh },
-  { id: "events", label: "Events", Icon: FaCalendarAlt },
+  { id: "posts", label: "Posts", Icon: FiGrid },
+  { id: "events", label: "Events", Icon: FiCalendar },
 ];
 
 export const tabId = (id) => `club-tab-${id}`;

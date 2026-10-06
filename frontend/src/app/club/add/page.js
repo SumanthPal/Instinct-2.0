@@ -100,97 +100,96 @@ const handleSubmit = async (e) => {
     );
   }
 
+  const inputClass =
+    "h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-hidden transition-colors placeholder:text-muted-foreground focus-visible:border-[color:var(--accent-brand)] focus-visible:ring-2 focus-visible:ring-ring/40";
+
   return (
-    <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Navbar />
-      <main className="container mx-auto px-4 py-24 flex flex-col items-center justify-center text-center">
-        <h2 className="text-6xl font-extrabold mb-4 text-gray-900 dark:text-dark-text-white drop-shadow-md">
-          Add Your Club
-        </h2>
-        <p className="text-lg md:text-xl text-gray-700 dark:text-dark-subtext mb-12 max-w-2xl">
-          Share your club with the UCI community — help students discover new passions, meet friends, and make memories.
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16 pt-[112px] sm:px-6 sm:pt-[120px]">
+        <h1 className="instinct-heading text-3xl font-semibold tracking-tight text-foreground">
+          Add your club
+        </h1>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          Share your club with the UCI community. Help students discover new passions, meet friends, and make memories.
         </p>
 
-        <form onSubmit={handleSubmit} className="bg-white/30 dark:bg-dark-card/30 backdrop-blur-md p-10 rounded-3xl shadow-2xl w-full max-w-3xl">
-          {/* Club Name */}
-          <div className="mb-8">
-            <label htmlFor="clubName" className="block text-left text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">
-              Club Name
+        <form onSubmit={handleSubmit} className="mt-8 rounded-xl border border-border bg-card p-6 sm:p-8">
+          <div className="mb-6">
+            <label htmlFor="clubName" className="block text-sm font-medium text-foreground">
+              Club name
             </label>
-            <p className="text-sm text-gray-600 dark:text-dark-subtext mb-4">
-    What's the name of your club? Keep it consistent with what students would recognize.
-  </p>
+            <p className="mb-2 mt-1 text-xs text-muted-foreground">
+              Keep it consistent with what students would recognize.
+            </p>
             <input
               type="text"
               id="clubName"
               value={clubName}
               onChange={(e) => setClubName(e.target.value)}
-              className="w-full p-4 rounded-xl bg-white/60 dark:bg-dark-profile-card/60 text-gray-800 dark:text-dark-text focus:outline-hidden focus:ring-2 focus:ring-sky-blue dark:focus:ring-dark-subtext transition"
+              className={inputClass}
               required
             />
           </div>
 
-          {/* Instagram Handle */}
-          <div className="mb-8">
-            <label htmlFor="instagram" className="block text-left text-lg font-semibold text-gray-900 dark:text-dark-text mb-2">
-              Instagram Handle
+          <div className="mb-6">
+            <label htmlFor="instagramHandle" className="block text-sm font-medium text-foreground">
+              Instagram handle
             </label>
-            <p className="text-sm text-gray-600 dark:text-dark-subtext mb-4">
-    Let's get the insta handle. Don't include the @ in the beginning.
-  </p>
+            <p className="mb-2 mt-1 text-xs text-muted-foreground">
+              Don&apos;t include the @ at the beginning.
+            </p>
             <input
               type="text"
               id="instagramHandle"
               value={instagramHandle}
               onChange={(e) => setInstagramHandle(e.target.value)}
-              className="w-full p-4 rounded-xl bg-white/60 dark:bg-dark-profile-card/60 text-gray-800 dark:text-dark-text focus:outline-hidden focus:ring-2 focus:ring-sky-blue dark:focus:ring-dark-subtext transition"
+              className={inputClass}
               required
             />
-           
           </div>
 
-          {/* Categories */}
-          <div className="mb-8">
-            <label htmlFor="categories" className="block text-left text-lg font-semibold text-gray-900 dark:text-dark-text mb-4">
-              Categories
-            </label>
-            <p className="text-sm text-gray-600 dark:text-dark-subtext mb-4">
-            Pick the categories that fit your club best — it’ll make it easier for students to discover you!
+          <fieldset className="mb-8">
+            <legend className="block text-sm font-medium text-foreground">Categories</legend>
+            <p className="mb-3 mt-1 text-xs text-muted-foreground">
+              Pick the categories that fit your club best so students can find you.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-left">
-              {categoriesList.map((category) => (
-                <label key={category} className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id={category}
-                    value={category}
-                    onChange={(e) => {
-                      const selectedCategories = [...categories];
-                      if (e.target.checked) {
-                        selectedCategories.push(category);
-                      } else {
-                        const index = selectedCategories.indexOf(category);
-                        selectedCategories.splice(index, 1);
-                      }
-                      setCategories(selectedCategories);
-                    }}
-                    className="accent-sky-400 w-5 h-5 rounded-md"
-                  />
-                  <span className="text-gray-800 dark:text-dark-text">{category}</span>
-                </label>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {categoriesList.map((category) => {
+                const checked = categories.includes(category);
+                return (
+                  <label
+                    key={category}
+                    className={`instinct-chip inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ${
+                      checked ? 'instinct-chip-active' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      value={category}
+                      checked={checked}
+                      onChange={(e) => {
+                        setCategories((prev) =>
+                          e.target.checked
+                            ? [...prev, category]
+                            : prev.filter((c) => c !== category),
+                        );
+                      }}
+                      className="sr-only"
+                    />
+                    {category}
+                  </label>
+                );
+              })}
             </div>
-          </div>
+          </fieldset>
 
-          {/* Submit Button */}
-          <div className="mt-12">
-            <button
-              type="submit"
-              className="w-full py-4 px-6 bg-linear-to-r from-sky-blue to-lavender dark:from-dark-profile-card dark:to-dark-subtext text-white font-bold text-xl rounded-2xl hover:scale-105 transition-all duration-300 shadow-lg"
-            >
-              Submit Club
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="instinct-btn h-10 w-full rounded-full px-5 text-sm font-medium text-white sm:w-auto"
+          >
+            Submit club
+          </button>
         </form>
       </main>
       <Footer />

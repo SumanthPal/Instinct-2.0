@@ -1,6 +1,6 @@
 "use client";
 
-import { FaInstagram, FaStar, FaRegStar } from "react-icons/fa";
+import { FiInstagram, FiStar } from "react-icons/fi";
 import ClubAvatar from "@/components/ClubAvatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +14,13 @@ function Avatar({ clubData, sizeClass }) {
   return (
     <div className="instinct-story-ring shrink-0">
       <div className="instinct-story-ring-inner">
-        <div className={`relative overflow-hidden rounded-full bg-muted ${sizeClass}`}>
+        <div className={`relative overflow-hidden rounded-full ${sizeClass}`}>
           <ClubAvatar
             src={clubAvatarUrl(clubData)}
             alt=""
             sizes="(max-width: 640px) 76px, 144px"
             priority
+            ring={false}
           />
         </div>
       </div>
@@ -54,17 +55,17 @@ function FavoriteButton({ isLiked, isLoading, onToggle, className = "" }) {
     <Button
       type="button"
       size="sm"
-      className={`instinct-btn h-8 gap-1.5 rounded-md px-4 text-xs text-white ${className}`}
+      className={`instinct-btn h-8 gap-1.5 rounded-lg px-4 text-xs text-white ${className}`}
       onClick={onToggle}
       disabled={isLoading}
       aria-pressed={isLiked}
       aria-label={isLiked ? "Unfavorite club" : "Favorite club"}
     >
-      {isLiked ? (
-        <FaStar className="h-3.5 w-3.5" />
-      ) : (
-        <FaRegStar className="h-3.5 w-3.5" />
-      )}
+      <FiStar
+        className="h-3.5 w-3.5"
+        style={{ fill: isLiked ? "currentColor" : "none" }}
+        aria-hidden="true"
+      />
       Favorite
     </Button>
   );
@@ -76,14 +77,14 @@ function InstagramButton({ handle, className = "" }) {
       asChild
       size="sm"
       variant="outline"
-      className={`h-8 rounded-md border-border px-3 text-xs ${className}`}
+      className={`h-8 rounded-lg border-border px-3 text-xs ${className}`}
     >
       <a
         href={`https://instagram.com/${encodeURIComponent(handle || "")}`}
         target="_blank"
         rel="noopener noreferrer"
       >
-        <FaInstagram className="h-3.5 w-3.5" />
+        <FiInstagram className="h-3.5 w-3.5" aria-hidden="true" />
         Instagram
       </a>
     </Button>
@@ -113,10 +114,10 @@ export default function ClubProfileHeader({
       <div className="[grid-area:avatar] sm:mr-7">
         <Avatar clubData={clubData} sizeClass="h-[76px] w-[76px] sm:h-36 sm:w-36" />
       </div>
-      <h1 className="mt-4 text-sm font-semibold text-foreground [grid-area:name] sm:mt-2 sm:self-center sm:text-2xl sm:font-light sm:tracking-tight">
+      <h1 className="mt-4 text-sm font-semibold text-foreground [grid-area:name] sm:mt-2 sm:text-2xl sm:font-light sm:tracking-tight">
         {clubData?.name}
       </h1>
-      <div className="mt-3 flex gap-2 [grid-area:actions] sm:mt-2 sm:self-center">
+      <div className="mt-3 flex gap-2 [grid-area:actions] sm:mt-3">
         <FavoriteButton
           isLiked={isLiked}
           isLoading={isLikeLoading}
@@ -128,7 +129,7 @@ export default function ClubProfileHeader({
       <div className="self-center [grid-area:stats] sm:self-start">
         <Stats followers={clubData?.followers} following={clubData?.following} />
       </div>
-      <p className="font-mono text-xs text-muted-foreground [grid-area:handle] sm:mt-1 sm:text-sm">
+      <p className="text-xs text-muted-foreground [grid-area:handle] sm:mt-1 sm:text-sm">
         @{handle}
       </p>
       <div className="[grid-area:info]">

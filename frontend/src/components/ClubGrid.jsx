@@ -17,23 +17,17 @@ const ClubGrid = memo(function ClubGrid({
 
   return (
     <section className="mb-12 sm:mb-20">
-      <div className="mb-6 flex items-center justify-center sm:mb-8">
-        <div className="mr-3 h-px w-10 bg-border sm:mr-4 sm:w-16" />
-        <h2 className="flex flex-wrap items-center justify-center text-xl font-semibold tracking-tight text-foreground sm:text-2xl md:text-3xl">
-          <span className="truncate max-w-[180px] sm:max-w-none">{title}</span>
-          <span className="ml-2 text-sm font-normal text-muted-foreground sm:ml-3 sm:text-base md:text-lg">
-            ({clubs.length} of {totalClubCount})
-          </span>
-        </h2>
-        <div className="ml-3 h-px w-10 bg-border sm:ml-4 sm:w-16" />
-      </div>
+      {/* The visible count lives in the page header; keep the heading for structure. */}
+      <h2 className="sr-only">
+        {title} ({clubs.length} of {totalClubCount})
+      </h2>
 
       <div
         className={`${
           viewMode === "grid"
-            ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 md:gap-6"
+            ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
             : "flex flex-col gap-3 sm:gap-4"
-        } mx-auto max-w-6xl`}
+        }`}
       >
         {clubs.length > 0 ? (
           clubs.map((club, index) => (
@@ -57,14 +51,14 @@ const ClubGrid = memo(function ClubGrid({
             </div>
           ))
         ) : (
-          <div className="col-span-full rounded-md border border-border bg-card px-6 py-12 text-center">
+          <div className="col-span-full rounded-xl border border-border bg-card px-6 py-12 text-center">
             <p className="mb-2 text-lg text-foreground sm:text-xl">
               No clubs match your search criteria
             </p>
             <button
               type="button"
               onClick={onClearFilters}
-              className="instinct-btn mt-4 rounded-md px-5 py-2 text-sm font-medium text-white"
+              className="instinct-btn mt-4 rounded-full px-5 py-2 text-sm font-medium text-white"
             >
               Clear all filters
             </button>

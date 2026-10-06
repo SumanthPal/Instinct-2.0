@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FaStar, FaInstagram } from "react-icons/fa";
+import { FiStar, FiInstagram } from "react-icons/fi";
 import { Avatar } from "./avatar";
 
 /*
@@ -55,16 +55,16 @@ export function ProfilePreview({ club }) {
   const cats = categoryList(club);
   const followers = formatCount(club.followers);
   return (
-    <div aria-hidden="true" className="rounded-md border border-border bg-card p-6 text-card-foreground">
+    <div aria-hidden="true" className="rounded-xl border border-border bg-card p-6 text-card-foreground">
       <div className="flex items-start gap-5">
-        <span className="inline-flex rounded-full bg-[color:var(--accent-brand)] p-[2px]">
+        <span className="inline-flex rounded-full bg-[color:var(--accent-brand)] p-[3px]">
           <span className="inline-flex rounded-full bg-card p-[2px]">
-            <Avatar src={club.profile_image_path} className="h-16 w-16" />
+            <Avatar src={club.profile_image_path} className="h-16 w-16" ring={false} />
           </span>
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-lg font-semibold tracking-tight">{plainText(club.name)}</p>
-          <p className="font-mono text-sm text-muted-foreground">@{club.instagram_handle}</p>
+          <p className="text-sm text-muted-foreground">@{club.instagram_handle}</p>
           {followers && (
             <p className="mt-2 text-sm">
               <span className="font-semibold tabular-nums">{followers}</span>{" "}
@@ -80,17 +80,17 @@ export function ProfilePreview({ club }) {
         <p className="mt-3 text-xs text-muted-foreground">{cats.slice(0, 3).join(" · ")}</p>
       )}
       <div className="mt-5 flex gap-2">
-        <span className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[color:var(--accent-brand)] px-3 text-xs font-medium text-white">
-          <FaStar className="h-3 w-3" /> Favorite
+        <span className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[color:var(--accent-brand-solid)] px-3 text-xs font-medium text-white">
+          <FiStar className="h-3 w-3" style={{ fill: "currentColor" }} /> Favorite
         </span>
-        <span className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium">
-          <FaInstagram className="h-3.5 w-3.5" /> Instagram
+        <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium">
+          <FiInstagram className="h-3.5 w-3.5" /> Instagram
         </span>
       </div>
       <div className="mt-6 grid grid-cols-2 border-t border-border text-center text-xs font-medium uppercase tracking-wider">
         <span className="relative py-3 text-foreground">
           Posts
-          <span className="absolute inset-x-1/4 top-0 h-0.5 bg-[color:var(--accent-brand)]" />
+          <span className="absolute inset-x-1/4 top-0 h-[1.5px] bg-[color:var(--accent-brand)]" />
         </span>
         <span className="py-3 text-muted-foreground">Events</span>
       </div>
@@ -121,7 +121,7 @@ export function EventsPreview({ events, todayISO }) {
 
   return (
     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <div aria-hidden="true" className="rounded-md border border-border bg-card p-4">
+      <div aria-hidden="true" className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-sm font-medium">{MONTH_LONG.format(ref)}</p>
         <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] text-muted-foreground">
           {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
@@ -138,8 +138,8 @@ export function EventsPreview({ events, todayISO }) {
             return (
               <span
                 key={`c-${i}`}
-                className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-md text-xs tabular-nums ${
-                  has ? "bg-[color:var(--accent-brand)] font-medium text-white" : isToday ? "border border-border text-foreground" : day ? "text-foreground/80" : ""
+                className={`relative mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs tabular-nums ${
+                  has ? "bg-[color:var(--accent-brand-solid)] font-medium text-white" : isToday ? "border border-border text-foreground" : day ? "text-foreground/80" : ""
                 }`}
               >
                 {day || ""}
@@ -155,16 +155,16 @@ export function EventsPreview({ events, todayISO }) {
       </div>
       <div className="flex flex-col gap-2">
         {events.length === 0 && (
-          <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
             No upcoming events to show right now.
           </div>
         )}
         {events.slice(0, 3).map((e) => {
           const d = parseLocalDate(e.date);
           return (
-            <div key={e.id} className="rounded-md border border-border bg-card p-4">
+            <div key={e.id} className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-start gap-3">
-                <div className="w-11 shrink-0 rounded-md border border-border py-1 text-center">
+                <div className="w-11 shrink-0 rounded-lg border border-border py-1 text-center">
                   <p className="text-[10px] font-medium uppercase text-muted-foreground">
                     {d ? MONTH_SHORT.format(d) : ""}
                   </p>
@@ -193,7 +193,7 @@ export function EventsPreview({ events, todayISO }) {
 export function FavoritesPreview({ clubs }) {
   if (!clubs?.length) return <PreviewEmpty>Starred clubs appear on your dashboard.</PreviewEmpty>;
   return (
-    <div aria-hidden="true" className="rounded-md border border-border bg-card">
+    <div aria-hidden="true" className="rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <p className="text-sm font-medium">Favorites</p>
         <p className="text-xs text-muted-foreground">Dashboard preview</p>
@@ -207,12 +207,12 @@ export function FavoritesPreview({ clubs }) {
             <Avatar src={c.profile_image_path} className="h-9 w-9" sizes="36px" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{plainText(c.name)}</p>
-              <p className="truncate font-mono text-xs text-muted-foreground">@{c.instagram_handle}</p>
+              <p className="truncate text-xs text-muted-foreground">@{c.instagram_handle}</p>
             </div>
             <span className="hidden truncate text-xs text-muted-foreground sm:block sm:max-w-[9rem]">
               {categoryList(c)[0]}
             </span>
-            <FaStar className="h-4 w-4 shrink-0 text-[color:var(--accent-brand)]" />
+            <FiStar className="instinct-star-fill h-4 w-4 shrink-0" />
           </li>
         ))}
       </ul>
@@ -223,7 +223,7 @@ export function FavoritesPreview({ clubs }) {
 // Shown when the API returned nothing: a static note, never a pulsing skeleton.
 function PreviewEmpty({ children }) {
   return (
-    <div className="rounded-md border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
+    <div className="rounded-xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
       {children}
     </div>
   );
