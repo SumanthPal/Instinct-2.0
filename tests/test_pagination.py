@@ -47,6 +47,13 @@ class StubQuery:
         self.filters.append((column, value))
         return self
 
+    def ilike(self, column, pattern):
+        # The club lookup escapes LIKE wildcards, so the pattern is a literal.
+        literal = pattern.replace("\\_", "_").replace("\\%", "%")
+        literal = literal.replace("\\\\", "\\")
+        self.filters.append((column, ("ilike", literal.lower())))
+        return self
+
     def order(self, column, desc=False):
         self.orders.append((column, desc))
         return self
@@ -70,6 +77,8 @@ class StubQuery:
                 # The !inner embed: keep only clubs with a matching category.
                 assert "category_filter:categories!inner(name)" in self.columns
                 rows = [r for r in rows if {"name": value} in r["categories"]]
+            elif isinstance(value, tuple) and value[0] == "ilike":
+                rows = [r for r in rows if (r[column] or "").lower() == value[1]]
             else:
                 rows = [r for r in rows if r[column] == value]
         total = len(rows)
