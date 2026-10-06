@@ -98,7 +98,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
           <img
-            src="/logo.png"
+            src="/logo.svg"
             alt="Logo"
             className="h-9 w-9 sm:h-10 sm:w-10 cursor-pointer"
           />

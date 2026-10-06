@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   FaTimes,
   FaCheckCircle,
@@ -16,13 +16,31 @@ const ToastContext = createContext({
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
+  const timers = useRef(new Set());
+
+  // Track every pending timer so none fires after the provider unmounts.
+  const schedule = (fn, ms) => {
+    const handle = setTimeout(() => {
+      timers.current.delete(handle);
+      fn();
+    }, ms);
+    timers.current.add(handle);
+  };
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const handle of pending) clearTimeout(handle);
+      pending.clear();
+    };
+  }, []);
 
   const addToast = ({ title, description, status = 'default', duration = 5000, isClosable = true }) => {
     const id = Math.random().toString(36).substring(2, 9);
     const newToast = { id, title, description, status, duration, isClosable, leaving: false };
     setToasts((prev) => [...prev, newToast]);
     if (duration) {
-      setTimeout(() => dismissToast(id), duration);
+      schedule(() => dismissToast(id), duration);
     }
     return id;
   };
@@ -31,7 +49,7 @@ export const ToastProvider = ({ children }) => {
     setToasts((prev) =>
       prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)),
     );
-    setTimeout(() => {
+    schedule(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 200);
   };
