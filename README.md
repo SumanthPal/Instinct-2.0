@@ -13,13 +13,11 @@ Instinct is a full-stack web application designed to solve the problem of club d
 
 - UCI-Exclusive Authentication: Secure user login via Google OAuth, restricted to users with a @uci.edu email address, with a custom dashboard for signed-in users.
 
-- Microservices Architecture: The backend is composed of containerized services deployed on Azure Container Apps, ensuring scalability and separation of concerns.
+- Containerized API: The FastAPI backend ships as one container image (`Dockerfile.web`) on Heroku's container stack, while the scraper runs on a local machine (see [Deployment](#deployment)).
 
 - Advanced Scraper Orchestration: A Redis-based priority queue manages scraping tasks, preventing rate-limit errors and ensuring data freshness.
 
-- Discord Bot Management: A custom two-bot system (Fixie Bixie & Queuetie) serves as a mobile-friendly dashboard for system monitoring, task orchestration, and database management.
-
-- CI/CD Pipeline: Automated build, test, and deployment workflows using GitHub Actions for both the frontend (Vercel) and backend (Azure Container Registry).
+- CI/CD Pipeline: GitHub Actions runs lint, tests, a frontend build and a migration check on every PR and every push to `main`, then deploys `main` to Heroku once CI passes. The frontend is hosted on Vercel.
 
 ## System Architecture
 Instinct is built on a microservices architecture to ensure scalability, resilience, and maintainability.
@@ -62,6 +60,40 @@ supabase db dump --linked --data-only -s public \
 ```
 
 > **Before you ever run `supabase db push` against the live project**, mark the baseline as already applied: `supabase migration repair --linked --status applied 20261004050858`. The live database already has that schema, but the baseline was made with pg_dump, so the project's migration history won't list it until you repair it, and `db push` would try to run it against prod.
+
+## Deployment
+
+| Part | Where | How it gets there |
+| --- | --- | --- |
+| API | Heroku app `instinct`, https://instinct-f4ae805488a8.herokuapp.com | `heroku.yml` builds `Dockerfile.web` on the container stack. The **Deploy** workflow (`.github/workflows/deploy.yml`) runs after CI passes on a push to `main`, pushes that commit to Heroku with the `HEROKU_API_KEY` repo secret, then checks `/health`. To redeploy by hand: `gh workflow run Deploy` |
+| Frontend | Vercel | `NEXT_PUBLIC_API_BASE_URL` points at the Heroku URL |
+| Redis | Redis Cloud free tier | `REDIS_URL`, shared by the API and the scraper |
+| Database | Supabase | Deploys don't touch the database. After a PR that adds a file under `supabase/migrations/` merges, run `supabase db push` against the linked project |
+| Scraper | A local machine | See below |
+
+## Running the scraper locally
+
+The scraper runs on your own machine, not on Heroku (#54). It writes posts, events and images straight to Supabase and R2, and uses the same Redis Cloud database as the API for its logs (`logs:entries`) and the rotation loop's job queue. It only makes outbound connections, so no tunnel or open port is needed.
+
+1. Install Chrome or Chromium, then run `uv sync`.
+2. Run `cp backend/.env.example backend/.env` and fill in:
+   - `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for the live project
+   - `REDIS_URL`: the Redis Cloud URL, the same value the API uses (`heroku config:get REDIS_URL -a instinct`). If it's unset, logs go only to the console and `backend/logs/`
+   - `S3_*` for R2, and `OPENAI_API_KEY` for event parsing
+   - `INSTAGRAM_USERNAME` and `INSTAGRAM_PASSWORD`, or `COOKIE_1` and `COOKIE_2` (see `uv run python -m instinct.tools.scraper_rotation --help`)
+   - `CHROME_BIN`: the browser binary, e.g. `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. The scraper won't start without it outside Docker
+
+   Optional: `HEADLESS=false` to watch the browser, `CHROME_PROFILE_DIR`, `SCRAPE_DAILY_CAP` (default 200).
+3. Try one club, first without writing anything:
+
+   ```bash
+   uv run python -m instinct.tools.scraper_rotation --once <instagram_handle> --dry-run
+   uv run python -m instinct.tools.scraper_rotation --once <instagram_handle>
+   ```
+
+4. For regular runs, `uv run python -m instinct.tools.daily_scrape --clubs 50` scrapes the clubs that were scraped longest ago, under the daily cap. On macOS, `scripts/launchd/com.instinct.scraper.plist` runs it four times a day; the install steps are in the file.
+
+Run one scraper at a time, because each Chrome profile can only be used by one browser. Each process caps its Redis pool at 5 connections (`db/redis_client.py`), so the dyno plus one local scraper stays well under Redis Cloud's 30-client limit. `make up-scraper` runs the scraper in Docker instead, but compose points it at the local Redis container unless you export `REDIS_URL` first.
 
 ## Project Status
 Currently Offline: The application is temporarily offline. After the initial launch, which garnered over 3,000 page views and 200+ registered users, the Azure instance was accidentally overprovisioned, leading to unforeseen costs that exhausted the initial credits.
