@@ -431,7 +431,7 @@ async def get_club_data(instagram_handle: str):
 async def get_club_posts(
     instagram_handle: str,
     page: int = Query(1, ge=1, description="Page number, starting from 1"),
-    limit: int = Query(20, ge=1, description="Number of posts per page"),
+    limit: int = Query(20, ge=1, le=100, description="Number of posts per page"),
 ):
     """Get one page of a club's posts, newest first."""
     try:
@@ -637,8 +637,8 @@ async def get_categories():
 @router.get("/smart-search")
 async def smart_search(
     q: str = Query(..., description="Search query"),
-    page: int = Query(1, description="Page number starting from 1"),
-    limit: int = Query(20, description="Number of clubs per page"),
+    page: int = Query(1, ge=1, description="Page number starting from 1"),
+    limit: int = Query(20, ge=1, le=100, description="Number of clubs per page"),
     category: Optional[str] = Query(None, description="Filter by category"),
 ):
     """Optimized full text search with database-level pagination."""

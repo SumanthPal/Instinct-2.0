@@ -894,22 +894,22 @@ class SupabaseQueries:
     def get_posts_by_club_id(
         self, club_id: str, limit: int = 10, offset: int = 0
     ) -> Dict:
-        """One page of a club's posts, newest first, and the club's post total."""
-        try:
-            # Only fetch essential fields
-            response = (
-                self.supabase.table("posts")
-                .select("id, post_url, caption, image_path, posted", count="exact")
-                .eq("club_id", club_id)
-                .order("posted", desc=True)
-                .range(offset, offset + limit - 1)
-                .execute()
-            )
+        """One page of a club's posts, newest first, and the club's post total.
 
-            return {"posts": response.data or [], "total": response.count or 0}
-        except Exception as e:
-            logger.error(f"Error in get_posts_by_club_id: {e}")
-            return {"posts": [], "total": 0}
+        Errors propagate: an empty page here must mean the club has no posts.
+        """
+        response = (
+            self.supabase.table("posts")
+            .select("id, post_url, caption, image_path, posted", count="exact")
+            .eq("club_id", club_id)
+            # id breaks ties so posts sharing a `posted` value page stably.
+            .order("posted", desc=True)
+            .order("id")
+            .range(offset, offset + limit - 1)
+            .execute()
+        )
+
+        return {"posts": response.data or [], "total": response.count or 0}
 
     def get_all_clubs(self) -> List[Dict]:
         """Cached version of get_all_clubs - use only when necessary"""

@@ -36,6 +36,7 @@ class StubQuery:
         self.columns = "*"
         self.count = None
         self.filters = []
+        self.orders = []
         self.window = None
 
     def select(self, columns, count=None):
@@ -47,7 +48,7 @@ class StubQuery:
         return self
 
     def order(self, column, desc=False):
-        self.rows.sort(key=lambda r: r[column], reverse=desc)
+        self.orders.append((column, desc))
         return self
 
     def range(self, start, end):
@@ -60,6 +61,10 @@ class StubQuery:
 
     def execute(self):
         rows = self.rows
+        # Chained orders: the first is the primary key. Ties keep insertion
+        # order, like an unordered scan.
+        for column, desc in reversed(self.orders):
+            rows.sort(key=lambda r: r[column], reverse=desc)
         for column, value in self.filters:
             if column == "category_filter.name":
                 # The !inner embed: keep only clubs with a matching category.
@@ -137,7 +142,56 @@ def test_posts_page_param_pages(monkeypatch):
     assert ids[2] == [f"p{i:02d}" for i in range(5, 0, -1)]
     assert (first["total"], first["pages"], first["hasMore"]) == (25, 3, True)
     assert (third["count"], third["hasMore"]) == (5, False)
-    assert api.get("/club/acm/posts", params={"page": 0}).status_code == 422
+
+
+def test_posts_with_the_same_timestamp_page_by_id(monkeypatch):
+    # Inserted out of id order, all posted at the same instant.
+    same_time = [
+        {"id": f"p{i:02d}", "club_id": "c1", "posted": "2026-04-01T12:00:00"}
+        for i in (7, 3, 9, 1, 5, 2, 8, 4, 6, 10)
+    ]
+    tables = {"clubs": [CLUB], "posts": same_time}
+    api = use_stub(monkeypatch, StubClient(tables=tables))
+
+    pages = [
+        [
+            p["id"]
+            for p in api.get(f"/club/acm/posts?page={n}&limit=4").json()["results"]
+        ]
+        for n in (1, 2, 3)
+    ]
+    assert pages == [
+        ["p01", "p02", "p03", "p04"],
+        ["p05", "p06", "p07", "p08"],
+        ["p09", "p10"],
+    ]
+
+
+def test_paging_params_are_bounded(monkeypatch):
+    tables = {"clubs": [CLUB], "posts": POSTS}
+    api = use_stub(monkeypatch, StubClient(tables=tables, matches=[]))
+
+    for path, extra in (("/smart-search", {"q": "dance"}), ("/club/acm/posts", {})):
+        assert api.get(path, params={**extra, "page": 0}).status_code == 422
+        assert api.get(path, params={**extra, "limit": 0}).status_code == 422
+        assert api.get(path, params={**extra, "limit": 101}).status_code == 422
+        assert api.get(path, params={**extra, "limit": 100}).status_code == 200
+
+
+def test_posts_database_error_is_a_500_not_an_empty_page(monkeypatch):
+    class BrokenPosts(StubQuery):
+        def execute(self):
+            raise RuntimeError("connection reset")
+
+    class Client(StubClient):
+        def table(self, name):
+            return BrokenPosts([]) if name == "posts" else StubQuery([CLUB])
+
+    api = use_stub(monkeypatch, Client())
+
+    response = api.get("/club/acm/posts")
+    assert response.status_code == 500
+    assert "connection reset" in response.json()["message"]
 
 
 def test_manifest_filters_by_category_before_the_limit(monkeypatch):
