@@ -1,8 +1,6 @@
 "use client";
 import Image from "next/image";
 import ClubAvatar from "./ClubAvatar";
-import { Card, CardContent } from "./ui/Card";
-import Button from "@/components/ui/Button";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";

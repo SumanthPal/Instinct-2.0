@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import ClubAvatar from './ClubAvatar';
 import Link from 'next/link';
-import { Card, CardHeader, CardContent, CardFooter } from './ui/Card';
 import { FaStar, FaRegStar } from 'react-icons/fa';
 import { useAuth } from '@/context/auth-context';
 import { likesService } from '@/lib/like-service';
