@@ -8,16 +8,16 @@ import Link from "next/link";
 
 const About = () => {
 	return (
-		<div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text overflow-hidden">
+		<div className="min-h-screen bg-background text-foreground overflow-x-hidden">
 			<Navbar />
 
 			<main className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
 				{/* Hero Section */}
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-3xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-xl">
-					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-center">
+				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto bg-card rounded-md border border-border p-6 sm:p-10">
+					<h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-6 text-left sm:text-center">
 						About Instinct
 					</h1>
-					<p className="text-lg sm:text-xl md:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8 text-center leading-relaxed">
+					<p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 text-center leading-relaxed">
 						Instinct helps UCI students discover and connect with the right
 						clubs and events through automation, intelligent search, and a beautifully
 						simple platform.
@@ -26,7 +26,7 @@ const About = () => {
 					<div className="flex justify-center">
 						<Link
 							href="/about/technical"
-							className="group inline-flex items-center space-x-2 text-lg sm:text-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors duration-200 font-medium transform hover:translate-x-1"
+							className="group inline-flex items-center space-x-2 text-lg sm:text-xl text-foreground hover:text-foreground transition-colors duration-200 font-medium transform hover:translate-x-1"
 						>
 							<span>View Technical Details</span>
 							<svg
@@ -48,19 +48,19 @@ const About = () => {
 				{/* Why Instinct */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
-						<h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
+						<h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground">
 							Why Instinct?
 						</h2>
-						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
-							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
+						<div className="bg-card rounded-md border border-border p-6">
+							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-foreground">
 								For Students
 							</h3>
-							<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+							<p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
 								UCI has hundreds of clubs and countless events—but no good way to find the ones that
 								actually match your interests. Instinct makes this intuitive. We
 								surface clubs by vibe, activity, and relevance, while helping you discover
@@ -70,11 +70,11 @@ const About = () => {
 							</p>
 						</div>
 
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-2px]">
-							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
+						<div className="bg-card rounded-md border border-border p-6">
+							<h3 className="text-xl sm:text-2xl font-semibold mb-3 text-foreground">
 								For Clubs
 							</h3>
-							<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
+							<p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
 								Instinct gives your org a platform where students are actually
 								looking. We analyze social engagement, showcase your events, and let you highlight what
 								makes your club special. With smart scraping and effortless info
@@ -87,15 +87,15 @@ const About = () => {
 				{/* How It Works */}
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
-						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
+						<h2 className="text-3xl sm:text-4xl font-bold text-foreground">
 							How It Works
 						</h2>
-						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 
-					<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-8 shadow-md">
-						<p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 leading-relaxed text-center">
+					<div className="bg-card/60 rounded-xl border border-border p-6 sm:p-8 shadow-md">
+						<p className="text-base sm:text-lg text-muted-foreground leading-relaxed text-center">
 							Instinct automatically scrapes and indexes UCI club Instagram accounts, processes events and posts,
 							and powers an intelligent search system. Whether you're looking for clubs or upcoming events,
 							everything stays up-to-date through automated task queues
@@ -103,13 +103,13 @@ const About = () => {
 						</p>
 					</div>
 				</section>
-				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto backdrop-blur-xs bg-white/20 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 sm:p-10 shadow-md">
+				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto bg-card/60 rounded-xl border border-border p-6 sm:p-10 shadow-md">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
-						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
+						<h2 className="text-3xl sm:text-4xl font-bold text-foreground">
 							Listen More About It
 						</h2>
-						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 					<div className="max-w-3xl mx-auto rounded-xl overflow-hidden shadow-md">
 						<iframe
@@ -127,16 +127,16 @@ const About = () => {
 
 				<section className="mb-16 sm:mb-20 max-w-6xl mx-auto">
 					<div className="flex items-center justify-center mb-8 sm:mb-10">
-						<div className="h-px bg-linear-to-r from-transparent via-lavender dark:via-dark-gradient-start to-transparent w-12 sm:w-16 mr-4"></div>
-						<h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+						<div className="h-px bg-border w-12 sm:w-16 mr-4"></div>
+						<h2 className="text-3xl sm:text-4xl font-bold text-foreground">
 							FAQs
 						</h2>
-						<div className="h-px bg-linear-to-r from-lavender dark:from-dark-gradient-start via-sky-blue dark:via-dark-gradient-end to-transparent w-12 sm:w-16 ml-4"></div>
+						<div className="h-px bg-border w-12 sm:w-16 ml-4"></div>
 					</div>
 
 					<div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
-						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
-							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
+							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -155,14 +155,14 @@ const About = () => {
 								</span>
 								Is Instinct officially affiliated with UCI?
 							</summary>
-							<p className="mt-3 text-gray-700 dark:text-gray-300 pl-7">
+							<p className="mt-3 text-muted-foreground pl-7">
 								No — Instinct is an independent student-led project built by UCI
 								students for the UCI community.
 							</p>
 						</details>
 
-						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
-							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
+							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -181,14 +181,14 @@ const About = () => {
 								</span>
 								How often is club data updated?
 							</summary>
-							<p className="mt-3 text-gray-700 dark:text-gray-300 pl-7">
+							<p className="mt-3 text-muted-foreground pl-7">
 								Club Instagram activity and metadata are refreshed regularly via
 								an automated job queue and smart prioritization logic.
 							</p>
 						</details>
 
-						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
-							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
+							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -207,15 +207,15 @@ const About = () => {
 								</span>
 								Can clubs request changes to their profiles?
 							</summary>
-							<p className="mt-3 text-gray-700 dark:text-gray-300 pl-7">
+							<p className="mt-3 text-muted-foreground pl-7">
 								Yes! A secure submission feature allows verified club officers
 								to request updates. Validation is done via email and moderation
 								tools.
 							</p>
 						</details>
 
-						<details className="group backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-xl p-4 sm:p-5 shadow-md border border-white/20 dark:border-dark-text/10 hover:shadow-lg transition-all duration-300">
-							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
+						<details className="group bg-card rounded-md p-4 sm:p-5 border border-border">
+							<summary className="cursor-pointer text-base sm:text-lg font-semibold text-foreground group-open:text-indigo-600 dark:group-open:text-indigo-400 transition-colors flex items-center">
 								<span className="mr-2">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
@@ -234,7 +234,7 @@ const About = () => {
 								</span>
 								Is this open source?
 							</summary>
-							<p className="mt-3 text-gray-700 dark:text-gray-300 pl-7">
+							<p className="mt-3 text-muted-foreground pl-7">
 								Unfortunately, no, but if you're interested in learning more
 								about the project or contributing, let me know!
 							</p>
