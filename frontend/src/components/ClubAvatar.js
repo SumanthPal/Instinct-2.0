@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { FaUserCircle } from "react-icons/fa";
+import { FiUser } from "react-icons/fi";
 
 /**
- * Club profile picture that falls back to FaUserCircle when `src` is missing
- * or the image fails to load (most R2 pfps currently 404).
+ * Club profile picture that falls back to an outlined person icon in a thin
+ * ring when `src` is missing or the image fails to load (most R2 pfps
+ * currently 404). Pass `ring={false}` where the parent already draws a ring.
  * Parent must be `position: relative` with an explicit size when using fill.
  *
  * Keyed on `src` so a new URL starts from a clean state instead of resetting
@@ -26,6 +27,7 @@ function ClubAvatarImage({
   width,
   height,
   onLoad,
+  ring = true,
 }) {
   const [failed, setFailed] = useState(false);
   const imgRef = useRef(null);
@@ -43,8 +45,13 @@ function ClubAvatarImage({
 
   if (!src || failed) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-muted">
-        <FaUserCircle className="h-full w-full text-muted-foreground" aria-hidden="true" />
+      <div
+        data-avatar-fallback=""
+        className={`flex h-full w-full items-center justify-center rounded-full text-foreground ${
+          ring ? "border border-[color:var(--avatar-ring)]" : ""
+        }`}
+      >
+        <FiUser className="h-[46%] w-[46%]" strokeWidth={1.75} aria-hidden="true" />
         {alt && <span className="sr-only">{alt}</span>}
       </div>
     );

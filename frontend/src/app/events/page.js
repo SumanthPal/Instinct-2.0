@@ -324,7 +324,7 @@ export default function CampusEventsPage() {
 														: "bg-card/70 border-border text-muted-foreground hover:bg-muted"
 												}`}
 											>
-												<div className="relative w-5 h-5 rounded-full overflow-hidden border border-border shrink-0 bg-muted">
+												<div className="relative w-5 h-5 rounded-full overflow-hidden shrink-0">
 													<ClubAvatar src={clubProfilePic} alt={club} sizes="20px" />
 												</div>
 												<span className="whitespace-nowrap">{club}</span>
@@ -523,7 +523,7 @@ export default function CampusEventsPage() {
 																onClick={(e) => e.stopPropagation()}
 																className="inline-flex items-center gap-2 group/club hover:opacity-80 transition-opacity"
 															>
-																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-border shrink-0 bg-muted">
+																<div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0">
 																	<ClubAvatar
 																		src={clubProfilePic}
 																		alt={event.clubs.name}
@@ -710,7 +710,7 @@ export default function CampusEventsPage() {
 														onClick={(e) => e.stopPropagation()}
 														className="inline-flex items-center gap-1.5 mb-2 group/club hover:opacity-80 transition-opacity"
 													>
-														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-border shrink-0 bg-muted">
+														<div className="relative w-5 h-5 rounded-full overflow-hidden shrink-0">
 															<ClubAvatar
 																src={clubProfilePic}
 																alt={event.clubs.name}
@@ -867,7 +867,7 @@ export default function CampusEventsPage() {
 												href={`/club/${selectedImageData.clubs.instagram_handle}`}
 												className="inline-flex items-center gap-2 mb-3 hover:opacity-80 transition-opacity"
 											>
-												<div className="relative w-6 h-6 rounded-full overflow-hidden bg-muted">
+												<div className="relative w-6 h-6 rounded-full overflow-hidden">
 													<ClubAvatar
 														src={selectedImageData.clubs.profile_image_path}
 														alt={selectedImageData.clubs.name}

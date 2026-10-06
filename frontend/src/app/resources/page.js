@@ -152,36 +152,36 @@ const Resources = () => {
 	const groupedLibraries = groupLibrariesByName();
 
 	return (
-		<div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text overflow-hidden">
+		<div className="flex min-h-screen flex-col overflow-hidden bg-background text-foreground">
 			<Navbar />
 
-			<main className="container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
+			<main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-[112px] sm:px-6 sm:pt-[120px]">
 				{/* Hero Section */}
-				<section className="mb-12 sm:mb-16 max-w-6xl mx-auto">
-					<h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 text-center">
+				<section className="mb-12">
+					<h1 className="instinct-heading text-3xl font-semibold tracking-tight text-foreground">
 						Student Resources
 					</h1>
-					<p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300 max-w-3xl mx-auto text-center">
+					<p className="mt-3 text-sm text-muted-foreground">
 						Real-time campus utilities to help you navigate UCI
 					</p>
 				</section>
 
 				{/* Library Traffic */}
-				<section className="mb-12 sm:mb-16 max-w-6xl mx-auto">
+				<section className="mb-12 sm:mb-16">
 					<div className="flex items-center mb-6">
-						<FaBook className="text-indigo-600 dark:text-indigo-400 mr-3 text-2xl" />
-						<h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+						<FaBook className="mr-3 text-xl text-[color:var(--accent-brand)]" />
+						<h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
 							Library Traffic
 						</h2>
 					</div>
 
 					{loading.library ? (
-						<div className="flex justify-center items-center py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
-							<FaSpinner className="animate-spin text-indigo-600 dark:text-indigo-400 text-3xl" />
+						<div className="flex justify-center items-center py-12 rounded-xl border border-border bg-card">
+							<FaSpinner className="animate-spin text-3xl text-muted-foreground motion-reduce:animate-none" />
 						</div>
 					) : errors.library ? (
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
-							<p className="text-gray-600 dark:text-gray-400">
+						<div className="rounded-xl border border-border bg-card p-6 text-center">
+							<p className="text-muted-foreground">
 								{errors.library}
 							</p>
 						</div>
@@ -194,7 +194,7 @@ const Resources = () => {
 									return (
 										<div
 											key={libraryName}
-											className="backdrop-blur-xs bg-white/40 dark:bg-dark-card/40 rounded-2xl border border-white/20 dark:border-dark-text/10 overflow-hidden shadow-lg transition-all duration-300"
+											className="overflow-hidden rounded-xl border border-border bg-card"
 										>
 											{/* Library Header - Clickable */}
 											<button
@@ -214,7 +214,7 @@ const Resources = () => {
 														{/* Dark overlay for better text readability */}
 														<div className="absolute inset-0 bg-black/20" />
 														{/* Status Badge */}
-														<div className="absolute top-4 right-4 backdrop-blur-md bg-white/30 dark:bg-black/30 rounded-full px-4 py-2">
+														<div className="absolute top-4 right-4 rounded-full bg-black/60 px-4 py-2">
 															<span
 																className={`font-bold ${getTrafficColor(
 																	avgTraffic
@@ -224,9 +224,9 @@ const Resources = () => {
 															</span>
 														</div>
 														{/* Library Name Overlay */}
-														<div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/70 to-transparent p-6">
+														<div className="absolute bottom-0 left-0 right-0 bg-black/55 p-6">
 															<div className="flex items-center justify-between">
-																<h3 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
+																<h3 className="text-2xl font-semibold text-white sm:text-3xl">
 																	{libraryName}
 																</h3>
 																<FaChevronDown
@@ -258,13 +258,13 @@ const Resources = () => {
 															{locations.map((location) => (
 																<div
 																	key={location.id}
-																	className="flex justify-between items-center p-4 bg-white/50 dark:bg-dark-card/50 rounded-lg hover:shadow-md transition-shadow"
+																	className="flex items-center justify-between rounded-lg border border-border p-4"
 																>
 																	<div className="flex-1">
-																		<p className="text-base font-medium text-gray-900 dark:text-white">
+																		<p className="text-base font-medium text-foreground">
 																			{location.locationName}
 																		</p>
-																		<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+																		<p className="text-sm text-muted-foreground mt-1">
 																			{location.trafficCount} people
 																		</p>
 																	</div>
@@ -279,7 +279,7 @@ const Resources = () => {
 																			)}
 																			%
 																		</span>
-																		<p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+																		<p className="text-xs text-muted-foreground mt-1">
 																			capacity
 																		</p>
 																	</div>
@@ -287,7 +287,7 @@ const Resources = () => {
 															))}
 														</div>
 													) : (
-														<p className="text-gray-600 dark:text-gray-400 text-center py-4">
+														<p className="text-muted-foreground text-center py-4">
 															No data available
 														</p>
 													)}
@@ -302,37 +302,37 @@ const Resources = () => {
 				</section>
 
 				{/* Academic Calendar */}
-				<section className="mb-12 sm:mb-16 max-w-6xl mx-auto">
+				<section className="mb-12 sm:mb-16">
 					<div className="flex items-center mb-6">
-						<FaCalendar className="text-indigo-600 dark:text-indigo-400 mr-3 text-2xl" />
-						<h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+						<FaCalendar className="mr-3 text-xl text-[color:var(--accent-brand)]" />
+						<h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
 							Academic Calendar
 						</h2>
 					</div>
 
 					{loading.calendar ? (
-						<div className="flex justify-center items-center py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
-							<FaSpinner className="animate-spin text-indigo-600 dark:text-indigo-400 text-3xl" />
+						<div className="flex justify-center items-center py-12 rounded-xl border border-border bg-card">
+							<FaSpinner className="animate-spin text-3xl text-muted-foreground motion-reduce:animate-none" />
 						</div>
 					) : errors.calendar ? (
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
-							<p className="text-gray-600 dark:text-gray-400">
+						<div className="rounded-xl border border-border bg-card p-6 text-center">
+							<p className="text-muted-foreground">
 								{errors.calendar}
 							</p>
 						</div>
 					) : calendarData ? (
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6">
+						<div className="rounded-xl border border-border bg-card p-6">
 							<div className="mb-6">
-								<h3 className="text-xl font-semibold text-indigo-600 dark:text-indigo-400 mb-2">
+								<h3 className="mb-2 text-lg font-semibold text-foreground">
 									{calendarData.quarter || "Current Quarter"}
 								</h3>
 								{weekData && (
-									<p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+									<p className="text-sm text-muted-foreground mb-2">
 										Week {weekData.weeks} of {weekData.quarters}
 									</p>
 								)}
 								{calendarData.startDate && calendarData.endDate && (
-									<p className="text-gray-700 dark:text-gray-300">
+									<p className="text-muted-foreground">
 										{formatDate(calendarData.startDate)} -{" "}
 										{formatDate(calendarData.endDate)}
 									</p>
@@ -341,41 +341,41 @@ const Resources = () => {
 
 							<div className="space-y-3">
 								{calendarData.instructionStart && (
-									<div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-										<span className="text-gray-700 dark:text-gray-300">
+									<div className="flex justify-between items-center py-2 border-b border-border">
+										<span className="text-muted-foreground">
 											Instruction Starts
 										</span>
-										<span className="font-medium text-gray-900 dark:text-white">
+										<span className="font-medium text-foreground">
 											{formatDate(calendarData.instructionStart)}
 										</span>
 									</div>
 								)}
 								{calendarData.instructionEnd && (
-									<div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-										<span className="text-gray-700 dark:text-gray-300">
+									<div className="flex justify-between items-center py-2 border-b border-border">
+										<span className="text-muted-foreground">
 											Instruction Ends
 										</span>
-										<span className="font-medium text-gray-900 dark:text-white">
+										<span className="font-medium text-foreground">
 											{formatDate(calendarData.instructionEnd)}
 										</span>
 									</div>
 								)}
 								{calendarData.finalsStart && (
-									<div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
-										<span className="text-gray-700 dark:text-gray-300">
+									<div className="flex justify-between items-center py-2 border-b border-border">
+										<span className="text-muted-foreground">
 											Finals Start
 										</span>
-										<span className="font-medium text-gray-900 dark:text-white">
+										<span className="font-medium text-foreground">
 											{formatDate(calendarData.finalsStart)}
 										</span>
 									</div>
 								)}
 								{calendarData.finalsEnd && (
 									<div className="flex justify-between items-center py-2">
-										<span className="text-gray-700 dark:text-gray-300">
+										<span className="text-muted-foreground">
 											Finals End
 										</span>
-										<span className="font-medium text-gray-900 dark:text-white">
+										<span className="font-medium text-foreground">
 											{formatDate(calendarData.finalsEnd)}
 										</span>
 									</div>
@@ -383,8 +383,8 @@ const Resources = () => {
 							</div>
 						</div>
 					) : (
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
-							<p className="text-gray-600 dark:text-gray-400">
+						<div className="rounded-xl border border-border bg-card p-6 text-center">
+							<p className="text-muted-foreground">
 								No calendar data available
 							</p>
 						</div>
@@ -392,44 +392,44 @@ const Resources = () => {
 				</section>
 
 				{/* Study Rooms */}
-				<section className="mb-12 sm:mb-16 max-w-6xl mx-auto">
+				<section className="mb-12 sm:mb-16">
 					<div className="flex items-center mb-6">
-						<FaDoorOpen className="text-indigo-600 dark:text-indigo-400 mr-3 text-2xl" />
-						<h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+						<FaDoorOpen className="mr-3 text-xl text-[color:var(--accent-brand)]" />
+						<h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
 							Study Rooms
 						</h2>
 					</div>
 
 					{loading.studyRooms ? (
-						<div className="flex justify-center items-center py-12 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10">
-							<FaSpinner className="animate-spin text-indigo-600 dark:text-indigo-400 text-3xl" />
+						<div className="flex justify-center items-center py-12 rounded-xl border border-border bg-card">
+							<FaSpinner className="animate-spin text-3xl text-muted-foreground motion-reduce:animate-none" />
 						</div>
 					) : errors.studyRooms ? (
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6 text-center">
-							<p className="text-gray-600 dark:text-gray-400">
+						<div className="rounded-xl border border-border bg-card p-6 text-center">
+							<p className="text-muted-foreground">
 								{errors.studyRooms}
 							</p>
 						</div>
 					) : (
-						<div className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-xl border border-white/20 dark:border-dark-text/10 p-6">
+						<div className="rounded-xl border border-border bg-card p-6">
 							<div className="space-y-4">
 								{studyRooms.slice(0, 10).map((room) => (
 									<div
 										key={room.id}
-										className="p-4 bg-white/50 dark:bg-dark-card/50 rounded-lg border border-white/20 dark:border-dark-text/10 hover:shadow-md transition-all duration-300"
+										className="rounded-lg border border-border p-4"
 									>
 										<div className="flex justify-between items-start">
 											<div>
-												<h3 className="font-semibold text-gray-900 dark:text-white">
+												<h3 className="font-semibold text-foreground">
 													{room.name}
 												</h3>
 												{room.description && (
-													<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+													<p className="text-sm text-muted-foreground mt-1">
 														{room.description}
 													</p>
 												)}
 												{room.capacity && (
-													<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+													<p className="text-sm text-muted-foreground mt-1">
 														Capacity: {room.capacity} people
 													</p>
 												)}
@@ -443,7 +443,7 @@ const Resources = () => {
 									href="https://spaces.lib.uci.edu/"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium"
+									className="font-medium text-foreground underline-offset-4 hover:underline"
 								>
 									View all rooms & book on UCI Libraries →
 								</a>
