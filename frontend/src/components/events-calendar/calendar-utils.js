@@ -80,6 +80,9 @@ export function normalizeEvent(raw) {
 	const categories = Array.isArray(raw.categories) ? raw.categories : [];
 	return {
 		id: String(raw.id),
+		postId: raw.post_id ? String(raw.post_id) : null,
+		// GET /events?clubs=<one handle> (#123); often a dead R2 link for older posts.
+		postImage: raw.post_image_url || null,
 		title,
 		details,
 		location: raw.parsed?.Location || raw.location || "",

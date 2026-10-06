@@ -17,7 +17,8 @@ import ClubProfileTabs, {
   tabId,
 } from "@/components/club-profile/ClubProfileTabs";
 import ClubPostGrid from "@/components/club-profile/ClubPostGrid";
-import ClubEventsPanel from "@/components/club-profile/ClubEventsPanel";
+import ClubEventsTab from "@/components/club-profile/club-events/ClubEventsTab";
+import { useClubEvents } from "@/components/club-profile/club-events/useClubEvents";
 import ClubSimilarClubs from "@/components/club-profile/ClubSimilarClubs";
 import PostViewer from "@/components/club-profile/post-viewer/PostViewer";
 import { eventsByPost } from "@/components/club-profile/post-viewer/post-utils";
@@ -34,6 +35,7 @@ export default function ClubDetail({
   clubData,
   initialClubPosts,
   initialClubEvents,
+  initialTab = "posts",
 }) {
   const calendarUrl = getCalendarUrl(clubData?.instagram_handle);
   const { user } = useAuth();
@@ -42,8 +44,17 @@ export default function ClubDetail({
   const postFeed = useClubPosts(clubData?.instagram_handle, initialClubPosts);
   const clubPosts = postFeed.posts;
   const [clubEvents] = useState(() => normalizeList(initialClubEvents));
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [tab, setTab] = useState("posts");
+  const [tab, setTabState] = useState(initialTab);
+  // ?tab=events is kept in the URL so the Events tab can be linked to.
+  const setTab = useCallback((next) => {
+    setTabState(next);
+    const url = new URL(window.location.href);
+    if (next === "events") url.searchParams.set("tab", "events");
+    else url.searchParams.delete("tab");
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+  // The tab's own data (whole history, one request), fetched on first open.
+  const clubEventData = useClubEvents(clubData?.instagram_handle, tab === "events");
   const [similarClubs, setSimilarClubs] = useState([]);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -121,13 +132,13 @@ export default function ClubDetail({
   const showEvents = useCallback(() => {
     closePost();
     setTab("events");
-  }, [closePost]);
+  }, [closePost, setTab]);
 
-  // Events tab: an event's image opens the post it was parsed from.
-  const handleEventImageClick = (_imageUrl, item) => {
-    const id = item?.post_id ?? item?.id;
-    if (clubPosts.some((p) => String(p.id) === String(id))) openPost(id);
-  };
+  // Events tab: "View post" for events whose post is in the loaded list.
+  const canViewPost = useCallback(
+    (id) => clubPosts.some((p) => String(p.id) === String(id)),
+    [clubPosts],
+  );
 
   const handleFavoriteToggle = async (e) => {
     e?.preventDefault?.();
@@ -208,14 +219,12 @@ export default function ClubDetail({
             onLoadMore={postFeed.loadMore}
           />
         ) : (
-          <ClubEventsPanel
-            clubData={clubData}
-            clubEvents={clubEvents}
-            clubPosts={clubPosts}
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
+          <ClubEventsTab
+            club={clubData}
+            data={clubEventData}
             calendarUrl={calendarUrl}
-            onImageClick={handleEventImageClick}
+            canViewPost={canViewPost}
+            onViewPost={openPost}
           />
         )}
       </div>

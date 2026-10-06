@@ -18,6 +18,7 @@ const MOCKS = new Set(["sample", "stress", "scale"]);
  *   ?view=week       starting view (month | week | day | list); otherwise the
  *                    last view picked here, else List for All campus
  *   ?date=2026-12-01 starting date
+ *   ?club=hackatuci  open filtered to one club (the club page's Events tab links here)
  * Test-only mocks (an in-browser GET /events with the server's validation):
  *   ?mock=sample     small fixture of real-shaped rows
  *   ?mock=stress     fixture plus edge cases (12-event day, early/late, long titles)
@@ -39,12 +40,14 @@ export default function CampusEventsPage() {
 		const date = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T12:00:00`) : null;
 		const current = new Date();
 		const mock = params.get("mock");
+		const club = (params.get("club") || "").trim().replace(/^@/, "").toLowerCase() || null;
 		const source = MOCKS.has(mock) ? mock : "live";
 		const density = Math.min(4, Math.max(1, Number(params.get("density")) || 1));
 		setNow(current);
 		setSetup({
 			view: VIEWS.has(v) ? v : null,
 			date,
+			club,
 			source,
 			density,
 			demo: params.get("user") === "demo",
@@ -102,6 +105,7 @@ export default function CampusEventsPage() {
 						now={now}
 						initialView={setup.view}
 						initialDate={setup.date}
+						initialClub={setup.club}
 						starred={starred}
 						onSignIn={onSignIn}
 					/>

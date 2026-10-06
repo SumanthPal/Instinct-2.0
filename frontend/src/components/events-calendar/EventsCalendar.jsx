@@ -220,7 +220,7 @@ function readStoredView() {
 	}
 }
 
-export default function EventsCalendar({ client, now, initialView = null, initialDate, starred, onSignIn }) {
+export default function EventsCalendar({ client, now, initialView = null, initialDate, initialClub = null, starred, onSignIn }) {
 	// View: ?view= wins, then the last view this browser picked. With neither
 	// (a first visit), All campus opens in List (a Week of the whole campus is
 	// too dense to read) and For you in Month.
@@ -249,13 +249,14 @@ export default function EventsCalendar({ client, now, initialView = null, initia
 	const [selectedId, setSelectedId] = useState(null);
 
 	// Whose events: For you by default only for a signed-in user with stars.
-	const [modePick, setModePick] = useState(null);
+	// ?club=<handle> (the club page's "Full calendar" link) opens on All campus filtered to it.
+	const [modePick, setModePick] = useState(initialClub ? "all" : null);
 	const hasStars = starred.status === "ready" && starred.handles.length > 0;
 	const mode = modePick ?? (hasStars ? "foryou" : "all");
 	const gated = mode === "foryou" && !hasStars;
 	const [cats, setCats] = useState(() => new Set());
 	const [times, setTimes] = useState(() => new Set());
-	const [picks, setPicks] = useState([]);
+	const [picks, setPicks] = useState(() => (initialClub ? [{ handle: initialClub, name: `@${initialClub}`, avatar: null }] : []));
 	const activeCount = cats.size + times.size; // the Filters pill; clubs have their own chips
 	const clearFilters = () => {
 		setCats(new Set());
@@ -352,6 +353,18 @@ export default function EventsCalendar({ client, now, initialView = null, initia
 	const busy = picks.length ? busyRef.current : busyClubs;
 	// The picker's club list; live mode fills in once /club-manifest answers.
 	const allClubs = useSyncExternalStore(client.subscribe, client.clubs, client.clubs);
+	// A ?club= pick starts as a bare handle; fill in name/avatar once the club list knows it.
+	useEffect(() => {
+		setPicks((p) => {
+			const i = p.findIndex((x) => x.name === `@${x.handle}`);
+			if (i === -1) return p;
+			const c = allClubs.find((x) => x.instagram_handle === p[i].handle);
+			if (!c) return p;
+			const next = [...p];
+			next[i] = { handle: c.instagram_handle, name: c.name, avatar: c.profile_image_path || null };
+			return next;
+		});
+	}, [allClubs]);
 
 	const goTo = (d) => {
 		setAnchor(d);

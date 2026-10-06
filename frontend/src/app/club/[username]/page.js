@@ -7,8 +7,9 @@ import Navbar from "@/components/ui/Navbar";
 
 const EMPTY_LIST = { results: [], hasMore: false, page: 1, totalPages: 1 };
 
-export default async function ClubPage({ params }) {
+export default async function ClubPage({ params, searchParams }) {
   const { username } = await params;
+  const { tab } = (await searchParams) || {};
 
   // Posts and events are optional: a failure there shows an empty tab
   // instead of taking down the whole profile.
@@ -35,6 +36,7 @@ export default async function ClubPage({ params }) {
           clubData={clubData}
           initialClubPosts={clubPosts}
           initialClubEvents={clubEvents}
+          initialTab={tab === "events" ? "events" : "posts"}
         />
       </main>
       <Footer />
