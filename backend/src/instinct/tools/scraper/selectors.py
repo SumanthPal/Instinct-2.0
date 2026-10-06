@@ -45,7 +45,8 @@ PROFILE_LINK_TRIGGERS = (
     (
         By.XPATH,
         "//*[@role='button' and (normalize-space()='more' or "
-        ".//*[normalize-space()='more'] or contains(normalize-space(), ' and '))]",
+        ".//*[normalize-space()='more'] or "
+        "(contains(normalize-space(), ' and ') and contains(normalize-space(), 'more')))]",
     ),
     (By.XPATH, "//button[normalize-space()='more' or .//*[normalize-space()='more']]"),
 )
