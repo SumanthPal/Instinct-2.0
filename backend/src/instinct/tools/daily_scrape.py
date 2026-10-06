@@ -8,6 +8,8 @@ the Instagram session (see scripts/launchd/). Each run:
   usual 30-90s wait between clubs and the 3-post cap still apply,
 - sets last_scraped on every club it tried, so a broken club moves to the
   back of the line instead of being picked first forever,
+- refreshes the post and event text that club search matches once at the
+  end (not under --dry-run; a failure is logged and does not fail the run),
 - never goes past --daily-cap clubs per calendar day, and
 - after a challenge, checkpoint, rate limit or dead browser, stops and skips
   every remaining run that day. Any other error (CHROME_BIN unset, a locked

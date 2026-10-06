@@ -8,6 +8,7 @@ import pytest
 from instinct.tools import daily_scrape, scraper_rotation
 
 TODAY = datetime.date.today().isoformat()
+REAL_REFRESH = scraper_rotation.refresh_search_content
 
 
 @pytest.fixture
@@ -199,3 +200,115 @@ def test_no_openai_key_skips_events(monkeypatch):
 
     monkeypatch.setattr(scraper_rotation, "EventParser", explode)
     scraper_rotation.parse_events("acm.uci")
+
+
+@pytest.fixture
+def session(monkeypatch, tmp_path):
+    """The real daily run and run_session on a fake browser, recording steps."""
+    from instinct import storage
+    from instinct.tools import insta_scraper
+
+    steps = []
+
+    class Browser:
+        _driver = object()
+
+        def __init__(self, *args):
+            pass
+
+        def login(self):
+            steps.append("login")
+
+        def store_club_data(self, handle):
+            steps.append(f"store {handle}")
+            return True
+
+        def get_club_info(self, handle):
+            steps.append(f"fetch {handle}")
+            return {"Club Name": handle, "Recent Posts": []}
+
+        def _driver_quit(self):
+            steps.append("quit")
+
+    class Storage:
+        def report(self):
+            return "storage report"
+
+    def refresh():
+        steps.append("refresh")
+        return True
+
+    monkeypatch.setattr(insta_scraper, "InstagramScraper", Browser)
+    monkeypatch.setattr(storage, "get_storage", Storage)
+    monkeypatch.setattr(scraper_rotation.time, "sleep", lambda s: None)
+    monkeypatch.setattr(
+        scraper_rotation, "parse_events", lambda h: steps.append(f"parse {h}")
+    )
+    monkeypatch.setattr(scraper_rotation, "refresh_search_content", refresh)
+    monkeypatch.setattr(
+        daily_scrape, "clubs_due", lambda n: [f"club{i}" for i in range(n)]
+    )
+    monkeypatch.setattr(daily_scrape, "mark_scraped", lambda h: None)
+    return steps, Browser, tmp_path / "state.json"
+
+
+def test_daily_run_refreshes_search_once_after_parsing(session):
+    steps, _, state = session
+    assert daily_scrape.run(2, 200, dry_run=False, state_path=state) == 0
+    assert steps == [
+        "login",
+        "store club0",
+        "parse club0",
+        "store club1",
+        "parse club1",
+        "quit",
+        "refresh",
+    ]
+
+
+def test_daily_dry_run_skips_search_refresh(session):
+    steps, _, state = session
+    assert daily_scrape.run(2, 200, dry_run=True, state_path=state) == 0
+    assert steps == ["login", "fetch club0", "fetch club1", "quit"]
+
+
+def test_once_refreshes_search(session):
+    steps, _, _ = session
+    assert scraper_rotation.run_once(["acm.uci"]) is True
+    assert steps.count("refresh") == 1 and steps[-1] == "refresh"
+
+
+def test_no_refresh_when_no_club_was_tried(session):
+    steps, Browser, state = session
+
+    def login(self):
+        raise scraper_rotation.InstagramLoginError("challenge")
+
+    Browser.login = login
+    assert daily_scrape.run(2, 200, dry_run=False, state_path=state) == 2
+    assert "refresh" not in steps
+
+
+def test_refresh_failure_does_not_fail_the_scrape(session, monkeypatch):
+    from instinct.db import queries
+
+    steps, _, state = session
+
+    class Rpc:
+        def execute(self):
+            raise RuntimeError("supabase down")
+
+    class Client:
+        def rpc(self, name):
+            steps.append(f"rpc {name}")
+            return Rpc()
+
+    class Queries:
+        supabase = Client()
+
+    monkeypatch.setattr(queries, "SupabaseQueries", Queries)
+    # The real refresh (the fixture stubs it), against a failing RPC.
+    monkeypatch.setattr(scraper_rotation, "refresh_search_content", REAL_REFRESH)
+    assert daily_scrape.run(1, 200, dry_run=False, state_path=state) == 0
+    assert steps[-1] == "rpc refresh_club_search_vector"
+    assert REAL_REFRESH() is False
