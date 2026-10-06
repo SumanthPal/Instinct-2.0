@@ -8,6 +8,7 @@ from datetime import date, datetime
 import dotenv
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, APIRouter
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -592,13 +593,16 @@ EVENTS_MAX_CLUBS = 100
 
 @app.get("/events")
 def get_events_in_range(
-    from_: date = Query(
-        ...,
+    from_: Optional[date] = Query(
+        None,
         alias="from",
-        description="First day, YYYY-MM-DD (America/Los_Angeles), inclusive",
+        description="First day, YYYY-MM-DD (America/Los_Angeles), inclusive. "
+        "Required unless `clubs` names exactly one club.",
     ),
-    to: date = Query(
-        ..., description="Last day, YYYY-MM-DD (America/Los_Angeles), inclusive"
+    to: Optional[date] = Query(
+        None,
+        description="Last day, YYYY-MM-DD (America/Los_Angeles), inclusive. "
+        "Required unless `clubs` names exactly one club.",
     ),
     clubs: Optional[str] = Query(
         None, description="Comma-separated Instagram handles to keep"
@@ -607,15 +611,15 @@ def get_events_in_range(
         None, description="Keep events whose club has this category"
     ),
 ):
-    """Events in a date range for the calendar, filtered in the database."""
-    if to < from_:
-        raise HTTPException(status_code=400, detail="`to` is before `from`")
-    days = (to - from_).days + 1
-    if days > EVENTS_MAX_RANGE_DAYS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Range is {days} days; the maximum is {EVENTS_MAX_RANGE_DAYS}",
-        )
+    """Events for the calendar and club pages, filtered in the database.
+
+    Calendar mode (no `clubs`, or several): `from` and `to` are required and
+    the range is at most 92 days. Club mode (`clubs` names exactly one club):
+    `from` and `to` are optional, each end open when left out, with no range
+    limit, so one request returns the club's whole history. Rows are ordered
+    by date then id; each has the event, its club, the club's `categories`
+    and `post_image_url` (the linked post's image, or null).
+    """
     handles = None
     if clubs is not None:
         handles = sorted({normalize_handle(h) for h in clubs.split(",")} - {""})
@@ -626,6 +630,31 @@ def get_events_in_range(
                 status_code=400,
                 detail=f"`clubs` has {len(handles)} handles; the maximum is "
                 f"{EVENTS_MAX_CLUBS}",
+            )
+    club_mode = handles is not None and len(handles) == 1
+
+    if not club_mode:
+        # Same 422 body FastAPI sends for a missing required parameter.
+        missing = [
+            {
+                "type": "missing",
+                "loc": ("query", name),
+                "msg": "Field required",
+                "input": None,
+            }
+            for name, value in (("from", from_), ("to", to))
+            if value is None
+        ]
+        if missing:
+            raise RequestValidationError(missing)
+    if from_ and to and to < from_:
+        raise HTTPException(status_code=400, detail="`to` is before `from`")
+    if not club_mode:
+        days = (to - from_).days + 1
+        if days > EVENTS_MAX_RANGE_DAYS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Range is {days} days; the maximum is {EVENTS_MAX_RANGE_DAYS}",
             )
     try:
         events = get_db().get_events_in_range(
