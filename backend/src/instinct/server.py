@@ -1,5 +1,6 @@
 from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries, normalize_handle
+from instinct.utils.images import IMAGE_EXTENSIONS, cdn_url
 import hmac
 import os
 from typing import List, Optional
@@ -15,11 +16,6 @@ from pydantic import BaseModel, EmailStr
 # Load environment variables
 dotenv.load_dotenv()
 from instinct.tools.logger import logger
-
-
-def cdn_base_url() -> str:
-    """CDN prefix for stored images, read per request rather than at import."""
-    return os.getenv("S3_PUBLIC_URL", "")
 
 
 app = FastAPI(
@@ -412,11 +408,14 @@ def get_club_data(instagram_handle: str):
                 detail=f"Club with Instagram handle '{instagram_handle}' not found",
             )
 
-        image_path = club.get("profile_image_path")
-        if image_path:
-            # Use the stored path (e.g. pfps/taoxuci.jpg), not the request's
-            # handle, whose case may differ from the object's name.
-            club["profile_image_url"] = f"{cdn_base_url()}/{image_path.lstrip('/')}"
+        # Use the stored path (e.g. pfps/taoxuci.jpg), not the request's
+        # handle, whose case may differ from the object's name.
+        image_url = cdn_url(club.get("profile_image_path"))
+        if image_url:
+            club["profile_image_url"] = image_url
+        else:
+            # A stale "NULL" path would otherwise reach the frontend as a src.
+            club["profile_image_path"] = None
 
         return club
     except HTTPException as http_e:
@@ -452,17 +451,13 @@ def get_club_posts(
         posts = result["posts"]
 
         for post in posts:
-            if post.get("image_path"):
-                # Fixed: Use Azure CDN instead of Supabase storage
-                # Assuming image_path contains the relative path like "posts/{instagram_handle}/{post_id}"
-                if (
-                    not post["image_path"]
-                    .lower()
-                    .endswith((".jpg", ".jpeg", ".png", ".webp"))
-                ):
-                    post["image_path"] += ".jpg"  # default fallback
-
-                post["image_url"] = f"{cdn_base_url()}/{post['image_path']}"
+            # Mirrored post images are stored as posts/{handle}/{post_id} and
+            # served as .jpg; a missing or "NULL" path means no image.
+            post["image_url"] = cdn_url(post.get("image_path"), ".jpg")
+            if post["image_url"] is None:
+                post["image_path"] = None
+            elif not post["image_path"].lower().endswith(IMAGE_EXTENSIONS):
+                post["image_path"] += ".jpg"
 
         return {
             "count": len(posts),
