@@ -160,8 +160,8 @@ class InstagramScraper:
         if os.environ.get("DOCKER_ENV") or os.environ.get("CI"):
             return "/usr/bin/chromium"
         raise RuntimeError(
-            "CHROME_BIN must name the local Chromium binary so its version can be "
-            "used for a consistent user agent."
+            "CHROME_BIN is unset: set it in backend/.env to the local Chromium or "
+            "Chrome binary so its version can be used for a consistent user agent."
         )
 
     def _installed_chromium_version(self) -> Optional[str]:
@@ -999,6 +999,9 @@ class InstagramScraper:
         if driver:
             try:
                 driver.quit()
+            except WebDriverException as exc:
+                # A crashed browser cannot be quit cleanly; just drop it.
+                logger.warning(f"Could not quit the browser: {exc}")
             finally:
                 self._driver = None
 

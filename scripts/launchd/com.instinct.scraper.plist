@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+Runs the daily scrape 4 times a day (9:00, 13:00, 17:00, 21:00 local).
+CHROME_BIN must be set in backend/.env (e.g. the Chrome binary inside
+/Applications/Google Chrome.app); without it every run fails. HEADLESS
+defaults to true, so under launchd Chrome runs headless unless .env says
+HEADLESS=false.
+
+Install (replace __REPO__ with the absolute path of your checkout):
+
+  sed "s#__REPO__#$PWD#g" scripts/launchd/com.instinct.scraper.plist \
+    > ~/Library/LaunchAgents/com.instinct.scraper.plist
+  launchctl load ~/Library/LaunchAgents/com.instinct.scraper.plist
+
+Uninstall: launchctl unload ~/Library/LaunchAgents/com.instinct.scraper.plist
+Logs: /tmp/instinct-scraper.log
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.instinct.scraper</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd __REPO__/backend &amp;&amp; uv run python -m instinct.tools.daily_scrape --clubs 50</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>7</integer></dict>
+    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>7</integer></dict>
+    <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>7</integer></dict>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>7</integer></dict>
+  </array>
+  <key>StandardOutPath</key>
+  <string>/tmp/instinct-scraper.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/instinct-scraper.log</string>
+</dict>
+</plist>
