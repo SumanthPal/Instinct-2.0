@@ -54,6 +54,11 @@ def is_hard_stop_url(url: str) -> bool:
     return bool(_HARD_STOP_PATH.match(path))
 
 
+def is_soft_block_url(url: str) -> bool:
+    """True for Instagram's login, confirm and unusual-activity interstitials."""
+    return bool(_SOFT_BLOCK_PATH.search(urlparse(url).path.lower()))
+
+
 def post_recency_key(post_url: str) -> int:
     """Sort key that is larger for newer posts.
 
@@ -294,7 +299,7 @@ class InstagramScraper:
                 )
 
             # Fast URL-based checks first (these are much quicker than page parsing)
-            if _SOFT_BLOCK_PATH.search(urlparse(current_url).path.lower()):
+            if is_soft_block_url(current_url):
                 logger.warning(f"Rate limit detected: Redirected to {current_url}")
                 return True
 
