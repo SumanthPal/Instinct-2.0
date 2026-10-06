@@ -8,7 +8,8 @@ import time
 from instinct.tools.logger import logger
 from instinct.db.queries import SupabaseQueries
 from difflib import SequenceMatcher
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 # LOAD-BEARING, DO NOT CHANGE: every vector currently stored in Supabase was
 # produced by this model. Swapping it silently invalidates the whole hybrid
@@ -24,6 +25,209 @@ DEFAULT_EVENT_MODEL = "gpt-4.1-mini"
 def get_event_model() -> str:
     """Model used for caption -> event JSON extraction."""
     return os.getenv("OPENAI_EVENT_MODEL", DEFAULT_EVENT_MODEL)
+
+
+# Captions, event times and events.date are all America/Los_Angeles wall-clock
+# time; posts.posted is UTC (Instagram's <time datetime="...Z">, stored naive).
+CAMPUS_TZ = ZoneInfo("America/Los_Angeles")
+
+# Unknown duration is not zero. An event with only a start time gets an hour;
+# an event with no time at all is all-day: Date at 00:00 plus whole days.
+DEFAULT_TIMED_DURATION = {"days": 0, "hours": 1, "minutes": 0}
+ALL_DAY_DURATION = {"days": 1, "hours": 0, "minutes": 0}
+
+EVENT_SYSTEM_PROMPT = """\
+You extract club events from an Instagram post caption for a UC Irvine campus \
+events calendar. Reply with {"events": [...]}, one entry per event, each with \
+Name, Date, Details and Duration.
+
+Which events
+- Include each specific, upcoming happening people can attend or join: \
+meetings, workshops, socials, info sessions, competitions, performances, \
+tabling, trips.
+- If the post announces no such event (a recap, congratulations, member \
+spotlight, merch, general promotion), reply {"events": []}.
+- An event that runs over several consecutive days is one entry. A series \
+that lists separate dates (e.g. "Mondays Oct 6, 13 and 20") is one entry per \
+listed date.
+- Leave out an event whose date cannot be worked out from the caption and the \
+post date. Never invent a date.
+
+Date: the start, as "YYYY-MM-DDTHH:MM:SS" with no offset and no "Z"
+- All times are America/Los_Angeles local time. Write the time exactly as the \
+caption says it; do not convert time zones.
+- Resolve relative dates ("tomorrow", "this Friday", "next Wednesday") from \
+the post date in the message, which is already in Los Angeles time. "This \
+Friday" is the first Friday on or after the post date; "next Friday" is the \
+Friday of the following week.
+- Captions rarely give a year. Use the post date's year, unless that puts the \
+event more than two months before the post date; then use the following year \
+(a December post about "Jan 10" means January of the next year).
+- If no time is given, use T00:00:00 and treat the event as all-day (see \
+Duration).
+
+Duration: {"days", "hours", "minutes"}, whole non-negative numbers, the time \
+from start to end. Never all zero.
+- A time range gives the duration: "6-8pm" is 2 hours; "6:30-8pm" is 1 hour \
+30 minutes; "7pm-1am" crosses midnight and is 6 hours; "5pm-12am" is 7 hours.
+- A multi-day range with times: "Fri 6pm - Sun 2pm" starts Friday at 18:00 \
+and lasts 1 day 20 hours.
+- Only a start time ("at 7pm"): 1 hour.
+- No time at all (all-day): Date at T00:00:00 and the number of calendar days \
+the event covers, e.g. 1 day for "Saturday", 3 days for "Oct 3-5".
+
+Name: the event's title as the club calls it, short.
+Details: one or two sentences with the useful facts from the caption \
+(location, cost, food, sign-up or RSVP info), or "" if there are none.
+"""
+
+# Structured outputs: the API guarantees replies match this schema. Strict mode
+# needs an object at the top level, so the event list sits under "events".
+EVENT_RESPONSE_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "club_events",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["events"],
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["Name", "Date", "Details", "Duration"],
+                        "properties": {
+                            "Name": {"type": "string"},
+                            "Date": {
+                                "type": "string",
+                                "description": "Start, YYYY-MM-DDTHH:MM:SS, "
+                                "America/Los_Angeles local time",
+                            },
+                            "Details": {"type": "string"},
+                            "Duration": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["days", "hours", "minutes"],
+                                "properties": {
+                                    "days": {"type": "integer"},
+                                    "hours": {"type": "integer"},
+                                    "minutes": {"type": "integer"},
+                                },
+                            },
+                        },
+                    },
+                }
+            },
+        },
+    },
+}
+
+
+class EventParseError(ValueError):
+    """The model replied, but not with a usable event list."""
+
+
+def post_date_in_campus_tz(posted) -> str:
+    """posts.posted (UTC, usually naive) as Los Angeles local time with weekday."""
+    try:
+        moment = (
+            posted
+            if isinstance(posted, datetime)
+            else datetime.fromisoformat(str(posted).replace("Z", "+00:00"))
+        )
+    except ValueError:
+        return str(posted)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    local = moment.astimezone(CAMPUS_TZ)
+    return local.strftime("%A, %Y-%m-%d %H:%M") + " (America/Los_Angeles)"
+
+
+def build_event_messages(caption: str, posted) -> List[Dict]:
+    return [
+        {"role": "system", "content": EVENT_SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": f"Post date: {post_date_in_campus_tz(posted)}\n\n"
+            f"Caption:\n{caption}",
+        },
+    ]
+
+
+def extract_events(client, caption: str, posted, model: Optional[str] = None):
+    """One structured-output request; the event list, or an exception."""
+    completion = client.chat.completions.create(
+        model=model or get_event_model(),
+        messages=build_event_messages(caption, posted),
+        response_format=EVENT_RESPONSE_FORMAT,
+        temperature=0,
+    )
+    message = completion.choices[0].message
+    if getattr(message, "refusal", None):
+        raise EventParseError(f"model refused: {message.refusal}")
+    try:
+        events = json.loads(message.content)["events"]
+    except (TypeError, KeyError, json.JSONDecodeError) as e:
+        raise EventParseError(f"reply does not match the schema: {e}") from e
+    if not isinstance(events, list) or not all(isinstance(e, dict) for e in events):
+        raise EventParseError("events is not a list of objects")
+    return events
+
+
+def safe_int(value, default=0):
+    """Convert value safely to integer, handling numeric strings and simple words like 'one'."""
+    word_to_number = {
+        "zero": 0,
+        "one": 1,
+        "two": 2,
+        "three": 3,
+        "four": 4,
+        "five": 5,
+        "six": 6,
+        "seven": 7,
+        "eight": 8,
+        "nine": 9,
+        "ten": 10,
+    }
+
+    try:
+        return int(value)
+    except ValueError, TypeError:
+        if isinstance(value, str):
+            value_clean = value.strip().lower()
+            if value_clean in word_to_number:
+                return word_to_number[value_clean]
+        return default
+
+
+def starts_at_midnight(date_str) -> bool:
+    try:
+        moment = datetime.fromisoformat(str(date_str).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return (moment.hour, moment.minute, moment.second) == (0, 0, 0)
+
+
+def resolve_duration(event: Dict) -> Dict[str, int]:
+    """The event's duration, with the defaults for a missing or zero one.
+
+    Zero means the caption gave no end: a timed event gets an hour, and an
+    event at 00:00 (no time given) is all-day, one day.
+    """
+    raw = event.get("Duration")
+    if isinstance(raw, dict) and "estimated duration" in raw:
+        raw = raw["estimated duration"]
+    if not isinstance(raw, dict):
+        raw = {}
+    parts = {k: max(0, safe_int(raw.get(k, 0))) for k in ("days", "hours", "minutes")}
+    if any(parts.values()):
+        return parts
+    if starts_at_midnight(event.get("Date")):
+        return dict(ALL_DAY_DURATION)
+    return dict(DEFAULT_TIMED_DURATION)
 
 
 OPENAI_API_KEY_ENV = "OPENAI_API_KEY"
@@ -85,88 +289,43 @@ class EventParser:
 
     def parse_post(self, post_id: "uuid") -> List[Dict]:  # noqa: F821
         """
-        Parses a post to extract event data using OpenAI's GPT-4 API.
+        Extract the events in a post's caption with the OpenAI API.
 
         Args:
             post_id (uuid): ID of the post to parse.
 
         Returns:
-            List[Dict]: Parsed events or an empty list if parsing fails.
+            List[Dict]: Events with Name, Date, Details and Duration, or an
+            empty list if there are none or parsing fails.
         """
-        MAX_RETRIES = 3  # Define the number of retries
-        RETRY_DELAY = 2  # Delay (in seconds) between retries
+        MAX_RETRIES = 3
+        RETRY_DELAY = 2  # seconds
 
-        # Load the post data
+        if not self.client:
+            logger.error("OpenAI client not initialized (missing API key)")
+            return []
         try:
             post_date, post_text = self.db.get_post_date_and_caption(post_id)
-
-            # Retry mechanism for API calls
-            for attempt in range(MAX_RETRIES):
-                try:
-                    logger.info(f"Parsing attempt {attempt + 1}...")
-
-                    # Send request to OpenAI API to extract dates
-                    completion = self.client.chat.completions.create(
-                        model=get_event_model(),
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": (
-                                    "You must strictly follow these rules when responding:\n"
-                                    "1. Respond with **valid, raw JSON only**. Do not include any text, comments, markdown, or extra formatting outside the JSON.\n"
-                                    "2. The response must be a JSON array.\n"
-                                    "3. If the input is not a valid club event (meaning the club does not have anything) or cannot be parsed, return an empty array: [].\n"
-                                    "4. Each item in the array must be a dictionary with **exactly** the following keys:\n"
-                                    '   - "Name": string (name of the event)\n'
-                                    '   - "Date": string in ISO 8601 format (e.g., "2025-04-14T18:00:00")\n'
-                                    '   - "Details": string (optional event information)\n'
-                                    '   - "Duration": object with "days", "hours", and "minutes" keys\n'
-                                    "5. If the event spans multiple dates, create one entry\n"
-                                    "6. Do not include any additional metadata, explanations, or keys not listed above.\n"
-                                    "7. Use the context date and the content to find the context date for the event."
-                                ),
-                            },
-                            {
-                                "role": "user",
-                                "content": f"{post_text} context date: {post_date}",
-                            },
-                        ],
-                        temperature=0.3,
-                    )
-
-                    # Process and validate the response
-                    response = completion.choices[0].message.content
-                    events = json.loads(response)  # Attempt to parse the JSON
-
-                    # Check if the response format is valid
-                    if isinstance(events, list) and all(
-                        isinstance(event, dict) for event in events
-                    ):
-                        logger.info("Successful parse.")
-                        return events
-
-                    raise ValueError("Invalid API response format")
-
-                except json.JSONDecodeError as e:
-                    logger.error(response)
-                    logger.error(f"JSON decoding error: {e}")
-                except Exception as e:
-                    logger.error(f"Error during API call: {e}")
-
-                if attempt < MAX_RETRIES - 1:
-                    logger.warning(f"Retrying in {RETRY_DELAY} seconds...")
-                    time.sleep(RETRY_DELAY)
-
-            # If retries fail, log and return an empty list
-            logger.error("Failed to parse post after multiple attempts.")
-            return []
-
-        except (FileNotFoundError, KeyError) as e:
+        except Exception as e:
             logger.error(f"Error loading post data: {e}")
             return []
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            return []
+
+        # Structured outputs fix the reply's shape, so a retry is mostly for
+        # API errors (rate limits, timeouts); a refusal is retried the same way.
+        for attempt in range(MAX_RETRIES):
+            try:
+                logger.info(f"Parsing attempt {attempt + 1}...")
+                events = extract_events(self.client, post_text, post_date)
+                logger.info(f"Successful parse: {len(events)} event(s).")
+                return events
+            except Exception as e:
+                logger.error(f"Error during API call: {e}")
+            if attempt < MAX_RETRIES - 1:
+                logger.warning(f"Retrying in {RETRY_DELAY} seconds...")
+                time.sleep(RETRY_DELAY)
+
+        logger.error("Failed to parse post after multiple attempts.")
+        return []
 
     def get_embedding(self, text: str) -> List[float]:
         """
@@ -391,18 +550,8 @@ class EventParser:
                 # if you want to merge the data
             else:
                 # Create a new event
-                duration = event.get("Duration", {})
-
-                # Make sure Duration has the right structure
-                if isinstance(duration, dict) and "estimated duration" in duration:
-                    duration = duration["estimated duration"]
-
-                # Ensure we have all the duration components
-                duration_dict = {
-                    "days": duration.get("days", 0),
-                    "hours": duration.get("hours", 0),
-                    "minutes": duration.get("minutes", 0),
-                }
+                # A missing or zero duration gets the 1 hour / all-day default.
+                duration_dict = resolve_duration(event)
 
                 event_data = {
                     "club_id": club_id,
@@ -423,35 +572,13 @@ class EventParser:
                 logger.info(f"Inserted new event: {event['Name']}")
 
     def safe_int(self, value, default=0):
-        """Convert value safely to integer, handling numeric strings and simple words like 'one'."""
-        word_to_number = {
-            "zero": 0,
-            "one": 1,
-            "two": 2,
-            "three": 3,
-            "four": 4,
-            "five": 5,
-            "six": 6,
-            "seven": 7,
-            "eight": 8,
-            "nine": 9,
-            "ten": 10,
-        }
-
-        try:
-            return int(value)
-        except ValueError, TypeError:
-            if isinstance(value, str):
-                value_clean = value.strip().lower()
-                if value_clean in word_to_number:
-                    return word_to_number[value_clean]
-            return default
+        return safe_int(value, default)
 
     def dict_to_interval(self, duration_dict: dict) -> str:
         """Convert duration dictionary to a PostgreSQL interval string safely."""
-        days = self.safe_int(duration_dict.get("days", 0))
-        hours = self.safe_int(duration_dict.get("hours", 0))
-        minutes = self.safe_int(duration_dict.get("minutes", 0))
+        days = safe_int(duration_dict.get("days", 0))
+        hours = safe_int(duration_dict.get("hours", 0))
+        minutes = safe_int(duration_dict.get("minutes", 0))
 
         parts = []
         if days:
