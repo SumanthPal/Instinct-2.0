@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase'
+import { authCallbackUrl } from '@/lib/auth-url'
 import { useToast } from '@/components/ui/toast';
 
 const AuthContext = createContext()
@@ -64,8 +65,6 @@ export function AuthProvider({ children }) {
   // Sign in with Google
   const signInWithGoogle = async () => {
     try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
@@ -73,7 +72,7 @@ export function AuthProvider({ children }) {
               access_type: 'offline',
               prompt: 'consent',
             },
-            redirectTo: `${siteUrl}/auth/callback`,  // ✅ cleaner and correct
+            redirectTo: authCallbackUrl(process.env.NEXT_PUBLIC_SITE_URL, window.location.origin),
           },
         });
       if (error) throw error;
