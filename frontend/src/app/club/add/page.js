@@ -1,9 +1,11 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 import { submitNewClub } from '@/lib/api'; // or wherever
 import { useAuth } from '@/context/auth-context'; // Assuming you're using some auth context
+import { useToast } from '@/components/ui/toast';
 
 
 
@@ -11,7 +13,25 @@ const ClubForm = () => {
   const [clubName, setClubName] = useState('');
   const [instagramHandle, setInstagramHandle] = useState('');
   const [categories, setCategories] = useState([]);
-  const { user } = useAuth(); // user.email should exist if logged in
+  const { user, loading: authLoading } = useAuth(); // user.email should exist if logged in
+  const router = useRouter();
+  const { toast } = useToast();
+  const redirected = useRef(false);
+
+  // Same client-side gate as /dashboard: signed-out visitors get a toast and
+  // go back home (the server-side proxy.js gate was removed in #100).
+  useEffect(() => {
+    if (authLoading || user || redirected.current) return;
+    redirected.current = true;
+    toast({
+      title: "Login Required",
+      description: "Please log in to add your club",
+      status: "warning",
+      duration: 3000,
+      isClosable: true,
+    });
+    router.push('/');
+  }, [user, authLoading, router, toast]);
 
 
   const categoriesList = [
@@ -68,6 +88,17 @@ const handleSubmit = async (e) => {
     }
   };
   
+
+  // Don't show the form while auth resolves or while redirecting.
+  if (authLoading || !user) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <Navbar />
+        <main className="flex-1" aria-busy="true" />
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-r from-pastel-pink via-lavender to-sky-blue dark:from-dark-gradient-start dark:to-dark-gradient-end dark:text-dark-text">
