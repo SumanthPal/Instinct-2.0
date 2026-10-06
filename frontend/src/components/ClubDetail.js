@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import ClubAvatar from "./ClubAvatar";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -375,14 +376,10 @@ export default function ClubDetail({
           <div className="flex flex-col items-center space-y-4 sm:space-y-6">
             {/* Profile Image - Responsive sizing */}
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full overflow-hidden border-4 border-white/30 dark:border-dark-text/10 shadow-lg shrink-0">
-              <Image
+              <ClubAvatar
                 src={clubData["profile_image_url"]}
                 alt={clubData["name"]}
-                fill
-                className="object-cover"
                 sizes="(max-width: 640px) 80px, (max-width: 1024px) 96px, 128px"
-                loading="lazy"
-                unoptimized
               />
             </div>
 
@@ -935,23 +932,11 @@ export default function ClubDetail({
                       {/* Profile Image */}
                       <div className="flex justify-center mb-2">
                         <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-white/40 dark:border-dark-text/20 shadow-md">
-                          {club.profile_image_path ? (
-                            <Image
-                              src={club.profile_image_path}
-                              alt={club.name}
-                              fill
-                              className="object-cover"
-                              sizes="80px"
-                              loading="lazy"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-linear-to-br from-pastel-pink/50 to-lavender/50 dark:from-dark-card dark:to-dark-profile-card flex items-center justify-center">
-                              <span className="text-2xl font-bold text-dark-base dark:text-dark-text">
-                                {club.name?.charAt(0) || "?"}
-                              </span>
-                            </div>
-                          )}
+                          <ClubAvatar
+                            src={club.profile_image_path}
+                            alt={club.name}
+                            sizes="80px"
+                          />
                         </div>
                       </div>
 

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Search, X } from "lucide-react";
+import { FaSearch, FaTimes } from "react-icons/fa";
 
 export default function SearchBar({
   value,
@@ -21,9 +21,8 @@ export default function SearchBar({
 
   return (
     <div className="relative w-full">
-      <Search
-        size={16}
-        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+      <FaSearch
+        className="pointer-events-none h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
       />
       <input
@@ -43,7 +42,7 @@ export default function SearchBar({
           aria-label="Clear search"
           className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <X size={16} aria-hidden="true" />
+          <FaTimes className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       )}
     </div>
