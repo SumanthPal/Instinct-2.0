@@ -29,8 +29,6 @@ export const fetchClubManifest = async (
 
     const data = await response.json();
 
-    console.log("Fetched club manifest:", data);
-
     return {
       results: data.results || [],
       totalCount: data.total || 0,
@@ -61,21 +59,40 @@ export const fetchClubsByCategory = async (category, page = 1, limit = 20) => {
   return fetchClubManifest(page, limit, category);
 };
 
+
+export const fetchCategories = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/categories`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch categories: ${response.status}`);
+    }
+    const data = await response.json();
+    const results = data.results || data || [];
+    return Array.isArray(results)
+      ? results.map((c) => (typeof c === "string" ? c : c.name)).filter(Boolean)
+      : [];
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return [];
+  }
+};
+
+
 export const fetchClubData = async (username) => {
   try {
     const url = `${API_BASE_URL}/club/${username}`;
-    console.log(`Fetching data for club ${username} from:`, url);
 
     const response = await fetch(url);
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(
+      const error = new Error(
         `Failed to fetch club data: ${response.status} ${response.statusText} - ${errorText}`,
       );
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();
-    console.log(`Fetched data for club ${username}:`, data);
     return data;
   } catch (error) {
     console.error(`Error fetching club data for ${username}:`, error);

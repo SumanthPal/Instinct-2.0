@@ -78,31 +78,6 @@ const RssFeed = ({
     return null;
   };
 
-  // Function to generate a category image based on category name
-  const getCategoryImage = (categories) => {
-    if (!categories || categories.length === 0) return null;
-    
-    // Map of categories to image backgrounds
-    const categoryBgMap = {
-      'Campus Life': 'from-lavender to-sky-blue',
-      'Athletics': 'from-sky-blue to-pastel-pink',
-      'Science & Technology': 'from-pastel-pink to-lavender',
-      'Arts & Humanities': 'from-lavender to-pastel-pink',
-      'Health': 'from-sky-blue to-lavender',
-      'Society & Community': 'from-pastel-pink to-sky-blue',
-      'Engineering': 'from-sky-blue to-pastel-pink',
-      'Faculty': 'from-lavender to-sky-blue',
-      'Students': 'from-pastel-pink to-lavender'
-    };
-    
-    // Find the first category that has a defined background
-    const matchedCategory = categories.find(cat => categoryBgMap[cat]);
-    
-    return matchedCategory 
-      ? `bg-linear-to-br ${categoryBgMap[matchedCategory] || 'from-lavender to-sky-blue'}`
-      : 'bg-linear-to-br from-lavender to-sky-blue'; // Default
-  };
-
   // Function to get category emoji
   const getCategoryEmoji = (categories) => {
     if (!categories || categories.length === 0) return '📰';
@@ -123,170 +98,123 @@ const RssFeed = ({
     return matchedCategory ? categoryEmojiMap[matchedCategory] : '📰';
   };
 
+  const dateLabel = (d, long = false) =>
+    new Date(d).toLocaleDateString('en-US', long
+      ? { month: 'long', day: 'numeric', year: 'numeric' }
+      : { month: 'short', day: 'numeric' });
+
   return (
     <div className={`${className}`}>
       {loading ? (
         <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-lavender dark:border-dark-text"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-foreground motion-reduce:animate-none" />
         </div>
       ) : error ? (
-        <div className="text-red-600 dark:text-red-400 text-center py-4 rounded-xl bg-white/50 dark:bg-dark-card/50 backdrop-blur-md">
+        <div className="rounded-xl border border-border bg-card py-4 text-center text-destructive">
           <p>{error}</p>
         </div>
       ) : feedData && feedData.items ? (
         viewMode === 'grid' ? (
-          // Grid View
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {feedData.items.slice(0, maxItems).map((item, index) => {
-              const imageUrl = item.enclosure?.url || 
-                              (item.content && extractImageFromContent(item.content)) || 
+              const imageUrl = item.enclosure?.url ||
+                              (item.content && extractImageFromContent(item.content)) ||
                               null;
               const categories = item.categories?.map(cat => typeof cat === 'string' ? cat : cat.name) || [];
-              const categoryBg = getCategoryImage(categories);
               const emoji = getCategoryEmoji(categories);
-              
+
               return (
-                <div 
-                  key={index} 
-                  className={`group relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-102 h-64 backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/20 shadow-md`}
+                <a
+                  key={index}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="instinct-card group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {/* Category Background */}
-                  <div className={`absolute inset-0 ${categoryBg} opacity-30`}></div>
-                  
-                  {/* Text Readability Gradient */}
-                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/20 to-transparent z-10"></div>
-                  
-                  {/* Image if available */}
                   {imageUrl && (
-                    <div className="absolute inset-0 z-0">
-                      <img 
-                        src={imageUrl} 
-                        alt={item.title} 
-                        className="w-full h-full object-cover opacity-40"
-                      />
+                    <div className="h-36 overflow-hidden bg-muted">
+                      {/* biome-ignore lint/performance/noImgElement: arbitrary remote feed images */}
+                      <img src={imageUrl} alt="" className="h-full w-full object-cover" />
                     </div>
                   )}
-                  
-                  {/* Content */}
-                  <div className="absolute inset-0 p-5 z-20 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <span className="bg-lavender/70 dark:bg-dark-gradient-start/70 text-dark-base dark:text-dark-text-white text-xs font-medium px-2 py-1 rounded-full backdrop-blur-xs">
-                          {new Date(item.pubDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </span>
-                        <span className="ml-2 bg-white/30 dark:bg-dark-gradient-start/30 backdrop-blur-xs w-7 h-7 flex items-center justify-center rounded-full text-dark-base dark:text-dark-text-white">
-                          {emoji}
-                        </span>
-                      </div>
-                      
-                      <h3 className="text-lg font-bold text-dark-base dark:text-dark-text-white mb-2 line-clamp-2">
-                        {item.title}
-                      </h3>
-                      
-                      <p className="text-dark-base/80 dark:text-dark-text/80 text-sm mb-3 line-clamp-3">
-                        {truncateText(stripHtml(item.content || item.contentSnippet || item.description || ''), 120)}
-                      </p>
+                  <div className="flex flex-1 flex-col p-5">
+                    <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="rounded-full border border-border px-2 py-0.5">
+                        {dateLabel(item.pubDate)}
+                      </span>
+                      <span aria-hidden="true">{emoji}</span>
                     </div>
-                    
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center text-dark-base dark:text-dark-text-white font-medium hover:underline z-30 text-sm"
-                    >
-                      Read more
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-                    </a>
+                    <h3 className="mb-2 line-clamp-2 text-base font-semibold tracking-tight text-foreground">
+                      {item.title}
+                    </h3>
+                    <p className="mb-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                      {truncateText(stripHtml(item.content || item.contentSnippet || item.description || ''), 120)}
+                    </p>
+                    <span className="mt-auto text-sm font-medium text-foreground group-hover:underline">
+                      Read more <span aria-hidden="true">→</span>
+                    </span>
                   </div>
-                  
-                  {/* Clickable overlay for entire card */}
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute inset-0 z-0"
-                    aria-label={item.title}
-                  ></a>
-                </div>
+                </a>
               );
             })}
           </div>
         ) : (
-          // List View
-          <div className="space-y-6">
+          <div className="space-y-4">
             {feedData.items.slice(0, maxItems).map((item, index) => {
               const categories = item.categories?.map(cat => typeof cat === 'string' ? cat : cat.name) || [];
               const emoji = getCategoryEmoji(categories);
-              
+
               return (
-                <div 
+                <div
                   key={index}
-                  className="backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 border border-white/20 dark:border-dark-text/20 rounded-xl p-6 shadow-md hover:shadow-lg transition-all"
+                  className="rounded-xl border border-border bg-card p-6 text-left"
                 >
-                  <div className="flex items-center mb-3">
-                    <span className="bg-lavender/70 dark:bg-dark-gradient-start/70 text-dark-base dark:text-dark-text-white text-xs font-medium px-2 py-1 rounded-full">
-                      {new Date(item.pubDate).toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                  <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="rounded-full border border-border px-2 py-0.5">
+                      {dateLabel(item.pubDate, true)}
                     </span>
-                    <span className="ml-2 bg-white/30 dark:bg-dark-gradient-start/30 w-7 h-7 flex items-center justify-center rounded-full text-dark-base dark:text-dark-text-white">
-                      {emoji}
-                    </span>
-                    <div className="ml-auto text-xs text-dark-base/70 dark:text-dark-subtext">
-                      {item.creator || item.author || ''}
-                    </div>
+                    <span aria-hidden="true">{emoji}</span>
+                    <span className="ml-auto">{item.creator || item.author || ''}</span>
                   </div>
-                  
-                  <h3 className="text-xl font-bold text-dark-base dark:text-dark-text-white mb-3">
+
+                  <h3 className="mb-3 text-xl font-semibold tracking-tight text-foreground">
                     <a
                       href={item.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-sky-blue dark:hover:text-lavender transition"
+                      className="hover:underline"
                     >
                       {item.title}
                     </a>
                   </h3>
-                  
-                  <div className="text-dark-base dark:text-dark-text text-sm leading-relaxed mb-4">
+
+                  <div className="mb-4 text-sm leading-relaxed text-muted-foreground">
                     {showFullContent
                       ? <div dangerouslySetInnerHTML={{ __html: item.content || item.contentSnippet || item.description || '' }} />
                       : truncateText(stripHtml(item.content || item.contentSnippet || item.description || ''), 250)
                     }
                   </div>
-                  
-                  <div className="flex">
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <a
                       href={item.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 rounded-full bg-lavender/50 dark:bg-dark-gradient-start/50 text-dark-base dark:text-dark-text-white text-sm font-medium hover:bg-lavender dark:hover:bg-dark-gradient-start transition-colors"
+                      className="inline-flex items-center rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
                     >
-                      Read full article
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
+                      Read full article <span className="ml-1" aria-hidden="true">↗</span>
                     </a>
-                    
-                    {/* Categories Pills */}
                     <div className="ml-auto flex flex-wrap gap-2">
                       {categories.slice(0, 2).map((category, catIndex) => (
-                        <span 
+                        <span
                           key={catIndex}
-                          className="text-xs px-2 py-1 rounded-full bg-white/30 dark:bg-dark-gradient-end/30 text-dark-base dark:text-dark-subtext"
+                          className="instinct-tag rounded-full border px-2 py-0.5 text-xs"
                         >
                           {category}
                         </span>
                       ))}
                       {categories.length > 2 && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-white/30 dark:bg-dark-gradient-end/30 text-dark-base dark:text-dark-subtext">
+                        <span className="instinct-tag rounded-full border px-2 py-0.5 text-xs">
                           +{categories.length - 2}
                         </span>
                       )}
@@ -298,11 +226,8 @@ const RssFeed = ({
           </div>
         )
       ) : (
-        <div className="text-center py-12 bg-white/20 dark:bg-dark-card/20 backdrop-blur-md rounded-xl border border-white/10 dark:border-dark-text/10">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-lavender/60 dark:text-dark-subtext/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-          </svg>
-          <p className="mt-4 text-dark-base dark:text-dark-subtext font-medium">No feed items found</p>
+        <div className="rounded-xl border border-dashed border-border py-12 text-center">
+          <p className="font-medium text-muted-foreground">No feed items found</p>
         </div>
       )}
     </div>

@@ -81,42 +81,38 @@ const ToastItem = ({ toast, dismiss }) => {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  // Solid left accent per variant so error/warning/success/info differ at a glance.
   const getStatusConfig = () => {
     switch (status) {
       case 'success':
         return {
           icon: <FaCheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />,
-          gradient: 'from-green-400/20 to-green-500/30 dark:from-green-500/40 dark:to-green-400/30',
-          border: 'border-green-500/30 dark:border-green-400/30',
+          accent: 'border-l-green-600 dark:border-l-green-400',
           iconBg: 'bg-green-100 dark:bg-green-900/50',
         };
       case 'error':
         return {
           icon: <FaExclamationCircle className="w-5 h-5 text-red-500 dark:text-red-400" />,
-          gradient: 'from-red-400/20 to-red-500/30 dark:from-red-500/40 dark:to-red-400/30',
-          border: 'border-red-500/30 dark:border-red-400/30',
+          accent: 'border-l-red-600 dark:border-l-red-400',
           iconBg: 'bg-red-100 dark:bg-red-900/50',
         };
       case 'warning':
         return {
-          icon: <FaExclamationTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />,
-          gradient: 'from-yellow-400/20 to-yellow-500/30 dark:from-yellow-500/40 dark:to-yellow-400/30',
-          border: 'border-yellow-500/30 dark:border-yellow-400/30',
-          iconBg: 'bg-yellow-100 dark:bg-yellow-900/50',
+          icon: <FaExclamationTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
+          accent: 'border-l-amber-500 dark:border-l-amber-400',
+          iconBg: 'bg-amber-100 dark:bg-amber-900/50',
         };
       case 'info':
         return {
-          icon: <FaInfoCircle className="w-5 h-5 text-blue-500 dark:text-blue-400" />,
-          gradient: 'from-blue-400/20 to-blue-500/30 dark:from-blue-500/40 dark:to-blue-400/30',
-          border: 'border-blue-500/30 dark:border-blue-400/30',
+          icon: <FaInfoCircle className="w-5 h-5 text-[color:var(--accent-blue)]" />,
+          accent: 'border-l-[color:var(--accent-blue)]',
           iconBg: 'bg-blue-100 dark:bg-blue-900/50',
         };
       default:
         return {
-          icon: <FaInfoCircle className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />,
-          gradient: 'from-indigo-400/20 to-purple-500/30 dark:from-indigo-500/40 dark:to-purple-400/30',
-          border: 'border-indigo-500/30 dark:border-indigo-400/30',
-          iconBg: 'bg-indigo-100 dark:bg-indigo-900/50',
+          icon: <FaInfoCircle className="w-5 h-5 text-[color:var(--accent-brand)]" />,
+          accent: 'border-l-[color:var(--accent-brand)]',
+          iconBg: 'bg-muted',
         };
     }
   };
@@ -126,26 +122,23 @@ const ToastItem = ({ toast, dismiss }) => {
 
   return (
     <div
-      className={`backdrop-blur-xs bg-white/70 dark:bg-dark-card/70 border ${config.border}
-      bg-linear-to-r ${config.gradient} rounded-xl shadow-lg overflow-hidden flex items-start p-3
-      transition-all duration-200 ease-out
+      className={`border border-border border-l-4 ${config.accent} bg-card
+      rounded-md shadow-sm overflow-hidden flex items-start p-3
+      transition-all duration-200 ease-out motion-reduce:transition-none
       ${visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-3 scale-95'}`}
       role="alert"
     >
       <div className={`shrink-0 p-1.5 rounded-full mr-3 ${config.iconBg}`}>{config.icon}</div>
 
       <div className="grow min-w-0">
-        <h3 className="font-semibold text-gray-800 dark:text-white truncate">{title}</h3>
-        {description && (
-          <p className="text-sm mt-0.5 text-gray-600 dark:text-gray-300">{description}</p>
-        )}
+        <h3 className="font-semibold text-foreground truncate">{title}</h3>
+        {description && <p className="text-sm mt-0.5 text-muted-foreground">{description}</p>}
       </div>
 
       {isClosable && (
         <button
           type="button"
-          className="ml-2 shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:text-gray-500
-          dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+          className="ml-2 shrink-0 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           onClick={() => dismiss(id)}
           aria-label="Close"
         >

@@ -1,23 +1,19 @@
-/* Base Calendar Styles */
+/*
+ * react-calendar on the design tokens (globals.css). Colours come from the
+ * token variables, which switch with the .dark class, so no per-theme
+ * colour overrides are needed here.
+ */
 .react-calendar {
 	width: 100%;
 	max-width: 100%;
-	background-color: white;
-	border-radius: 8px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+	background-color: hsl(var(--card));
+	color: hsl(var(--card-foreground));
+	border-radius: var(--radius);
 	padding: 16px;
-	font-family:
-		system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-	color: #333; /* Explicit light mode text color */
+	font-family: inherit;
 }
 
-.dark .react-calendar {
-	background-color: #2d2b38;
-	color: #e4e0ed;
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-}
-
-/* Navigation Buttons */
+/* Navigation */
 .react-calendar__navigation {
 	display: flex;
 	margin-bottom: 16px;
@@ -28,50 +24,36 @@
 	background: none;
 	font-size: 1rem;
 	padding: 8px;
-	border-radius: 6px;
-	color: #333 !important; /* Fix for light mode visibility */
+	border-radius: var(--radius);
+	color: hsl(var(--foreground));
 	border: none;
-}
-
-.dark .react-calendar__navigation button {
-	color: #e4e0ed !important;
 }
 
 .react-calendar__navigation button:enabled:hover,
 .react-calendar__navigation button:enabled:focus {
-	background-color: #f0f0f0;
+	background-color: hsl(var(--accent));
 }
 
-.dark .react-calendar__navigation button:enabled:hover,
-.dark .react-calendar__navigation button:enabled:focus {
-	background-color: #3d3b48;
-}
-
-/* Navigation Labels (Month/Year) */
 .react-calendar__navigation__label {
-	color: #333 !important; /* Fix for light mode */
+	color: hsl(var(--foreground));
 }
 
-.dark .react-calendar__navigation__label {
-	color: #e4e0ed !important;
-}
-
-/* Month View */
+/* Month view */
 .react-calendar__month-view__weekdays {
 	text-align: center;
 	text-transform: uppercase;
-	font-weight: bold;
+	font-weight: 600;
 	font-size: 0.75rem;
 	margin-bottom: 8px;
 }
 
 .react-calendar__month-view__weekdays__weekday {
 	padding: 8px;
-	color: #333 !important; /* Fix for light mode visibility */
+	color: hsl(var(--muted-foreground));
 }
 
-.dark .react-calendar__month-view__weekdays__weekday {
-	color: #e4e0ed !important;
+.react-calendar__month-view__weekdays__weekday abbr {
+	text-decoration: none;
 }
 
 .react-calendar__month-view__days__day {
@@ -79,97 +61,72 @@
 	position: relative;
 }
 
-/* Day Tiles */
+/* Day tiles */
 .react-calendar__tile {
 	text-align: center;
 	padding: 12px 6px;
 	background: none;
-	border-radius: 6px;
+	border-radius: var(--radius);
 	position: relative;
-	color: #333 !important; /* Critical fix for light mode text visibility */
+	color: hsl(var(--foreground));
 	border: none;
 }
 
-.dark .react-calendar__tile {
-	color: #e4e0ed !important;
+.react-calendar__tile.react-calendar__month-view__days__day--neighboringMonth {
+	color: hsl(var(--muted-foreground));
 }
 
-/* Ensure abbr elements (day numbers) inherit color */
 .react-calendar__tile abbr {
-	color: inherit !important;
+	color: inherit;
 	text-decoration: none;
 }
 
 .react-calendar__tile:enabled:hover,
 .react-calendar__tile:enabled:focus {
-	background-color: #f0f0f0;
-	color: #333 !important;
+	background-color: hsl(var(--accent));
+	color: hsl(var(--foreground));
 }
 
-.dark .react-calendar__tile:enabled:hover,
-.dark .react-calendar__tile:enabled:focus {
-	background-color: #3d3b48;
-	color: #e4e0ed !important;
-}
-
-/* Highlight styles for dates with content */
 .react-calendar__tile.highlight {
-	font-weight: bold;
-	border: 1px solid rgba(0, 0, 0, 0.1);
+	font-weight: 600;
+	border: 1px solid hsl(var(--border));
 }
 
-.dark .react-calendar__tile.highlight {
-	border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Today's date */
+/* Today */
 .react-calendar__tile--now {
-	background-color: rgba(66, 153, 225, 0.2);
-	color: #333 !important;
+	background-color: color-mix(in srgb, var(--accent-brand) 14%, transparent);
+	color: hsl(var(--foreground));
 }
 
-.dark .react-calendar__tile--now {
-	background-color: rgba(66, 153, 225, 0.3);
-	color: #e4e0ed !important;
+/* Selected day: solid brand fill with white text in both themes. These come
+   after the hover/focus rules at equal or higher specificity so a clicked
+   (focused) tile keeps them. */
+.react-calendar .react-calendar__tile--active,
+.calendar-responsive .react-calendar__tile--active {
+	background-color: var(--accent-brand-solid);
+	color: #fff;
 }
 
-/* Selected date */
-.react-calendar__tile--active {
-	background-color: #007bff !important;
-	color: white !important;
+.react-calendar .react-calendar__tile--active:enabled:hover,
+.react-calendar .react-calendar__tile--active:enabled:focus {
+	background-color: color-mix(in srgb, var(--accent-brand-solid) 88%, black);
+	color: #fff;
 }
 
-.dark .react-calendar__tile--active {
-	background-color: #5d4e8c !important;
-	color: white !important;
-}
-
-.react-calendar__tile--active:enabled:hover,
-.react-calendar__tile--active:enabled:focus {
-	background-color: #0069d9 !important;
-	color: white !important;
-}
-
-.dark .react-calendar__tile--active:enabled:hover,
-.dark .react-calendar__tile--active:enabled:focus {
-	background-color: #6e5ca6 !important;
-	color: white !important;
-}
-
-/* Styles for different indicator types */
+/* Indicator variants */
 .react-calendar__tile.post-indicator {
-	border-bottom: 3px solid #3b82f6; /* Blue for posts */
+	border-bottom: 3px solid var(--accent-blue);
 }
 
 .react-calendar__tile.event-indicator {
-	border-bottom: 3px solid #10b981; /* Green for events */
+	border-bottom: 3px solid #10b981;
 }
 
 .react-calendar__tile.both-indicators {
-	border-bottom: 3px solid #8b5cf6; /* Purple for both */
+	border-bottom: 3px solid var(--accent-brand);
 }
 
-/* Mobile-first responsive calendar */
+/* Responsive sizing (layout only; colours come from the rules above) */
 .calendar-responsive .react-calendar {
 	width: 100% !important;
 	font-size: 0.875rem;
@@ -185,22 +142,12 @@
 	align-items: center;
 	justify-content: center;
 	position: relative;
-	color: #333 !important; /* Ensure mobile text visibility */
-}
-
-.dark .calendar-responsive .react-calendar__tile {
-	color: #e4e0ed !important;
 }
 
 .calendar-responsive .react-calendar__navigation button {
 	font-size: 0.875rem !important;
 	padding: 0.5rem !important;
 	min-height: 2.75rem;
-	color: #333 !important;
-}
-
-.dark .calendar-responsive .react-calendar__navigation button {
-	color: #e4e0ed !important;
 }
 
 .calendar-responsive .react-calendar__month-view__weekdays {
@@ -209,14 +156,8 @@
 
 .calendar-responsive .react-calendar__month-view__weekdays__weekday {
 	padding: 0.5rem 0.25rem !important;
-	color: #333 !important;
 }
 
-.dark .calendar-responsive .react-calendar__month-view__weekdays__weekday {
-	color: #e4e0ed !important;
-}
-
-/* Tablet breakpoint */
 @media (min-width: 640px) {
 	.calendar-responsive .react-calendar {
 		font-size: 0.875rem;
@@ -234,7 +175,6 @@
 	}
 }
 
-/* Desktop breakpoint */
 @media (min-width: 1024px) {
 	.calendar-responsive .react-calendar {
 		font-size: 1rem;
@@ -246,43 +186,3 @@
 		padding: 0.75rem !important;
 	}
 }
-
-/* Fix for calendar container backdrop blur */
-.calendar-responsive {
-	backdrop-filter: blur(4px);
-}
-
-/* Ensure all calendar text elements have proper contrast */
-.calendar-responsive .react-calendar *:not(.react-calendar__tile--active) {
-	color: inherit !important;
-}
-
-/* Override any inherited transparent text */
-.react-calendar__tile:not(.react-calendar__tile--active),
-.react-calendar__navigation button,
-.react-calendar__month-view__weekdays__weekday,
-.react-calendar__navigation__label {
-	color: #333 !important;
-}
-
-.dark .react-calendar__tile:not(.react-calendar__tile--active),
-.dark .react-calendar__navigation button,
-.dark .react-calendar__month-view__weekdays__weekday,
-.dark .react-calendar__navigation__label {
-	color: #e4e0ed !important;
-}
-
-/* Additional specificity for stubborn text elements */
-.calendar-responsive .react-calendar__navigation__label__labelText {
-	color: inherit !important;
-}
-
-/* Ensure proper contrast with backdrop effects */
-.calendar-responsive .react-calendar {
-	background-color: rgba(255, 255, 255, 0.95) !important;
-}
-
-.dark .calendar-responsive .react-calendar {
-	background-color: rgba(45, 43, 56, 0.95) !important;
-}
-
