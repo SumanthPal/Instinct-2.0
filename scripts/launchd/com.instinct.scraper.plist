@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
 Runs the daily scrape 4 times a day (9:00, 13:00, 17:00, 21:00 local).
+CHROME_BIN must be set in backend/.env (e.g. the Chrome binary inside
+/Applications/Google Chrome.app); without it every run fails. HEADLESS
+defaults to true, so under launchd Chrome runs headless unless .env says
+HEADLESS=false.
+
 Install (replace __REPO__ with the absolute path of your checkout):
 
   sed "s#__REPO__#$PWD#g" scripts/launchd/com.instinct.scraper.plist \

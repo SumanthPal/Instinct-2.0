@@ -10,7 +10,8 @@ the Instagram session (see scripts/launchd/). Each run:
   back of the line instead of being picked first forever,
 - never goes past --daily-cap clubs per calendar day, and
 - after a challenge, checkpoint, rate limit or dead browser, stops and skips
-  every remaining run that day.
+  every remaining run that day. Any other error (CHROME_BIN unset, a locked
+  Chrome profile, Supabase) fails only this run; the next run tries again.
 
 A club with no new posts costs one profile load: only posts that are not
 already scraped get opened.
@@ -69,11 +70,11 @@ def clubs_due(limit: int) -> list:
 
 
 def mark_scraped(handle: str) -> None:
-    from instinct.db.queries import SupabaseQueries
+    from instinct.db.queries import SupabaseQueries, _like_literal
 
     SupabaseQueries().supabase.table("clubs").update(
         {"last_scraped": datetime.datetime.now().isoformat()}
-    ).ilike("instagram_handle", handle).execute()
+    ).ilike("instagram_handle", _like_literal(handle)).execute()
 
 
 def notify(message: str) -> None:
@@ -113,7 +114,14 @@ def run(clubs: int, daily_cap: int, *, dry_run: bool, state_path: Path) -> int:
         state["scraped"] += 1
         save_state(state_path, state)
 
-    failed, stopped = run_session(handles, dry_run=dry_run, on_attempted=on_attempted)
+    try:
+        failed, stopped = run_session(
+            handles, dry_run=dry_run, on_attempted=on_attempted
+        )
+    except Exception as exc:
+        # Not an Instagram stop, so the next scheduled run tries again.
+        notify(f"Scraper run failed (will retry next run): {exc}")
+        return 1
     if stopped:
         state["stopped"] = stopped
         save_state(state_path, state)

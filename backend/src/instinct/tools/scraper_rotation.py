@@ -1233,9 +1233,11 @@ def run_session(
 ) -> Tuple[List[str], Optional[str]]:
     """Scrape clubs on one browser session and one login.
 
-    Returns (failed handles, stop reason). The stop reason is set when a
-    challenge, checkpoint, rate limit or dead browser ended the run early;
-    nothing is retried and accounts are never switched. on_attempted is
+    Returns (failed handles, stop reason). The stop reason is set only when
+    Instagram or the browser ended the run early: a login, challenge or
+    checkpoint page, a rate limit, or a dead browser. Any other error (a bad
+    config, a locked Chrome profile, Supabase) is raised to the caller.
+    Nothing is retried and accounts are never switched. on_attempted is
     called after each club that was tried without hitting a stop.
     """
     from instinct.db.queries import normalize_handle
@@ -1262,10 +1264,16 @@ def run_session(
                 scrape_one(scraper, instagram_handle, dry_run=dry_run)
             except InstagramLoginError, RateLimitDetected:
                 raise
-            except WebDriverException:
+            except WebDriverException as exc:
                 # The browser itself is gone; the next club would fail too.
-                raise
+                logger.error(f"Scrape stopped without retrying: {exc}")
+                return failed, f"browser died: {exc}"
             except Exception as exc:
+                # get_club_info quits the driver on a WebDriverException and
+                # returns None, so a dead browser only shows up here.
+                if scraper._driver is None:
+                    logger.error(f"Browser died on {instagram_handle}; stopping.")
+                    return failed, "browser died"
                 # Not a challenge or rate limit, so move on to the next club.
                 logger.error(f"Scrape failed for {instagram_handle}; continuing: {exc}")
                 failed.append(instagram_handle)
@@ -1278,9 +1286,6 @@ def run_session(
     except (InstagramLoginError, RateLimitDetected) as exc:
         logger.error(f"Scrape stopped without retrying: {exc}")
         return failed, str(exc) or type(exc).__name__
-    except Exception as exc:
-        logger.error(f"Scrape stopped without retrying: {exc}")
-        return failed, str(exc) or type(exc).__name__
     finally:
         if scraper:
             scraper._driver_quit()
@@ -1288,7 +1293,11 @@ def run_session(
 
 def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
     """Scrape a few clubs on one browser session and exit; True if all worked."""
-    failed, stopped = run_session(instagram_handles, dry_run=dry_run)
+    try:
+        failed, stopped = run_session(instagram_handles, dry_run=dry_run)
+    except Exception as exc:
+        logger.error(f"One-shot scrape failed without retrying: {exc}")
+        return False
     return not failed and not stopped
 
 

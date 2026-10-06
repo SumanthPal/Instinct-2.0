@@ -12,8 +12,8 @@ TODAY = datetime.date.today().isoformat()
 
 @pytest.fixture
 def fake(monkeypatch, tmp_path):
-    calls = {"due": None, "session": None, "marked": []}
-    result = {"failed": [], "stopped": None}
+    calls = {"due": None, "session": None, "marked": [], "notes": []}
+    result = {"failed": [], "stopped": None, "error": None}
 
     def clubs_due(limit):
         calls["due"] = limit
@@ -21,13 +21,15 @@ def fake(monkeypatch, tmp_path):
 
     def run_session(handles, *, dry_run, on_attempted):
         calls["session"] = list(handles)
+        if result["error"]:
+            raise result["error"]
         for handle in handles:
             on_attempted(handle)
         return result["failed"], result["stopped"]
 
     monkeypatch.setattr(daily_scrape, "clubs_due", clubs_due)
     monkeypatch.setattr(daily_scrape, "mark_scraped", calls["marked"].append)
-    monkeypatch.setattr(daily_scrape, "notify", lambda message: None)
+    monkeypatch.setattr(daily_scrape, "notify", calls["notes"].append)
     monkeypatch.setattr(scraper_rotation, "run_session", run_session)
     return calls, result, tmp_path / "state.json"
 
@@ -72,6 +74,70 @@ def test_stop_skips_rest_of_day(fake):
     calls["session"] = None
     assert daily_scrape.run(3, 200, dry_run=False, state_path=state) == 0
     assert calls["session"] is None
+
+
+def test_other_error_fails_run_but_not_the_day(fake):
+    calls, result, state = fake
+    result["error"] = RuntimeError("CHROME_BIN is unset")
+    assert daily_scrape.run(3, 200, dry_run=False, state_path=state) == 1
+    assert "CHROME_BIN is unset" in calls["notes"][0]
+    assert not state.exists()
+    result["error"] = None
+    assert daily_scrape.run(3, 200, dry_run=False, state_path=state) == 0
+    assert json.loads(state.read_text())["stopped"] is None
+
+
+def test_mark_scraped_escapes_wildcards(monkeypatch):
+    from instinct.db import queries
+
+    seen = []
+
+    class Table:
+        def update(self, values):
+            return self
+
+        def ilike(self, column, pattern):
+            seen.append(pattern)
+            return self
+
+        def execute(self):
+            pass
+
+    class Queries:
+        supabase = type("Client", (), {"table": lambda self, name: Table()})()
+
+    monkeypatch.setattr(queries, "SupabaseQueries", Queries)
+    daily_scrape.mark_scraped("acm_uci")
+    assert seen == ["acm\\_uci"]
+
+
+def test_dead_browser_stops_session(monkeypatch):
+    from instinct.tools import insta_scraper
+
+    class DyingScraper:
+        def __init__(self, *args):
+            self._driver = object()
+
+        def login(self):
+            pass
+
+        def _driver_quit(self):
+            self._driver = None
+
+    def scrape_one(scraper, handle, *, dry_run):
+        if handle == "b":
+            scraper._driver_quit()  # what get_club_info does on WebDriverException
+        raise RuntimeError(f"Could not load {handle}")
+
+    attempted = []
+    monkeypatch.setattr(insta_scraper, "InstagramScraper", DyingScraper)
+    monkeypatch.setattr(scraper_rotation, "scrape_one", scrape_one)
+    monkeypatch.setattr(scraper_rotation.time, "sleep", lambda seconds: None)
+    failed, stopped = scraper_rotation.run_session(
+        ["a", "b", "c"], dry_run=True, on_attempted=attempted.append
+    )
+    assert (failed, stopped) == (["a"], "browser died")
+    assert attempted == ["a"]
 
 
 def test_dry_run_writes_nothing(fake):
