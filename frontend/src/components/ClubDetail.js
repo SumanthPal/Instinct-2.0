@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FiArrowLeft } from "react-icons/fi";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
@@ -19,7 +19,9 @@ import ClubProfileTabs, {
 import ClubPostGrid from "@/components/club-profile/ClubPostGrid";
 import ClubEventsPanel from "@/components/club-profile/ClubEventsPanel";
 import ClubSimilarClubs from "@/components/club-profile/ClubSimilarClubs";
-import ClubImageModal from "@/components/club-profile/ClubImageModal";
+import PostViewer from "@/components/club-profile/post-viewer/PostViewer";
+import { eventsByPost } from "@/components/club-profile/post-viewer/post-utils";
+import { usePostParam } from "@/components/club-profile/post-viewer/usePostParam";
 
 function normalizeList(input) {
   if (input?.results && Array.isArray(input.results)) return input.results;
@@ -43,9 +45,8 @@ export default function ClubDetail({
   const [similarClubs, setSimilarClubs] = useState([]);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedImageData, setSelectedImageData] = useState(null);
+  const postEvents = useMemo(() => eventsByPost(clubEvents), [clubEvents]);
+  const viewer = usePostParam(clubPosts);
   const [extraCategories, setExtraCategories] = useState(() =>
     categoryNames(clubData?.categories),
   );
@@ -110,17 +111,20 @@ export default function ClubDetail({
     fetchSimilar();
   }, [clubData]);
 
-  const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedImage(null);
-    setSelectedImageData(null);
-  }, []);
+  const { open: openPost, close: closePost } = viewer;
+  const handlePostIndex = useCallback(
+    (i) => openPost(clubPosts[i]?.id),
+    [openPost, clubPosts],
+  );
+  const showEvents = useCallback(() => {
+    closePost();
+    setTab("events");
+  }, [closePost]);
 
-  const handleImageClick = (imageUrl, imageData = null) => {
-    if (!imageUrl) return;
-    setSelectedImage(imageUrl);
-    setSelectedImageData(imageData);
-    setIsModalOpen(true);
+  // Events tab: an event's image opens the post it was parsed from.
+  const handleEventImageClick = (_imageUrl, item) => {
+    const id = item?.post_id ?? item?.id;
+    if (clubPosts.some((p) => String(p.id) === String(id))) openPost(id);
   };
 
   const handleFavoriteToggle = async (e) => {
@@ -193,7 +197,11 @@ export default function ClubDetail({
 
       <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)}>
         {tab === "posts" ? (
-          <ClubPostGrid posts={clubPosts} onImageClick={handleImageClick} />
+          <ClubPostGrid
+            posts={clubPosts}
+            handle={clubData.instagram_handle}
+            onOpen={(post) => openPost(post.id)}
+          />
         ) : (
           <ClubEventsPanel
             clubData={clubData}
@@ -202,18 +210,21 @@ export default function ClubDetail({
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
             calendarUrl={calendarUrl}
-            onImageClick={handleImageClick}
+            onImageClick={handleEventImageClick}
           />
         )}
       </div>
 
       <ClubSimilarClubs clubs={similarClubs} />
 
-      <ClubImageModal
-        open={isModalOpen}
-        imageUrl={selectedImage}
-        imageData={selectedImageData}
-        onClose={closeModal}
+      <PostViewer
+        posts={clubPosts}
+        index={viewer.index}
+        club={clubData}
+        eventsByPost={postEvents}
+        onIndexChange={handlePostIndex}
+        onClose={closePost}
+        onShowEvents={showEvents}
       />
     </div>
   );
