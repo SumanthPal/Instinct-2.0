@@ -6,7 +6,7 @@ import random
 import dotenv
 import threading
 from pathlib import Path
-from typing import List, Dict
+from typing import Callable, Dict, List, Optional, Tuple
 import schedule
 import json
 
@@ -1203,20 +1203,47 @@ def scrape_one(scraper, instagram_handle: str, *, dry_run: bool) -> None:
         )
     elif not scraper.store_club_data(instagram_handle):
         raise RuntimeError(f"Scrape failed for {instagram_handle}")
+    else:
+        parse_events(instagram_handle)
 
 
-def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
-    """Scrape a few clubs on one browser session and exit.
+def parse_events(instagram_handle: str) -> None:
+    """Turn the club's unparsed captions into events and rebuild its calendar.
 
-    The browser starts and logs in once, every club reuses that same window,
-    and the first failure stops the whole run. This path never starts the
-    rotation loop, never retries and never switches accounts.
+    Runs after a successful scrape. It makes no Instagram requests, so an
+    OpenAI or calendar error is logged and never fails the scrape.
+    """
+    if not os.getenv("OPENAI_API_KEY"):
+        logger.warning(
+            f"OPENAI_API_KEY unset; skipping event parsing for {instagram_handle}"
+        )
+        return
+    try:
+        EventParser().parse_all_posts(instagram_handle)
+        CalendarConnection().create_calendar_file(instagram_handle)
+    except Exception as exc:
+        logger.error(f"Event parsing failed for {instagram_handle}: {exc}")
+
+
+def run_session(
+    instagram_handles: List[str],
+    *,
+    dry_run: bool = False,
+    on_attempted: Optional[Callable[[str], None]] = None,
+) -> Tuple[List[str], Optional[str]]:
+    """Scrape clubs on one browser session and one login.
+
+    Returns (failed handles, stop reason). The stop reason is set when a
+    challenge, checkpoint, rate limit or dead browser ended the run early;
+    nothing is retried and accounts are never switched. on_attempted is
+    called after each club that was tried without hitting a stop.
     """
     from instinct.db.queries import normalize_handle
     from instinct.tools.insta_scraper import InstagramScraper
     from instinct.storage import get_storage
 
     scraper = None
+    failed: List[str] = []
     try:
         scraper = InstagramScraper(
             os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
@@ -1226,7 +1253,6 @@ def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
         handles = list(
             dict.fromkeys(filter(None, map(normalize_handle, instagram_handles)))
         )
-        failed = []
         for index, instagram_handle in enumerate(handles):
             if index > 0:
                 delay = random.uniform(*ONCE_CLUB_DELAY_SECONDS)
@@ -1243,19 +1269,27 @@ def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
                 # Not a challenge or rate limit, so move on to the next club.
                 logger.error(f"Scrape failed for {instagram_handle}; continuing: {exc}")
                 failed.append(instagram_handle)
+            if on_attempted:
+                on_attempted(instagram_handle)
         logger.info(get_storage().report())
         if failed:
-            logger.error(f"One-shot scrape failed for: {', '.join(failed)}")
-        return not failed
+            logger.error(f"Scrape failed for: {', '.join(failed)}")
+        return failed, None
     except (InstagramLoginError, RateLimitDetected) as exc:
-        logger.error(f"One-shot scrape stopped without retrying: {exc}")
-        return False
+        logger.error(f"Scrape stopped without retrying: {exc}")
+        return failed, str(exc) or type(exc).__name__
     except Exception as exc:
-        logger.error(f"One-shot scrape failed without retrying: {exc}")
-        return False
+        logger.error(f"Scrape stopped without retrying: {exc}")
+        return failed, str(exc) or type(exc).__name__
     finally:
         if scraper:
             scraper._driver_quit()
+
+
+def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
+    """Scrape a few clubs on one browser session and exit; True if all worked."""
+    failed, stopped = run_session(instagram_handles, dry_run=dry_run)
+    return not failed and not stopped
 
 
 def main() -> int:
