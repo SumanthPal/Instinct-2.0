@@ -282,7 +282,7 @@
   color: hsl(var(--muted-foreground));
   background: transparent;
 }
-.instinct-chip:hover {
+.instinct-chip:not(.instinct-chip-active):hover {
   color: hsl(var(--foreground));
   border-color: hsl(var(--foreground) / 0.25);
 }

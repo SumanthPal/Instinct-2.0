@@ -1,161 +1,116 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
-import { 
-  fetchClubManifest, 
-  fetchSmartSearch, 
+import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  fetchClubManifest,
+  fetchSmartSearch,
   fetchHybridSearch,
-  fetchMoreClubs, 
-  fetchClubsByCategory 
+  fetchMoreClubs,
+  fetchClubsByCategory
 } from '@/lib/api';
 
-export function useClubsData(initialClubs, totalCount, hasMore, currentPage, user) {
+const PAGE_SIZE = 20;
+
+// One place that knows which endpoint serves a given query/category/page.
+async function fetchClubsPage({ query, category, page, hybrid, semanticWeight }) {
+  if (query) {
+    if (hybrid) {
+      try {
+        return await fetchHybridSearch(query, page, PAGE_SIZE, category, semanticWeight);
+      } catch (error) {
+        console.error("Hybrid search failed, falling back to smart search:", error);
+      }
+    }
+    return fetchSmartSearch(query, page, PAGE_SIZE);
+  }
+  if (category) {
+    return page === 1
+      ? fetchClubsByCategory(category, 1, PAGE_SIZE)
+      : fetchMoreClubs(page, PAGE_SIZE, category);
+  }
+  return page === 1
+    ? fetchClubManifest(1, PAGE_SIZE)
+    : fetchMoreClubs(page, PAGE_SIZE, null);
+}
+
+/**
+ * Club list state for /clubs.
+ *
+ * `initialSearch` seeds the query (from /clubs?search=...) so the very first
+ * fetch already uses it. Every fetch takes a request id; a response whose id
+ * is no longer current is dropped, so a slow earlier request can't overwrite
+ * newer results and "load more" can't append to a list that has since changed.
+ */
+export function useClubsData(initialClubs, totalCount, hasMore, currentPage, user, initialSearch = "") {
+  const seededQuery = initialSearch.trim();
   const [clubs, setClubs] = useState(initialClubs || []);
   const [filteredClubs, setFilteredClubs] = useState(initialClubs || []);
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(seededQuery);
+  const [debouncedSearch, setDebouncedSearch] = useState(seededQuery);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [page, setPage] = useState(currentPage || 1);
   const [loading, setLoading] = useState(false);
   const [hasMoreClubs, setHasMoreClubs] = useState(hasMore || false);
   const [totalClubCount, setTotalClubCount] = useState(totalCount || 0);
-  const [semanticWeight, setSemanticWeight] = useState(0.5);
-  
-  // Add a ref to track if we're currently processing a category change
-  const categoryChangeInProgress = useRef(false);
+  const [semanticWeight] = useState(0.5);
 
-  // Search effect - but ONLY run when it's not a category change
+  const requestId = useRef(0);
+  // The caller already fetched page 1 of the unfiltered list; don't refetch it
+  // on mount unless we were seeded with a search.
+  const skipInitialFetch = useRef(Boolean(initialClubs?.length) && !seededQuery);
+
   useEffect(() => {
-    // Skip search effect if category change is in progress
-    if (categoryChangeInProgress.current) {
+    const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 500);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
+  const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
+  // Signing in only changes results for a search (hybrid vs smart), so the
+  // unfiltered list isn't refetched when auth resolves.
+  const hybrid = Boolean(user) && debouncedSearch !== "";
+
+  useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false;
       return;
     }
 
-    const searchClubs = async () => {
-      // If no search input and no categories selected, show all clubs
-      if (searchInput.trim() === "" && selectedCategories.length === 0) {
-        setLoading(true);
-        try {
-          const data = await fetchClubManifest(1, 20);
-          setClubs(data.results);
-          setFilteredClubs(data.results);
-          setPage(1);
-          setTotalClubCount(data.totalCount);
-          setHasMoreClubs(data.hasMore);
-        } catch (error) {
-          console.error("Error resetting clubs:", error);
-        } finally {
-          setLoading(false);
-        }
-        return;
-      }
+    const id = ++requestId.current;
+    const isSearch = debouncedSearch !== "";
+    setLoading(true);
 
-      // If no search input but categories are selected, don't interfere
-      if (searchInput.trim() === "" && selectedCategories.length > 0) {
-        return; // Let category filtering handle this
-      }
-
-      // Only run search if there's actual search input
-      if (searchInput.trim() !== "") {
-        setLoading(true);
-        try {
-          if (user) {
-            try {
-              const data = await fetchHybridSearch(
-                searchInput, 
-                1, 
-                20, 
-                selectedCategories.length === 1 ? selectedCategories[0] : null,
-                semanticWeight
-              );
-              setFilteredClubs(data.results);
-              setTotalClubCount(data.totalCount);
-              setHasMoreClubs(data.hasMore);
-              setPage(data.page);
-            } catch (error) {
-              console.error("Hybrid search failed, falling back to smart search:", error);
-              const data = await fetchSmartSearch(searchInput, 1, 20);
-              setFilteredClubs(data.results);
-              setTotalClubCount(data.totalCount);
-              setHasMoreClubs(data.hasMore);
-              setPage(data.page);
-            }
-          } else {
-            const data = await fetchSmartSearch(searchInput, 1, 20);
-            setFilteredClubs(data.results);
-            setTotalClubCount(data.totalCount);
-            setHasMoreClubs(data.hasMore);
-            setPage(data.page);
-          }
-        } catch (error) {
-          console.error("Error searching clubs:", error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    const timeout = setTimeout(searchClubs, 500);
-    return () => clearTimeout(timeout);
-  }, [searchInput, user, semanticWeight]); // Remove selectedCategories from dependency array
-
-  // Separate effect for category-only changes (when there's no search input)
-  useEffect(() => {
-    const handleCategoryOnlyFilter = async () => {
-      // Only run this effect when there's no search input
-      if (searchInput.trim() !== "") {
-        return;
-      }
-
-      categoryChangeInProgress.current = true;
-      setLoading(true);
-
+    (async () => {
       try {
-        if (selectedCategories.length === 0) {
-          // No categories selected - show all clubs
-          const data = await fetchClubManifest(1, 20);
-          setClubs(data.results);
-          setFilteredClubs(data.results);
-          setPage(1);
-          setTotalClubCount(data.totalCount);
-          setHasMoreClubs(data.hasMore);
-        } else {
-          // Categories selected - filter by category
-          try {
-            const data = await fetchClubsByCategory(selectedCategories[0], 1, 20);
-            setClubs(data.results);
-            setFilteredClubs(data.results);
-            setPage(1);
-            setTotalClubCount(data.totalCount);
-            setHasMoreClubs(data.hasMore);
-          } catch (error) {
-            console.error("Error fetching by category, using local filter:", error);
-            // Fallback to local filtering
-            filterLocalResults(selectedCategories);
-          }
-        }
+        const data = await fetchClubsPage({
+          query: debouncedSearch,
+          category,
+          page: 1,
+          hybrid,
+          semanticWeight,
+        });
+        if (id !== requestId.current) return;
+        if (!isSearch) setClubs(data.results);
+        setFilteredClubs(data.results);
+        setPage(data.page || 1);
+        setTotalClubCount(data.totalCount);
+        setHasMoreClubs(data.hasMore);
       } catch (error) {
-        console.error("Error in category filter:", error);
+        if (id !== requestId.current) return;
+        console.error("Error loading clubs:", error);
+        if (!isSearch && category) filterLocalResults([category]);
       } finally {
-        setLoading(false);
-        // Reset the flag after a short delay to allow the search effect to run normally
-        setTimeout(() => {
-          categoryChangeInProgress.current = false;
-        }, 100);
+        if (id === requestId.current) setLoading(false);
       }
-    };
+    })();
+    // filterLocalResults reads the latest `clubs` and is safe to omit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, category, hybrid, semanticWeight]);
 
-    handleCategoryOnlyFilter();
-  }, [selectedCategories]); // Only depend on selectedCategories
-
-  // Category filtering function - now just updates state
-  const handleCategoryChange = async (categories) => {
-    console.log('handleCategoryChange called with:', categories);
+  const handleCategoryChange = useCallback((categories) => {
     setSelectedCategories(categories);
-    // The actual filtering will be handled by the useEffect above
-  };
+  }, []);
 
-  // Local filtering fallback
+  // Local filtering fallback when the category endpoint fails
   const filterLocalResults = (categories) => {
-    console.log('Local filtering with categories:', categories);
     const filtered = clubs.filter(club => {
       if (!club.categories || club.categories.length === 0) return false;
       return club.categories.some(cat => {
@@ -163,7 +118,6 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
         return categories.includes(categoryName);
       });
     });
-    console.log('Filtered results:', filtered.length, 'out of', clubs.length);
     setFilteredClubs(filtered);
     setTotalClubCount(filtered.length);
     setHasMoreClubs(false); // No more to load when filtering locally
@@ -171,37 +125,29 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
 
   const handleLoadMore = async () => {
     if (loading || !hasMoreClubs) return;
-    
+
+    // Tie this page to the request that produced the current list.
+    const id = requestId.current;
+    const isSearch = debouncedSearch !== "";
+    const nextPage = page + 1;
     setLoading(true);
     try {
-      const nextPage = page + 1;
-      let data;
-      
-      if (searchInput.trim() !== "") {
-        if (user) {
-          try {
-            const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
-            data = await fetchHybridSearch(searchInput, nextPage, 20, category, semanticWeight);
-          } catch (error) {
-            console.error("Hybrid search load more failed:", error);
-            data = await fetchSmartSearch(searchInput, nextPage, 20);
-          }
-        } else {
-          data = await fetchSmartSearch(searchInput, nextPage, 20);
-        }
-      } else {
-        const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
-        data = await fetchMoreClubs(nextPage, 20, category);
-      }
-      
-      setClubs(prev => [...prev, ...data.results]);
+      const data = await fetchClubsPage({
+        query: debouncedSearch,
+        category,
+        page: nextPage,
+        hybrid,
+        semanticWeight,
+      });
+      if (id !== requestId.current) return;
+      if (!isSearch) setClubs(prev => [...prev, ...data.results]);
       setFilteredClubs(prev => [...prev, ...data.results]);
       setHasMoreClubs(data.hasMore);
       setPage(nextPage);
     } catch (error) {
       console.error("Error loading more clubs:", error);
     } finally {
-      setLoading(false);
+      if (id === requestId.current) setLoading(false);
     }
   };
 

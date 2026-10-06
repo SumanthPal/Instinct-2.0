@@ -11,6 +11,7 @@ export default function HomeServer() {
     totalCount: 0,
     hasMore: false,
     currentPage: 1,
+    initialSearch: "",
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,12 +21,16 @@ export default function HomeServer() {
       try {
         setLoading(true);
         const data = await fetchClubManifest(1, 20);
+        // /clubs?search=... (the landing page search submits here)
+        const search =
+          new URLSearchParams(window.location.search).get("search") || "";
 
         setInitialData({
           clubs: data.results || [],
           totalCount: data.totalCount || 0,
           hasMore: data.hasMore || false,
           currentPage: data.page || 1,
+          initialSearch: search.trim(),
         });
       } catch (err) {
         console.error("Failed to fetch club manifest:", err);
@@ -84,6 +89,7 @@ export default function HomeServer() {
       totalCount={initialData.totalCount}
       hasMore={initialData.hasMore}
       currentPage={initialData.currentPage}
+      initialSearch={initialData.initialSearch}
     />
   );
 }

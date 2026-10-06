@@ -7,7 +7,7 @@ const LEGACY_KEY = "isDarkMode";
 
 const DarkModeContext = createContext({
   theme: "system",
-  resolvedTheme: "dark",
+  resolvedTheme: "light",
   isDarkMode: false,
   setTheme: () => {},
   toggleDarkMode: () => {},
@@ -39,10 +39,15 @@ function applyThemeClass(resolved) {
 export function DarkModeProvider({ children }) {
   const [theme, setThemeState] = useState("system");
   const [system, setSystem] = useState("dark");
+  // The inline script in layout.js already set the right class before paint.
+  // Don't touch it until the stored theme has been read, otherwise the
+  // placeholder state above flashes `dark` onto light-theme users.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setThemeState(readStoredTheme());
     setSystem(getSystemTheme());
+    setReady(true);
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => setSystem(mq.matches ? "dark" : "light");
     mq.addEventListener("change", onChange);
@@ -52,8 +57,8 @@ export function DarkModeProvider({ children }) {
   const resolvedTheme = theme === "system" ? system : theme;
 
   useEffect(() => {
-    applyThemeClass(resolvedTheme);
-  }, [resolvedTheme]);
+    if (ready) applyThemeClass(resolvedTheme);
+  }, [ready, resolvedTheme]);
 
   const setTheme = useCallback((next) => {
     setThemeState(next);
@@ -66,8 +71,11 @@ export function DarkModeProvider({ children }) {
   }, []);
 
   const toggleDarkMode = useCallback(() => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark");
-  }, [resolvedTheme, setTheme]);
+    // Read the class actually on <html> so a click before the mount effect
+    // runs still flips the theme the user is looking at.
+    const isDark = document.documentElement.classList.contains("dark");
+    setTheme(isDark ? "light" : "dark");
+  }, [setTheme]);
 
   const value = useMemo(
     () => ({

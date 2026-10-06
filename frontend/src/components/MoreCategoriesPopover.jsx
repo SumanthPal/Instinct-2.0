@@ -36,10 +36,13 @@ export default function MoreCategoriesPopover({
         <button
           type="button"
           data-filter-more
+          aria-label={
+            moreIsActive ? `More categories, ${selected} selected` : undefined
+          }
           className={`${chipClass(moreIsActive)} inline-flex items-center gap-1`}
         >
           {moreIsActive ? selected : "More"}
-          <ChevronDown className="h-3 w-3 opacity-70" />
+          <ChevronDown className="h-3 w-3 opacity-70" aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="center">
