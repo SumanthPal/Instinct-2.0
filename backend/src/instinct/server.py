@@ -413,10 +413,11 @@ async def get_club_data(instagram_handle: str):
                 detail=f"Club with Instagram handle '{instagram_handle}' not found",
             )
 
-        if club.get("profile_image_path"):
-            # Fixed: Use instagram_handle variable, correct path, and add dot before jpg
-            public_url = f"{cdn_base_url()}/pfps/{instagram_handle}.jpg"
-            club["profile_image_url"] = public_url
+        image_path = club.get("profile_image_path")
+        if image_path:
+            # Use the stored path (e.g. pfps/taoxuci.jpg), not the request's
+            # handle, whose case may differ from the object's name.
+            club["profile_image_url"] = f"{cdn_base_url()}/{image_path.lstrip('/')}"
 
         return club
     except HTTPException as http_e:
@@ -430,10 +431,10 @@ async def get_club_data(instagram_handle: str):
 @app.get("/club/{instagram_handle}/posts")
 async def get_club_posts(
     instagram_handle: str,
-    limit: int = Query(20, description="Maximum number of posts to return"),
-    offset: int = Query(0, description="Number of posts to skip"),
+    page: int = Query(1, ge=1, description="Page number, starting from 1"),
+    limit: int = Query(20, ge=1, le=100, description="Number of posts per page"),
 ):
-    """Get posts for a specific club."""
+    """Get one page of a club's posts, newest first."""
     try:
         # Check if club exists
         club = get_db().get_club_by_instagram(instagram_handle)
@@ -447,7 +448,9 @@ async def get_club_posts(
         club_id = club["id"]
 
         # Query posts
-        posts = get_db().get_posts_by_club_id(club_id, limit, offset)
+        offset = (page - 1) * limit
+        result = get_db().get_posts_by_club_id(club_id, limit, offset)
+        posts = result["posts"]
 
         for post in posts:
             if post.get("image_path"):
@@ -462,7 +465,14 @@ async def get_club_posts(
 
                 post["image_url"] = f"{cdn_base_url()}/{post['image_path']}"
 
-        return {"count": len(posts), "results": posts}
+        return {
+            "count": len(posts),
+            "total": result["total"],
+            "results": posts,
+            "hasMore": result["total"] > offset + limit,
+            "page": page,
+            "pages": (result["total"] + limit - 1) // limit,
+        }
     except HTTPException as http_e:
         raise http_e
     except Exception as e:
@@ -628,8 +638,8 @@ async def get_categories():
 @router.get("/smart-search")
 async def smart_search(
     q: str = Query(..., description="Search query"),
-    page: int = Query(1, description="Page number starting from 1"),
-    limit: int = Query(20, description="Number of clubs per page"),
+    page: int = Query(1, ge=1, description="Page number starting from 1"),
+    limit: int = Query(20, ge=1, le=100, description="Number of clubs per page"),
     category: Optional[str] = Query(None, description="Filter by category"),
 ):
     """Optimized full text search with database-level pagination."""
