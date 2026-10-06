@@ -1,6 +1,7 @@
 import {
 	addDays,
 	addMinutes,
+	differenceInCalendarDays,
 	differenceInMinutes,
 	eachDayOfInterval,
 	endOfMonth,
@@ -49,7 +50,8 @@ export function toneFor(categories) {
 	return TONES[best];
 }
 
-function durationMinutes(raw) {
+/** Event length in minutes from parsed.Duration or the API's interval string. */
+export function durationMinutes(raw) {
 	const d = raw.parsed?.Duration;
 	if (d && typeof d === "object") {
 		return (d.days || 0) * 1440 + (d.hours || 0) * 60 + (d.minutes || 0);
@@ -60,6 +62,18 @@ function durationMinutes(raw) {
 		if (m) return (+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0);
 	}
 	return 0;
+}
+
+/**
+ * The API's location column is empty for scraped events, but some event
+ * details say "Location: HIB 110." Use that label when present; never guess
+ * from free text.
+ */
+export function locationOf(raw) {
+	const direct = raw.parsed?.Location || raw.location;
+	if (direct) return String(direct).trim();
+	const m = String(raw.parsed?.Details || raw.details || "").match(/\blocation\s*:\s*([^\n.;]{2,80})/i);
+	return m ? m[1].trim() : "";
 }
 
 /** API row (live or mock) -> the shape the calendar renders. */
@@ -85,7 +99,7 @@ export function normalizeEvent(raw) {
 		postImage: raw.post_image_url || null,
 		title,
 		details,
-		location: raw.parsed?.Location || raw.location || "",
+		location: locationOf(raw),
 		start,
 		end,
 		startMs: start.getTime(),
@@ -101,6 +115,23 @@ export function normalizeEvent(raw) {
 				}
 			: null,
 	};
+}
+
+/**
+ * All-day spans longer than this many days (application windows, "60-day
+ * challenges") are drawn once, on their first day, instead of filling every
+ * day of the calendar for weeks.
+ */
+export const LONG_SPAN_DAYS = 7;
+
+/**
+ * Calendar copy of a long all-day span that occupies only its first day.
+ * The real end stays in `spanEnd` for labels and the .ics download.
+ */
+export function collapseLongSpan(ev) {
+	if (!ev.allDay || differenceInCalendarDays(ev.end, ev.start) <= LONG_SPAN_DAYS) return ev;
+	const end = addDays(startOfDay(ev.start), 1);
+	return { ...ev, end, endMs: end.getTime(), spanEnd: ev.end };
 }
 
 /** True when the event touches calendar day `day`. */
@@ -144,6 +175,10 @@ export function shortTime(d) {
 }
 
 export function timeRange(ev) {
+	if (ev.spanEnd) {
+		const days = Math.round(differenceInMinutes(ev.spanEnd, ev.start) / 1440);
+		return `${format(ev.start, "MMM d")} – ${format(addDays(ev.spanEnd, -1), "MMM d")} · ${days} days`;
+	}
 	if (ev.allDay) {
 		const days = Math.round(differenceInMinutes(ev.end, ev.start) / 1440);
 		return days > 1
@@ -312,25 +347,79 @@ export function timeBucket(ev) {
 	return h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
 }
 
-/** Minimal .ics for "Add to calendar". */
-export function icsHref(ev) {
-	const stamp = (d) => format(d, ev.allDay ? "yyyyMMdd" : "yyyyMMdd'T'HHmmss");
-	const esc = (s) => String(s || "").replace(/[\\,;]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+// America/Los_Angeles rules (US DST since 2007). TZID-qualified times need a
+// matching VTIMEZONE (RFC 5545 3.6.5).
+const ICS_VTIMEZONE = [
+	"BEGIN:VTIMEZONE",
+	"TZID:America/Los_Angeles",
+	"BEGIN:DAYLIGHT",
+	"TZOFFSETFROM:-0800",
+	"TZOFFSETTO:-0700",
+	"TZNAME:PDT",
+	"DTSTART:19700308T020000",
+	"RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU",
+	"END:DAYLIGHT",
+	"BEGIN:STANDARD",
+	"TZOFFSETFROM:-0700",
+	"TZOFFSETTO:-0800",
+	"TZNAME:PST",
+	"DTSTART:19701101T020000",
+	"RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU",
+	"END:STANDARD",
+	"END:VTIMEZONE",
+];
+
+// Lines over 75 octets are folded with CRLF + space (RFC 5545 3.1).
+function foldIcsLine(line) {
+	const enc = new TextEncoder();
+	if (enc.encode(line).length <= 75) return line;
+	const parts = [];
+	let cur = "";
+	let bytes = 0;
+	for (const ch of line) {
+		const n = enc.encode(ch).length;
+		if (bytes + n > (parts.length ? 74 : 75)) {
+			parts.push(cur);
+			cur = "";
+			bytes = 0;
+		}
+		cur += ch;
+		bytes += n;
+	}
+	parts.push(cur);
+	return parts.join("\r\n ");
+}
+
+/**
+ * .ics for "Add to calendar". API times are campus wall-clock times
+ * ("2026-10-06T19:00:00" is 7 PM in Irvine), so timed events carry
+ * TZID=America/Los_Angeles and import at the right moment from any timezone.
+ * All-day events stay DATE values; collapsed long spans export their real end.
+ */
+export function icsHref(ev, now = new Date()) {
+	const end = ev.spanEnd || ev.end;
+	const local = (d) => format(d, "yyyyMMdd'T'HHmmss");
+	const date = (d) => format(d, "yyyyMMdd");
+	const utc = (d) => `${d.toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`;
+	const esc = (s) => String(s || "").replace(/[\\,;]/g, (c) => `\\${c}`).replace(/\r?\n/g, "\\n");
 	const lines = [
 		"BEGIN:VCALENDAR",
 		"VERSION:2.0",
 		"PRODID:-//Instinct//Events//EN",
+		"CALSCALE:GREGORIAN",
+		...(ev.allDay ? [] : ICS_VTIMEZONE),
 		"BEGIN:VEVENT",
 		`UID:${ev.id}@instinct`,
-		`${ev.allDay ? "DTSTART;VALUE=DATE" : "DTSTART"}:${stamp(ev.start)}`,
-		`${ev.allDay ? "DTEND;VALUE=DATE" : "DTEND"}:${stamp(ev.end)}`,
+		`DTSTAMP:${utc(now)}`,
+		ev.allDay ? `DTSTART;VALUE=DATE:${date(ev.start)}` : `DTSTART;TZID=America/Los_Angeles:${local(ev.start)}`,
+		ev.allDay ? `DTEND;VALUE=DATE:${date(end)}` : `DTEND;TZID=America/Los_Angeles:${local(end)}`,
 		`SUMMARY:${esc(ev.title)}`,
 		ev.location ? `LOCATION:${esc(ev.location)}` : null,
 		ev.details ? `DESCRIPTION:${esc(ev.details)}` : null,
 		"END:VEVENT",
 		"END:VCALENDAR",
 	].filter(Boolean);
-	return `data:text/calendar;charset=utf-8,${encodeURIComponent(lines.join("\r\n"))}`;
+	return `data:text/calendar;charset=utf-8,${encodeURIComponent(lines.map(foldIcsLine).join("\r\n"))}`;
 }
 
 /**
