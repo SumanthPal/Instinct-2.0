@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   fetchClubManifest,
   fetchSmartSearch,
-  fetchHybridSearch,
   fetchMoreClubs,
   fetchClubsByCategory
 } from '@/lib/api';
@@ -11,16 +10,9 @@ import {
 const PAGE_SIZE = 20;
 
 // One place that knows which endpoint serves a given query/category/page.
-async function fetchClubsPage({ query, category, page, hybrid, semanticWeight }) {
+async function fetchClubsPage({ query, category, page }) {
   if (query) {
-    if (hybrid) {
-      try {
-        return await fetchHybridSearch(query, page, PAGE_SIZE, category, semanticWeight);
-      } catch (error) {
-        console.error("Hybrid search failed, falling back to smart search:", error);
-      }
-    }
-    return fetchSmartSearch(query, page, PAGE_SIZE);
+    return fetchSmartSearch(query, page, PAGE_SIZE, category);
   }
   if (category) {
     return page === 1
@@ -40,7 +32,7 @@ async function fetchClubsPage({ query, category, page, hybrid, semanticWeight })
  * is no longer current is dropped, so a slow earlier request can't overwrite
  * newer results and "load more" can't append to a list that has since changed.
  */
-export function useClubsData(initialClubs, totalCount, hasMore, currentPage, user, initialSearch = "") {
+export function useClubsData(initialClubs, totalCount, hasMore, currentPage, initialSearch = "") {
   const seededQuery = initialSearch.trim();
   const [clubs, setClubs] = useState(initialClubs || []);
   const [filteredClubs, setFilteredClubs] = useState(initialClubs || []);
@@ -51,7 +43,6 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
   const [loading, setLoading] = useState(false);
   const [hasMoreClubs, setHasMoreClubs] = useState(hasMore || false);
   const [totalClubCount, setTotalClubCount] = useState(totalCount || 0);
-  const [semanticWeight] = useState(0.5);
 
   const requestId = useRef(0);
   // The caller already fetched page 1 of the unfiltered list; don't refetch it
@@ -64,9 +55,6 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
   }, [searchInput]);
 
   const category = selectedCategories.length === 1 ? selectedCategories[0] : null;
-  // Signing in only changes results for a search (hybrid vs smart), so the
-  // unfiltered list isn't refetched when auth resolves.
-  const hybrid = Boolean(user) && debouncedSearch !== "";
 
   useEffect(() => {
     if (skipInitialFetch.current) {
@@ -84,8 +72,6 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
           query: debouncedSearch,
           category,
           page: 1,
-          hybrid,
-          semanticWeight,
         });
         if (id !== requestId.current) return;
         if (!isSearch) setClubs(data.results);
@@ -103,7 +89,7 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
     })();
     // filterLocalResults reads the latest `clubs` and is safe to omit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, category, hybrid, semanticWeight]);
+  }, [debouncedSearch, category]);
 
   const handleCategoryChange = useCallback((categories) => {
     setSelectedCategories(categories);
@@ -136,8 +122,6 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, use
         query: debouncedSearch,
         category,
         page: nextPage,
-        hybrid,
-        semanticWeight,
       });
       if (id !== requestId.current) return;
       if (!isSearch) setClubs(prev => [...prev, ...data.results]);

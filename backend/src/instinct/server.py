@@ -1,4 +1,3 @@
-from instinct.tools.ai_validation import get_embedding
 from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries
 import hmac
@@ -200,7 +199,7 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
 
 
 @router.delete("/pending-club/{pending_id}/reject")
-async def reject_pending_club(pending_id: str, request: Request):
+def reject_pending_club(pending_id: str, request: Request):
     require_internal_token(request)
 
     try:
@@ -220,7 +219,7 @@ async def reject_pending_club(pending_id: str, request: Request):
 
 
 @router.get("/pending-clubs")
-async def list_pending_clubs(
+def list_pending_clubs(
     limit: int = Query(20, description="Number of pending clubs to fetch"),
     offset: int = Query(0, description="Pagination offset"),
 ):
@@ -250,7 +249,7 @@ async def list_pending_clubs(
 
 
 @router.post("/pending-club/{pending_id}/approve")
-async def approve_pending_club(pending_id: str, request: Request):
+def approve_pending_club(pending_id: str, request: Request):
     # 1. Validate admin authentication
     require_internal_token(request)
 
@@ -366,7 +365,7 @@ async def health_check():
 
 
 @app.get("/club")
-async def list_clubs(
+def list_clubs(
     page: int = Query(1, description="Page number, starting from 1"),
     limit: int = Query(20, description="Number of clubs per page"),
     category: Optional[str] = Query(
@@ -403,7 +402,7 @@ async def list_clubs(
 
 
 @app.get("/club/{instagram_handle}")
-async def get_club_data(instagram_handle: str):
+def get_club_data(instagram_handle: str):
     """Get detailed information about a specific club."""
     try:
         club = get_db().get_club_by_instagram(instagram_handle)
@@ -429,7 +428,7 @@ async def get_club_data(instagram_handle: str):
 
 
 @app.get("/club/{instagram_handle}/posts")
-async def get_club_posts(
+def get_club_posts(
     instagram_handle: str,
     page: int = Query(1, ge=1, description="Page number, starting from 1"),
     limit: int = Query(20, ge=1, le=100, description="Number of posts per page"),
@@ -482,7 +481,7 @@ async def get_club_posts(
 
 
 @app.get("/club/{instagram_handle}/events")
-async def get_club_events(
+def get_club_events(
     instagram_handle: str,
     start_date: Optional[datetime] = Query(
         None, description="Filter events after this date"
@@ -531,7 +530,7 @@ async def get_club_events(
 
 
 @app.get("/club/{instagram_handle}/calendar.ics")
-async def get_club_calendar(instagram_handle: str):
+def get_club_calendar(instagram_handle: str):
     """Get calendar file (ICS) for a specific club."""
     try:
         # Check if club exists
@@ -568,7 +567,7 @@ async def get_club_calendar(instagram_handle: str):
 
 
 @app.get("/events/campus-wide")
-async def get_all_campus_events(
+def get_all_campus_events(
     start_date: Optional[datetime] = Query(
         None, description="Filter events after this date"
     ),
@@ -592,7 +591,7 @@ async def get_all_campus_events(
 
 
 @app.get("/club-manifest")
-async def get_club_manifest(
+def get_club_manifest(
     category: Optional[str] = Query(None),
     limit: int = Query(100, description="Max clubs to return"),
     include_categories: bool = Query(False, description="Include category data"),
@@ -621,7 +620,7 @@ async def get_club_manifest(
 
 
 @app.get("/categories")
-async def get_categories():
+def get_categories():
     """Get list of all categories."""
     try:
         # Query categories (implement this in your SupabaseQueries class)
@@ -636,7 +635,7 @@ async def get_categories():
 
 
 @router.get("/smart-search")
-async def smart_search(
+def smart_search(
     q: str = Query(..., description="Search query"),
     page: int = Query(1, ge=1, description="Page number starting from 1"),
     limit: int = Query(20, ge=1, le=100, description="Number of clubs per page"),
@@ -661,77 +660,6 @@ async def smart_search(
         traceback.print_exc()
         return JSONResponse(
             status_code=500, content={"message": f"Error in smart search: {str(e)}"}
-        )
-
-
-@router.get("/hybrid-search")
-async def hybrid_search(
-    q: str = Query(..., description="Search query"),
-    page: int = Query(1, description="Page number starting from 1"),
-    limit: int = Query(20, description="Number of clubs per page"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    semantic_weight: float = Query(0.5, description="Weight for semantic search (0-1)"),
-):
-    """Hybrid search combining full-text and semantic search on clubs."""
-    try:
-        # Get embedding for semantic search
-        query_embedding = get_embedding(q)
-
-        # If embedding fails, fall back to full-text search
-        if not query_embedding:
-            return await smart_search(q, page, limit, category)
-
-        # Normalize weight (ensure it's between 0 and 1)
-        semantic_weight = max(0, min(1, semantic_weight))
-        fulltext_weight = 1 - semantic_weight
-
-        # Prepare the search query using text_search for full-text and vector comparison for semantic
-        # Use a CTE (Common Table Expression) to handle the hybrid search logic
-        response = supabase.rpc(
-            "hybrid_search",
-            {
-                "query_text": q,
-                "query_embedding": query_embedding,
-                "match_threshold": 0.5,  # Adjust as needed
-                "fulltext_weight": fulltext_weight,
-                "semantic_weight": semantic_weight,
-            },
-        ).execute()
-
-        matches = response.data if response.data else []
-
-        # Filter by category if specified
-        if category:
-            matches = [
-                club
-                for club in matches
-                if any(cat["name"] == category for cat in club.get("categories", []))
-            ]
-
-        # Manually paginate results
-        total_matches = len(matches)
-        cdn_prefix = cdn_base_url()
-        start = (page - 1) * limit
-        end = start + limit
-        paginated_matches = matches[start:end]
-
-        for club in paginated_matches:
-            image_path = club.get("profile_image_path")
-            if image_path:
-                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
-
-        return {
-            "count": total_matches,
-            "results": paginated_matches,
-            "hasMore": end < total_matches,
-            "page": page,
-        }
-    except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        return JSONResponse(
-            status_code=500, content={"message": f"Error in hybrid search: {str(e)}"}
         )
 
 

@@ -1,6 +1,5 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
 import SearchSection from "@/components/SearchSection";
@@ -20,7 +19,6 @@ export default function HomeClient({
   initialCategory = "",
 }) {
   const clubsRef = useRef(null);
-  const [user, setUser] = useState(null);
   const [viewMode, setViewMode] = useState("grid");
   const [allCategories, setAllCategories] = useState(categoriesList);
 
@@ -40,7 +38,6 @@ export default function HomeClient({
     totalCount,
     hasMore,
     currentPage,
-    user,
     initialSearch,
   );
 
@@ -60,25 +57,6 @@ export default function HomeClient({
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user || null);
-
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user || null);
-      });
-
-      return () => subscription?.unsubscribe();
-    };
-
-    checkUser();
   }, []);
 
   useEffect(() => {
@@ -146,7 +124,6 @@ export default function HomeClient({
             searchInput={searchInput}
             onSearchChange={handleSearchChange}
             onSearch={handleSearch}
-            user={user}
           />
         </div>
 

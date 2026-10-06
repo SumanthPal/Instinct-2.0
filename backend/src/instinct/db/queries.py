@@ -801,7 +801,6 @@ class SupabaseQueries:
     ) -> Dict:
         """Optimized search with database-level pagination"""
         cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
-        logger.info(f"CDN prefix: {cdn_prefix}")  # Debug log
 
         try:
             # Use RPC for complex search operations
@@ -837,13 +836,9 @@ class SupabaseQueries:
             for club in clubs:
                 image_path = club.get("profile_image_path")
                 if image_path:
-                    original_path = image_path
                     club["profile_image_path"] = (
                         f"{cdn_prefix}/{image_path.lstrip('/')}"
                     )
-                    logger.info(
-                        f"RPC: Transformed {original_path} -> {club['profile_image_path']}"
-                    )  # Debug log
 
             return {"clubs": clubs, "total": total_count}
 
@@ -881,13 +876,9 @@ class SupabaseQueries:
             for club in clubs:
                 image_path = club.get("profile_image_path")
                 if image_path:
-                    original_path = image_path
                     club["profile_image_path"] = (
                         f"{cdn_prefix}/{image_path.lstrip('/')}"
                     )
-                    logger.info(
-                        f"Fallback: Transformed {original_path} -> {club['profile_image_path']}"
-                    )  # Debug log
 
             return {"clubs": clubs, "total": total_count}
 
