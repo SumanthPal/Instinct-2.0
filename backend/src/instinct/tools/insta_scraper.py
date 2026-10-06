@@ -31,6 +31,8 @@ import datetime
 
 # Keep each scrape small and slow so one session does not look like a bot.
 MAX_POSTS_PER_CLUB = 3
+# A post that fails this many times (deleted, private, broken) is skipped for good.
+MAX_SCRAPE_ATTEMPTS = 3
 PAGE_DELAY_SECONDS = (3, 8)
 
 # Whole path segments only, so profiles like /checkpointclub/ never match.
@@ -623,7 +625,9 @@ class InstagramScraper:
                 f"Club {club_username} was not saved before post scraping"
             )
 
-        post_links_response = self.db.get_unscrapped_posts_by_club_id(club_id)
+        post_links_response = self.db.get_unscrapped_posts_by_club_id(
+            club_id, MAX_SCRAPE_ATTEMPTS
+        )
         if not post_links_response:
             logger.info(f"No unprocessed posts found for {club_username}")
             return
@@ -667,6 +671,7 @@ class InstagramScraper:
             except Exception as exc:
                 failures.append(str(post_id))
                 logger.error(f"Error processing post {post_id}: {exc}")
+                self._record_failed_scrape(post_id, post_data)
 
         # A deleted or broken post fails on every run, so only fail the club
         # when nothing at all was scraped; partial progress still counts.
@@ -681,6 +686,19 @@ class InstagramScraper:
                 f"{', '.join(failures)}"
             )
         logger.info(f"Mirrored {processed} post image(s) for {club_username}")
+
+    def _record_failed_scrape(self, post_id: str, post_data: dict) -> None:
+        """Count a failed attempt; a DB error here must not hide the scrape error."""
+        attempts = (post_data.get("scrape_attempts") or 0) + 1
+        try:
+            self.db.record_failed_scrape(post_id, attempts)
+        except Exception as exc:
+            logger.error(f"Could not record failed attempt for post {post_id}: {exc}")
+            return
+        if attempts >= MAX_SCRAPE_ATTEMPTS:
+            logger.warning(
+                f"Post {post_id} failed {attempts} times; skipping it from now on"
+            )
 
     def save_club_info(self, club_info: dict):
         """Mirror the profile image before recording its object key in Supabase."""
