@@ -71,9 +71,17 @@ export const metadata = {
 	},
 };
 
+const themeScript =
+	"try{if(localStorage.getItem('isDarkMode')==='true')document.documentElement.classList.add('dark')}catch(e){}";
+
 export default function RootLayout({ children }) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
+			<head>
+				{/* Apply the saved theme before first paint so server-rendered pages don't flash light. */}
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline script, no user input */}
+				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
+			</head>
 			<body>
 				<SerwistProvider
 					swUrl="/sw.js"

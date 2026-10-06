@@ -9,18 +9,11 @@ const DarkModeContext = createContext({
 
 export const DarkModeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [mounted, setMounted] = useState(false); // <--- new!
 
+  // The inline script in layout.js sets the `dark` class before first paint,
+  // so the server can render the page and we only sync the toggle state here.
   useEffect(() => {
-    const saved = localStorage.getItem('isDarkMode') === 'true';
-    setIsDarkMode(saved);
-
-    if (saved) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    setMounted(true); // <--- mark as mounted after window/localStorage access
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
   }, []);
 
   const toggleDarkMode = () => {
@@ -35,10 +28,6 @@ export const DarkModeProvider = ({ children }) => {
       return newMode;
     });
   };
-
-  if (!mounted) {
-    return null; // <--- Important: Don't render children until mounted!
-  }
 
   return (
     <DarkModeContext.Provider value={{ isDarkMode, toggleDarkMode }}>
