@@ -16,8 +16,9 @@ CLUBS = {
 }
 
 
-def event(i, day, handle, time="18:00:00"):
+def event(i, day, handle, time="18:00:00", image_path=None):
     return {
+        "posts": {"image_path": image_path} if image_path != "no post" else None,
         "id": f"e{i:04d}",
         "club_id": f"c-{handle}",
         "name": f"Event {i}",
@@ -39,18 +40,22 @@ class EventsQuery:
         self.client = client
         self.rows = [dict(r, clubs=dict(r["clubs"])) for r in client.rows]
         self.columns = None
+        self.client.bounds = []
 
     def select(self, columns):
         self.columns = columns
+        self.client.columns = columns
         return self
 
     def gte(self, column, value):
         assert column == "date"
+        self.client.bounds.append(("gte", value))
         self.rows = [r for r in self.rows if r["date"] >= value]
         return self
 
     def lt(self, column, value):
         assert column == "date"
+        self.client.bounds.append(("lt", value))
         self.rows = [r for r in self.rows if r["date"] < value]
         return self
 
@@ -233,3 +238,148 @@ def test_too_many_clubs_is_400(api):
 def test_missing_or_malformed_dates_are_422(api, params):
     client, _ = api(ROWS)
     assert client.get("/events", params=params).status_code == 422
+
+
+# --- post_image_url ---------------------------------------------------------
+
+
+def test_rows_carry_the_linked_post_image(api):
+    rows = [
+        event(1, "2026-11-02", "chess", image_path="posts/chess/p1"),
+        event(2, "2026-11-03", "chess", image_path="posts/chess/p2.png"),
+        event(3, "2026-11-04", "chess", image_path="NULL"),
+        event(4, "2026-11-05", "chess", image_path=None),
+        event(5, "2026-11-06", "chess", image_path="no post"),
+    ]
+    client, stub = api(rows)
+    body = client.get(
+        "/events", params={"from": "2026-11-01", "to": "2026-11-30"}
+    ).json()
+    assert "posts(image_path)" in stub.columns
+    assert [e["post_image_url"] for e in body["results"]] == [
+        "https://cdn.test/posts/chess/p1.jpg",
+        "https://cdn.test/posts/chess/p2.png",
+        None,
+        None,
+        None,
+    ]
+    # The embed is folded into post_image_url; every other field stays.
+    first = body["results"][0]
+    assert "posts" not in first
+    assert {"id", "club_id", "name", "date", "clubs", "categories"} <= first.keys()
+
+
+# --- club mode: exactly one club, dates optional, no range cap ----------------
+
+HISTORY = [
+    event(1, "2025-09-01", "chess"),
+    event(2, "2026-01-15", "film"),
+    event(3, "2026-03-10", "chess", image_path="posts/chess/p3"),
+    event(4, "2026-11-05", "chess"),
+    event(5, "2027-02-01", "chess"),
+]
+
+
+def ids(response):
+    assert response.status_code == 200, response.text
+    return [e["id"] for e in response.json()["results"]]
+
+
+def test_single_club_without_dates_returns_its_whole_history(api):
+    client, stub = api(HISTORY)
+    response = client.get("/events", params={"clubs": "chess"})
+    assert ids(response) == ["e0001", "e0003", "e0004", "e0005"]
+    assert stub.bounds == []
+    assert response.json()["results"][1]["post_image_url"] == (
+        "https://cdn.test/posts/chess/p3.jpg"
+    )
+
+
+def test_single_club_with_one_open_end(api):
+    client, stub = api(HISTORY)
+    assert ids(
+        client.get("/events", params={"clubs": "chess", "from": "2026-03-10"})
+    ) == [
+        "e0003",
+        "e0004",
+        "e0005",
+    ]
+    assert stub.bounds == [("gte", "2026-03-10")]
+    assert ids(
+        client.get("/events", params={"clubs": "chess", "to": "2026-03-10"})
+    ) == [
+        "e0001",
+        "e0003",
+    ]
+    assert stub.bounds == [("lt", "2026-03-11")]
+
+
+def test_single_club_range_over_92_days_is_allowed(api):
+    client, _ = api(HISTORY)
+    params = {"clubs": "chess", "from": "2025-01-01", "to": "2027-12-31"}
+    assert ids(client.get("/events", params=params)) == [
+        "e0001",
+        "e0003",
+        "e0004",
+        "e0005",
+    ]
+
+
+def test_single_club_still_rejects_to_before_from(api):
+    client, _ = api(HISTORY)
+    params = {"clubs": "chess", "from": "2026-03-10", "to": "2026-03-01"}
+    response = client.get("/events", params=params)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "`to` is before `from`"
+
+
+def test_repeated_handle_counts_as_one_club(api):
+    client, _ = api(HISTORY)
+    assert ids(client.get("/events", params={"clubs": "Chess, @chess"})) == [
+        "e0001",
+        "e0003",
+        "e0004",
+        "e0005",
+    ]
+
+
+def test_single_club_history_reads_past_the_row_cap(api):
+    rows = [event(i, "2026-11-10", "chess") for i in range(2500)]
+    client, stub = api(rows)
+    body = client.get("/events", params={"clubs": "chess"}).json()
+    assert body["count"] == 2500
+    assert stub.ranges == [(0, 999), (1000, 1999), (2000, 2999)]
+
+
+def test_multi_club_range_over_92_days_is_still_400(api):
+    client, stub = api(HISTORY)
+    params = {"clubs": "chess,film", "from": "2026-01-01", "to": "2026-04-03"}
+    response = client.get("/events", params=params)
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Range is 93 days; the maximum is 92"
+    assert stub.ranges == []
+
+
+@pytest.mark.parametrize(
+    "params, missing",
+    [
+        ({}, ["from", "to"]),
+        ({"to": "2026-11-30"}, ["from"]),
+        ({"clubs": "chess,film", "from": "2026-11-01"}, ["to"]),
+        ({"clubs": "chess,film"}, ["from", "to"]),
+    ],
+)
+def test_dates_still_required_without_a_single_club(api, params, missing):
+    client, stub = api(HISTORY)
+    response = client.get("/events", params=params)
+    assert response.status_code == 422
+    assert response.json()["detail"] == [
+        {
+            "type": "missing",
+            "loc": ["query", name],
+            "msg": "Field required",
+            "input": None,
+        }
+        for name in missing
+    ]
+    assert stub.ranges == []

@@ -629,22 +629,24 @@ class SupabaseQueries:
 
     def get_events_in_range(
         self,
-        start: date,
-        end: date,
+        start: Optional[date],
+        end: Optional[date],
         handles: Optional[List[str]] = None,
         category: Optional[str] = None,
     ) -> List[Dict]:
         """Events dated from `start` through `end` (inclusive), by date then id.
 
-        events.date holds naive America/Los_Angeles wall-clock times, so the
-        dates compare directly: start 00:00 <= date < (end + 1 day) 00:00.
-        Each row has the /events/campus-wide shape plus `categories`, the
-        names of its club's categories (events carry no category of their own).
+        Either bound may be None for an open end. events.date holds naive
+        America/Los_Angeles wall-clock times, so the dates compare directly:
+        start 00:00 <= date < (end + 1 day) 00:00. Each row has the
+        /events/campus-wide shape plus `categories`, the names of its club's
+        categories (events carry no category of their own), and
+        `post_image_url`, the linked post's image (None without one).
         """
         club_embed = "clubs!inner" if handles else "clubs"
         columns = (
             f"*, {club_embed}(id, name, instagram_handle, profile_image_path, "
-            "categories(name))"
+            "categories(name)), posts(image_path)"
         )
         if category:
             # A second, aliased inner embed keeps only events whose club has
@@ -653,12 +655,11 @@ class SupabaseQueries:
 
         events: List[Dict] = []
         while True:
-            query = (
-                self.supabase.table("events")
-                .select(columns)
-                .gte("date", start.isoformat())
-                .lt("date", (end + timedelta(days=1)).isoformat())
-            )
+            query = self.supabase.table("events").select(columns)
+            if start:
+                query = query.gte("date", start.isoformat())
+            if end:
+                query = query.lt("date", (end + timedelta(days=1)).isoformat())
             if handles:
                 query = query.in_("clubs.instagram_handle", handles)
             if category:
@@ -681,6 +682,10 @@ class SupabaseQueries:
                 c["name"] for c in club.pop("categories", None) or []
             ]
             with_cdn_image(club)
+            # Post images are stored without an extension and served as .jpg,
+            # as in GET /club/{handle}/posts.
+            post = event.pop("posts", None) or {}
+            event["post_image_url"] = cdn_url(post.get("image_path"), ".jpg")
         return events
 
     def check_if_post_is_scrapped(self, post_id: str) -> bool:
