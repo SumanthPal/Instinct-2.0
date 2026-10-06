@@ -40,6 +40,15 @@ class FakeDB:
     def get_post_date_and_caption(self, post_id):
         return self.post
 
+    def posts_to_parse(self, username):
+        return [{"id": "post-1"}]
+
+    def check_if_post_is_parsed(self, post_id):
+        return False  # queries.py: False means "still unparsed"
+
+    def get_club_by_instagram_handle(self, username):
+        return "club-1"
+
     def insert_event(self, data):
         self.inserted.append(data)
 
@@ -100,14 +109,53 @@ def test_parse_post_retries_api_errors(monkeypatch):
 def test_parse_post_gives_up_after_three_bad_replies(monkeypatch):
     monkeypatch.setattr(ai_validation.time, "sleep", lambda s: None)
     parser, completions = make_parser(["not json", "[]", '{"other": []}'])
-    assert parser.parse_post("post-1") == []
+    assert parser.parse_post("post-1") is None
     assert len(completions.requests) == 3
 
 
 def test_parse_post_without_client_does_not_call_out():
     parser, _ = make_parser([])
     parser.client = None
-    assert parser.parse_post("post-1") == []
+    assert parser.parse_post("post-1") is None
+
+
+def test_request_sends_no_temperature():
+    # Some models (gpt-6-luna) reject any temperature but the default.
+    parser, completions = make_parser([json.dumps({"events": []})])
+    parser.parse_post("post-1")
+    assert "temperature" not in completions.requests[0]
+
+
+def test_failed_parse_leaves_post_unparsed(monkeypatch):
+    monkeypatch.setattr(ai_validation.time, "sleep", lambda s: None)
+    db = FakeDB()
+    parser, completions = make_parser([RuntimeError("400 temperature")] * 3, db=db)
+    stored = []
+    monkeypatch.setattr(parser, "store_parsed_info", lambda *a: stored.append(a))
+
+    parser.parse_all_posts("acm.uci")
+
+    assert len(completions.requests) == 3
+    assert stored == []
+    assert db.updated == []  # posts.parsed stays false, so it is retried
+    assert db.inserted == []
+
+
+def test_empty_reply_still_marks_post_parsed():
+    db = FakeDB()
+    parser, _ = make_parser([json.dumps({"events": []})], db=db)
+
+    parser.parse_all_posts("acm.uci")
+
+    assert db.updated == [("post-1", {"parsed": True})]
+    assert db.inserted == []
+
+
+def test_store_parsed_info_ignores_a_failed_parse():
+    db = FakeDB()
+    parser, _ = make_parser([], db=db)
+    parser.store_parsed_info(None, "post-1", "club-1")
+    assert db.updated == [] and db.inserted == []
 
 
 def test_schema_meets_strict_mode_rules():
@@ -256,6 +304,24 @@ def test_eval_script_dry_run(capsys):
     assert "DRY RUN" in out
     assert "old:" in out and "new:" in out
     assert "zero_duration" in out and "timed_zero_duration" in out
+
+
+def test_eval_old_prompt_sends_no_temperature():
+    completions = FakeCompletions([json.dumps([])])
+    client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    assert eval_event_parser.run_old(client, "m", "caption", "2026-10-01") == []
+    assert "temperature" not in completions.requests[0]
+
+
+def test_eval_counts_api_errors():
+    completions = FakeCompletions([RuntimeError("400 temperature")] * 2)
+    client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    posts = [{"id": "a", "caption": "x", "posted": "2026-10-01T00:00:00"}]
+    for prompt in ("old", "new"):
+        results = eval_event_parser.run_variant(client, prompt, "m", posts, 1)
+        assert results[0]["error"].startswith("api error: RuntimeError")
+        summary = eval_event_parser.summarize(results)
+        assert (summary["api_errors"], summary["bad_output"]) == (1, 0)
 
 
 def test_eval_summary_counts():

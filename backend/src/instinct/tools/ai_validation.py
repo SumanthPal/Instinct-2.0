@@ -287,7 +287,7 @@ class EventParser:
         self.name_similarity_threshold = 0.6  # Lower than original 0.7
         self.time_window_hours = 24  # Hours to consider for time proximity
 
-    def parse_post(self, post_id: "uuid") -> List[Dict]:  # noqa: F821
+    def parse_post(self, post_id: "uuid") -> Optional[List[Dict]]:  # noqa: F821
         """
         Extract the events in a post's caption with the OpenAI API.
 
@@ -295,20 +295,20 @@ class EventParser:
             post_id (uuid): ID of the post to parse.
 
         Returns:
-            List[Dict]: Events with Name, Date, Details and Duration, or an
-            empty list if there are none or parsing fails.
+            The events (Name, Date, Details, Duration); [] when the post has
+            none; None when parsing failed, so the post can be retried.
         """
         MAX_RETRIES = 3
         RETRY_DELAY = 2  # seconds
 
         if not self.client:
             logger.error("OpenAI client not initialized (missing API key)")
-            return []
+            return None
         try:
             post_date, post_text = self.db.get_post_date_and_caption(post_id)
         except Exception as e:
             logger.error(f"Error loading post data: {e}")
-            return []
+            return None
 
         # Structured outputs fix the reply's shape, so a retry is mostly for
         # API errors (rate limits, timeouts); a refusal is retried the same way.
@@ -325,7 +325,7 @@ class EventParser:
                 time.sleep(RETRY_DELAY)
 
         logger.error("Failed to parse post after multiple attempts.")
-        return []
+        return None
 
     def get_embedding(self, text: str) -> List[float]:
         """
@@ -512,6 +512,10 @@ class EventParser:
                     continue
 
                 parsed_info = self.parse_post(post_id)
+                if parsed_info is None:
+                    # Leave posts.parsed false so the next run tries again.
+                    logger.error(f"parsing post {post_id} failed; will retry next run")
+                    continue
                 logger.info("successfully parsed and storing...")
 
                 club_id = self.db.get_club_by_instagram_handle(username)
@@ -528,6 +532,10 @@ class EventParser:
         """
         Store parsed information from a post, avoiding duplicate events using enhanced matching.
         """
+        if parsed_info is None:
+            # A failed parse is not "no events": keep the post unparsed.
+            logger.error(f"No parse result for post {post_id}; leaving it unparsed")
+            return
         if not parsed_info:
             # Mark post as parsed even if no events were extracted
             self.db.update_post_by_id(post_id, {"parsed": True})
