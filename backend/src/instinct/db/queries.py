@@ -1,4 +1,3 @@
-import os
 from PIL import Image
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional
@@ -16,6 +15,7 @@ from instinct.db.supabase_client import (
 )
 from instinct.storage import get_storage
 from instinct.tools.logger import logger
+from instinct.utils.images import cdn_url
 
 # Columns get_club_by_instagram returns, and so what GET /club/{handle} sends.
 # It deliberately omits `embedding` (1536 floats) and `search_vector`: they are
@@ -27,6 +27,12 @@ CLUB_DETAIL_COLUMNS = (
     "followers, following, club_links, last_scraped, profile_image_path, "
     "needs_embedding_update, last_embedding_update"
 )
+
+
+def with_cdn_image(club: Dict) -> Dict:
+    """Swap a club's stored profile_image_path for its CDN URL (None if no image)."""
+    club["profile_image_path"] = cdn_url(club.get("profile_image_path"))
+    return club
 
 
 def normalize_handle(instagram_handle: str) -> str:
@@ -576,7 +582,6 @@ class SupabaseQueries:
         Returns:
             List[Dict]: List of event records with club information
         """
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         # Fetch events with club info in a single efficient query
         query = self.supabase.table("events").select(
@@ -613,11 +618,8 @@ class SupabaseQueries:
 
         # Add CDN prefix to club profile images
         for event in events:
-            if event.get("clubs") and event["clubs"].get("profile_image_path"):
-                image_path = event["clubs"]["profile_image_path"]
-                event["clubs"]["profile_image_path"] = (
-                    f"{cdn_prefix}/{image_path.lstrip('/')}"
-                )
+            if event.get("clubs"):
+                with_cdn_image(event["clubs"])
 
         return events
 
@@ -672,16 +674,13 @@ class SupabaseQueries:
             if len(page) < self.EVENTS_PAGE_SIZE:
                 break
 
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
         for event in events:
             event.pop("category_filter", None)
             club = event.get("clubs") or {}
             event["categories"] = [
                 c["name"] for c in club.pop("categories", None) or []
             ]
-            if club.get("profile_image_path"):
-                image_path = club["profile_image_path"]
-                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+            with_cdn_image(club)
         return events
 
     def check_if_post_is_scrapped(self, post_id: str) -> bool:
@@ -781,8 +780,6 @@ class SupabaseQueries:
             # are right; there is no category RPC.
             return self._get_clubs_paginated_fallback(offset, limit, category)
 
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
-
         try:
             query = (
                 self.supabase.table("clubs")
@@ -801,11 +798,7 @@ class SupabaseQueries:
 
             # Add CDN prefix only when needed
             for club in clubs:
-                image_path = club.get("profile_image_path")
-                if image_path:
-                    club["profile_image_path"] = (
-                        f"{cdn_prefix}/{image_path.lstrip('/')}"
-                    )
+                with_cdn_image(club)
 
             return {"clubs": clubs, "total": total_count}
 
@@ -817,7 +810,6 @@ class SupabaseQueries:
         self, offset: int, limit: int, category: Optional[str] = None
     ) -> Dict:
         """Fallback method using client-side filtering (less efficient)"""
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         # Get only essential fields
         query = self.supabase.table("clubs").select(
@@ -853,9 +845,7 @@ class SupabaseQueries:
 
         # Add CDN prefix
         for club in clubs:
-            image_path = club.get("profile_image_path")
-            if image_path:
-                club["profile_image_path"] = f"{cdn_prefix}/{image_path.lstrip('/')}"
+            with_cdn_image(club)
 
         return {"clubs": clubs, "total": total_count}
 
@@ -863,7 +853,6 @@ class SupabaseQueries:
         self, query: str, offset: int, limit: int, category: Optional[str] = None
     ) -> Dict:
         """Optimized search with database-level pagination"""
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
 
         try:
             # Use RPC for complex search operations
@@ -897,11 +886,7 @@ class SupabaseQueries:
 
             # Add CDN prefix to profile images
             for club in clubs:
-                image_path = club.get("profile_image_path")
-                if image_path:
-                    club["profile_image_path"] = (
-                        f"{cdn_prefix}/{image_path.lstrip('/')}"
-                    )
+                with_cdn_image(club)
 
             return {"clubs": clubs, "total": total_count}
 
@@ -937,11 +922,7 @@ class SupabaseQueries:
 
             # Add CDN prefix to profile images for fallback results
             for club in clubs:
-                image_path = club.get("profile_image_path")
-                if image_path:
-                    club["profile_image_path"] = (
-                        f"{cdn_prefix}/{image_path.lstrip('/')}"
-                    )
+                with_cdn_image(club)
 
             return {"clubs": clubs, "total": total_count}
 
@@ -950,7 +931,6 @@ class SupabaseQueries:
     ) -> List[Dict]:
         """Optimized club manifest with selective field loading"""
 
-        cdn_prefix = os.getenv("S3_PUBLIC_URL", "")
         include_categories = "categories" in select_fields
 
         if category:
@@ -976,9 +956,8 @@ class SupabaseQueries:
 
             # Add profile pic if requested
             if "profile_image_path" in select_fields:
-                image_path = club.get("profile_image_path")
                 manifest_item["profile_pic"] = (
-                    f"{cdn_prefix}/{image_path.lstrip('/')}" if image_path else ""
+                    cdn_url(club.get("profile_image_path")) or ""
                 )
 
             # Add categories if requested
