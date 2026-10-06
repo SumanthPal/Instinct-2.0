@@ -8,11 +8,15 @@ import { useAuth } from "@/context/auth-context";
 import { likesService } from "@/lib/like-service";
 import { useToast } from "./ui/toast";
 
-const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) {
-  const [isVisible, setIsVisible] = useState(false);
+// `eager` renders the full card on the server (landing page examples)
+// instead of a placeholder that waits for the IntersectionObserver.
+const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, eager = false }) {
+  const [isVisible, setIsVisible] = useState(eager);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
-  const [imgFailed, setImgFailed] = useState(false);
+  // Remember which URL failed, so a new profilePicture gets a fresh attempt.
+  const [failedSrc, setFailedSrc] = useState(null);
+  const imgFailed = failedSrc != null && failedSrc === club.profilePicture;
 
   const cardRef = useRef(null);
   const { user } = useAuth();
@@ -32,6 +36,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
   }, [user, club.instagram]);
 
   useEffect(() => {
+    if (isVisible) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -142,7 +147,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
           priority={index < 6}
           loading={index < 6 ? "eager" : "lazy"}
           unoptimized
-          onError={() => setImgFailed(true)}
+          onError={() => setFailedSrc(club.profilePicture)}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-muted">
@@ -236,7 +241,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0 }) 
     <div
       className={`${
         viewMode === "grid" ? "h-[360px]" : "h-[120px]"
-      } animate-pulse rounded-md border border-border bg-muted/40`}
+      } animate-pulse rounded-md border border-border bg-muted/40 motion-reduce:animate-none`}
     >
       <div className="flex h-full flex-col items-center justify-center p-4">
         <div className="mb-3 h-16 w-16 rounded-full bg-muted" />

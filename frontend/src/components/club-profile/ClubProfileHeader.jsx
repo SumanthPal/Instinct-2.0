@@ -8,12 +8,14 @@ import {
   extractQuotedContent,
   categoryNames,
   clubAvatarUrl,
+  formatCount,
 } from "./clubDetailUtils";
 
 function Avatar({ clubData, sizeClass }) {
   const src = clubAvatarUrl(clubData);
-  const [failed, setFailed] = useState(false);
-  const showImg = src && !failed;
+  // Track the URL that failed so a different src gets a fresh attempt.
+  const [failedSrc, setFailedSrc] = useState(null);
+  const showImg = Boolean(src) && failedSrc !== src;
   return (
     <div className="instinct-story-ring shrink-0">
       <div className="instinct-story-ring-inner">
@@ -24,9 +26,9 @@ function Avatar({ clubData, sizeClass }) {
               alt=""
               fill
               className="object-cover"
-              sizes="144px"
+              sizes="(max-width: 640px) 76px, 144px"
               unoptimized
-              onError={() => setFailed(true)}
+              onError={() => setFailedSrc(src)}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-muted">
@@ -34,7 +36,6 @@ function Avatar({ clubData, sizeClass }) {
                 className="h-full w-full text-muted-foreground"
                 aria-hidden="true"
               />
-              <span className="sr-only">{clubData?.name || "Club avatar"}</span>
             </div>
           )}
         </div>
@@ -43,33 +44,25 @@ function Avatar({ clubData, sizeClass }) {
   );
 }
 
-function Stats({ postCount, followers, following, stacked }) {
+function Stats({ followers, following }) {
   const items = [
-    { label: "posts", value: postCount },
-    { label: "followers", value: followers ?? "—" },
-    { label: "following", value: following ?? "—" },
+    { label: "followers", value: formatCount(followers) },
+    { label: "following", value: formatCount(following) },
   ];
-  if (stacked) {
-    return (
-      <div className="flex flex-1 justify-around text-center">
-        {items.map((s) => (
-          <div key={s.label}>
-            <p className="text-base font-semibold tabular-nums">{s.value}</p>
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  // Stacked under the number on mobile (IG style), inline on desktop.
   return (
-    <div className="mt-5 flex gap-8 text-sm">
+    <ul className="flex justify-around text-center sm:mt-4 sm:justify-start sm:gap-8 sm:text-left">
       {items.map((s) => (
-        <p key={s.label}>
-          <span className="font-semibold tabular-nums">{s.value}</span>{" "}
-          <span className="text-muted-foreground">{s.label}</span>
-        </p>
+        <li key={s.label} className="flex flex-col text-sm sm:flex-row sm:gap-1">
+          <span className="text-base font-semibold tabular-nums sm:text-sm">
+            {s.value}
+          </span>
+          <span className="text-xs text-muted-foreground sm:text-sm">
+            {s.label}
+          </span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
@@ -103,7 +96,7 @@ function InstagramButton({ handle, className = "" }) {
       className={`h-8 rounded-md border-border px-3 text-xs ${className}`}
     >
       <a
-        href={`https://instagram.com/${handle}`}
+        href={`https://instagram.com/${encodeURIComponent(handle || "")}`}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -114,9 +107,13 @@ function InstagramButton({ handle, className = "" }) {
   );
 }
 
+/**
+ * One DOM tree for both layouts; `.club-profile-header` grid areas in
+ * globals.css move the stats and actions between the mobile (IG app) and
+ * desktop arrangements, so the avatar and h1 render exactly once.
+ */
 export default function ClubProfileHeader({
   clubData,
-  postCount,
   isLiked,
   isLikeLoading,
   onFavoriteToggle,
@@ -129,77 +126,39 @@ export default function ClubProfileHeader({
     "";
 
   return (
-    <div className="px-4 sm:px-0">
-      {/* Mobile */}
-      <div className="flex items-center gap-6 sm:hidden">
-        <Avatar clubData={clubData} sizeClass="h-[76px] w-[76px]" />
-        <Stats
-          postCount={postCount}
-          followers={clubData?.followers}
-          following={clubData?.following}
-          stacked
+    <div className="club-profile-header px-4 text-left sm:px-0">
+      <div className="[grid-area:avatar] sm:mr-7">
+        <Avatar clubData={clubData} sizeClass="h-[76px] w-[76px] sm:h-36 sm:w-36" />
+      </div>
+      <h1 className="mt-4 text-sm font-semibold text-foreground [grid-area:name] sm:mt-2 sm:self-center sm:text-2xl sm:font-light sm:tracking-tight">
+        {clubData?.name}
+      </h1>
+      <div className="mt-3 flex gap-2 [grid-area:actions] sm:mt-2 sm:self-center">
+        <FavoriteButton
+          isLiked={isLiked}
+          isLoading={isLikeLoading}
+          onToggle={onFavoriteToggle}
+          className="flex-1 sm:flex-none"
         />
+        <InstagramButton handle={handle} />
       </div>
-
-      {/* Desktop */}
-      <div className="hidden gap-10 sm:flex sm:items-start">
-        <Avatar clubData={clubData} sizeClass="h-36 w-36" />
-        <div className="min-w-0 flex-1 pt-2 text-left">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-light tracking-tight text-foreground">
-              {clubData?.name}
-            </h1>
-            <FavoriteButton
-              isLiked={isLiked}
-              isLoading={isLikeLoading}
-              onToggle={onFavoriteToggle}
-            />
-            <InstagramButton handle={handle} />
-          </div>
-          <p className="mt-1 font-mono text-sm text-muted-foreground">
-            @{handle}
-          </p>
-          <Stats
-            postCount={postCount}
-            followers={clubData?.followers}
-            following={clubData?.following}
-          />
-          {bio && (
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-foreground">
-              {bio}
-            </p>
-          )}
-          {cats.length > 0 && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              {cats.join(" · ")}
-            </p>
-          )}
-        </div>
+      <div className="self-center [grid-area:stats] sm:self-start">
+        <Stats followers={clubData?.followers} following={clubData?.following} />
       </div>
-
-      {/* Mobile bio / actions */}
-      <div className="mt-4 text-left sm:hidden">
-        <h1 className="text-sm font-semibold text-foreground">
-          {clubData?.name}
-        </h1>
-        <p className="font-mono text-xs text-muted-foreground">@{handle}</p>
+      <p className="font-mono text-xs text-muted-foreground [grid-area:handle] sm:mt-1 sm:text-sm">
+        @{handle}
+      </p>
+      <div className="[grid-area:info]">
         {bio && (
-          <p className="mt-2 text-sm leading-relaxed text-foreground">{bio}</p>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-foreground sm:mt-4">
+            {bio}
+          </p>
         )}
         {cats.length > 0 && (
-          <p className="mt-1.5 text-xs text-muted-foreground">
+          <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2">
             {cats.join(" · ")}
           </p>
         )}
-        <div className="mt-3 flex gap-2">
-          <FavoriteButton
-            isLiked={isLiked}
-            isLoading={isLikeLoading}
-            onToggle={onFavoriteToggle}
-            className="flex-1"
-          />
-          <InstagramButton handle={handle} />
-        </div>
       </div>
     </div>
   );

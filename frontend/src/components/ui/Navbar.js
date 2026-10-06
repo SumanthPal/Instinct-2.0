@@ -124,6 +124,8 @@ export default function Navbar() {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center rounded-full"
                 aria-label="Open account menu"
+                aria-haspopup="menu"
+                aria-expanded={dropdownOpen}
               >
                 {user.user_metadata?.avatar_url ? (
                   <img
@@ -175,6 +177,8 @@ export default function Navbar() {
             onClick={() => setIsOpen(!isOpen)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
             aria-label="Toggle mobile menu"
+            aria-expanded={isOpen}
+            aria-controls="mobile-menu"
           >
             {isOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
           </button>
@@ -183,8 +187,10 @@ export default function Navbar() {
 
       <div
         ref={mobileMenuRef}
+        id="mobile-menu"
+        inert={!isOpen}
         className={`overflow-hidden border-b border-border transition-all duration-300 ease-in-out md:hidden ${
-          isOpen ? "max-h-[60vh] opacity-100" : "max-h-0 border-b-0 opacity-0"
+          isOpen ? "max-h-[60vh] opacity-100" : "invisible max-h-0 border-b-0 opacity-0"
         }`}
       >
         <div className="mx-3 mb-3 rounded-md border border-border bg-card p-3">
