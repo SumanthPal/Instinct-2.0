@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X } from 'lucide-react';
+import { FaSearch, FaTimes } from 'react-icons/fa';
 
 export default function SearchBar({ value, onChange, onEnter, placeholder = "What are you looking for?" }) {
   const handleKeyDown = (event) => {
@@ -7,22 +7,18 @@ export default function SearchBar({ value, onChange, onEnter, placeholder = "Wha
       onEnter();
     }
   };
-  
+
   const handleClear = () => {
-    // Call onChange with an empty value to clear the input
     onChange({ target: { value: '' } });
   };
-  
+
   return (
     <div className="relative w-full max-w-3xl mx-auto">
-      {/* Glass Container */}
       <div className="relative backdrop-blur-xs bg-white/30 dark:bg-dark-card/30 rounded-full border border-white/20 dark:border-dark-text/10 shadow-md overflow-hidden">
-        {/* Search Icon */}
         <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-dark-base/70 dark:text-dark-text/70">
-          <Search size={20} />
+          <FaSearch className="w-5 h-5" />
         </div>
-        
-        {/* Input Field */}
+
         <input
           type="text"
           placeholder={placeholder}
@@ -34,14 +30,15 @@ export default function SearchBar({ value, onChange, onEnter, placeholder = "Wha
             placeholder:text-dark-base/50 dark:placeholder:text-dark-text/50
             transition-all duration-300 ease-in-out"
         />
-        
-        {/* Clear Button (X) - Only show when there's text */}
+
         {value && (
-          <button 
+          <button
+            type="button"
             onClick={handleClear}
             className="absolute right-4 top-1/2 transform -translate-y-1/2 text-dark-base/70 dark:text-dark-text/70 hover:text-dark-base dark:hover:text-dark-text focus:outline-hidden transition-colors"
+            aria-label="Clear search"
           >
-            <X size={20} />
+            <FaTimes className="w-5 h-5" />
           </button>
         )}
       </div>
