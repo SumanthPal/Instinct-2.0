@@ -7,9 +7,7 @@
     "dev": "next dev",
     "build": "next build && serwist build serwist.config.mjs",
     "start": "next start",
-    "lint": "biome lint",
-    "add-card": "bunx shadcn@latest add card",
-    "add-button": "bunx shadcn@latest add button"
+    "lint": "biome lint"
   },
   "dependencies": {
     "@radix-ui/react-popover": "^1.1.23",
@@ -33,7 +31,7 @@
     "react-dom": "^19.0.0",
     "react-icons": "^5.4.0",
     "rss-parser": "^3.13.0",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^3.7.0",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
