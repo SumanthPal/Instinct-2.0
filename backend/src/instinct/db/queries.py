@@ -374,17 +374,24 @@ class SupabaseQueries:
         club = self._find_club_by_handle("id", instagram_handle)
         return club["id"] if club else None
 
-    def get_unscrapped_posts_by_club_id(self, club_id: int):
-        """Fetch all unscrapped posts for a given club."""
+    def get_unscrapped_posts_by_club_id(self, club_id: int, max_attempts: int = 3):
+        """Unscrapped posts for a club that have failed fewer than max_attempts times."""
         response = (
             self.supabase.from_("posts")
-            .select("id", "post_url")
+            .select("id", "post_url", "scrape_attempts")
             .eq("club_id", club_id)
             .eq("scrapped", False)
+            .lt("scrape_attempts", max_attempts)
             .execute()
         )
 
         return response.data or []
+
+    def record_failed_scrape(self, post_id: str, attempts: int) -> None:
+        """Store a post's new failed-attempt count (one scraper runs at a time)."""
+        self.supabase.from_("posts").update({"scrape_attempts": attempts}).eq(
+            "id", post_id
+        ).execute()
 
     def check_if_post_is_parsed(self, post_id: uuid) -> bool:
         response = (
