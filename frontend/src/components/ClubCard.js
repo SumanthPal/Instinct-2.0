@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef, useMemo, memo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Card, CardHeader, CardContent, CardFooter } from './ui/Card';
 import { FaUserCircle } from 'react-icons/fa';
 import { FaStar, FaRegStar } from 'react-icons/fa';
 import { useAuth } from '@/context/auth-context';
