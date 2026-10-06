@@ -141,6 +141,7 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, ini
     searchInput,
     selectedCategories,
     page,
+    query: debouncedSearch,
     loading,
     hasMoreClubs,
     totalClubCount,
