@@ -213,7 +213,7 @@ export default function CampusEventsPage() {
 					<h1 className="text-4xl sm:text-5xl font-bold mb-3 text-foreground">
 						Upcoming Events
 					</h1>
-					<p className="text-dark-base dark:text-dark-subtext text-base sm:text-lg mb-4">
+					<p className="text-muted-foreground text-base sm:text-lg mb-4">
 						Discover what's happening at UCI
 					</p>
 					<div className="inline-flex items-center gap-2 px-4 py-2 bg-card/60 rounded-full border border-border">
@@ -263,7 +263,7 @@ export default function CampusEventsPage() {
 								className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
 									viewMode === "list"
 										? "bg-muted text-foreground font-semibold"
-										: "text-muted-foreground hover:text-dark-base dark:hover:text-dark-text"
+										: "text-muted-foreground hover:text-foreground"
 								}`}
 							>
 								<FaList className="w-4 h-4" />
@@ -274,7 +274,7 @@ export default function CampusEventsPage() {
 								className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
 									viewMode === "grid"
 										? "bg-muted text-foreground font-semibold"
-										: "text-muted-foreground hover:text-dark-base dark:hover:text-dark-text"
+										: "text-muted-foreground hover:text-foreground"
 								}`}
 							>
 								<FaTh className="w-4 h-4" />
@@ -291,7 +291,7 @@ export default function CampusEventsPage() {
 								{hasActiveFilters && (
 									<button
 										onClick={resetFilters}
-										className="text-sm text-muted-foreground hover:text-dark-base dark:hover:text-dark-text transition-colors flex items-center gap-1"
+										className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
 									>
 										<FaTimes className="w-3 h-3" />
 										Clear all
@@ -331,7 +331,7 @@ export default function CampusEventsPage() {
 												}`}
 											>
 												{clubProfilePic && (
-													<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
+													<div className="relative w-5 h-5 rounded-full overflow-hidden border border-border shrink-0 bg-muted">
 														<Image
 															src={clubProfilePic}
 															alt={club}
@@ -432,8 +432,8 @@ export default function CampusEventsPage() {
 										onClick={() => setSelectedCategory("Meeting")}
 										className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
 											selectedCategory === "Meeting"
-												? "bg-gray-500/30 border-gray-500 text-muted-foreground"
-												: "bg-gray-500/10 border-gray-500/30 text-muted-foreground hover:bg-gray-500/20"
+												? "bg-muted border-foreground/40 text-foreground"
+												: "bg-transparent border-border text-muted-foreground hover:bg-accent"
 										}`}
 									>
 										Meeting
@@ -499,7 +499,7 @@ export default function CampusEventsPage() {
 												Service: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30",
 												Career: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30",
 												Cultural: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
-												Meeting: "bg-gray-500/20 text-muted-foreground border-gray-500/30",
+												Meeting: "bg-muted text-muted-foreground border-border",
 												Other: "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30"
 											};
 
@@ -543,7 +543,7 @@ export default function CampusEventsPage() {
 																onClick={(e) => e.stopPropagation()}
 																className="inline-flex items-center gap-2 group/club hover:opacity-80 transition-opacity"
 															>
-																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
+																<div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-border shrink-0 bg-muted">
 																	{clubProfilePic ? (
 																		<Image
 																			src={clubProfilePic}
@@ -559,7 +559,7 @@ export default function CampusEventsPage() {
 																		/>
 																	) : null}
 																	<div className="absolute inset-0 flex items-center justify-center" style={{ display: clubProfilePic ? 'none' : 'flex' }}>
-																		<FaUserCircle className="w-6 h-6 text-gray-400" />
+																		<FaUserCircle className="w-6 h-6 text-muted-foreground" />
 																	</div>
 																</div>
 																<span className="text-sm font-semibold text-foreground group-hover/club:underline">
@@ -588,7 +588,7 @@ export default function CampusEventsPage() {
 													</h4>
 
 													{/* Event Details - Preview */}
-													<p className={`text-sm sm:text-base text-dark-base/70 dark:text-dark-text/70 mb-4 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>
+													<p className={`text-sm sm:text-base text-muted-foreground mb-4 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>
 														{event.parsed?.Details ||
 															event.details ||
 															"No details available"}
@@ -662,7 +662,7 @@ export default function CampusEventsPage() {
 										Service: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30",
 										Career: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30",
 										Cultural: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
-										Meeting: "bg-gray-500/20 text-muted-foreground border-gray-500/30",
+										Meeting: "bg-muted text-muted-foreground border-border",
 										Other: "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30"
 									};
 									const eventDate = getEventDate(event);
@@ -744,7 +744,7 @@ export default function CampusEventsPage() {
 														onClick={(e) => e.stopPropagation()}
 														className="inline-flex items-center gap-1.5 mb-2 group/club hover:opacity-80 transition-opacity"
 													>
-														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-white/50 dark:border-dark-text/20 shrink-0 bg-gray-200 dark:bg-gray-700">
+														<div className="relative w-5 h-5 rounded-full overflow-hidden border border-border shrink-0 bg-muted">
 															{clubProfilePic ? (
 																<Image
 																	src={clubProfilePic}
@@ -760,7 +760,7 @@ export default function CampusEventsPage() {
 																/>
 															) : null}
 															<div className="absolute inset-0 flex items-center justify-center" style={{ display: clubProfilePic ? 'none' : 'flex' }}>
-																<FaUserCircle className="w-4 h-4 text-gray-400" />
+																<FaUserCircle className="w-4 h-4 text-muted-foreground" />
 															</div>
 														</div>
 														<span className="text-xs font-medium text-foreground group-hover/club:underline line-clamp-1">
@@ -779,7 +779,7 @@ export default function CampusEventsPage() {
 
 												{/* Event Details - Preview/Full */}
 												{(event.parsed?.Details || event.details) && (
-													<p className={`text-xs text-dark-base/70 dark:text-dark-text/70 mb-3 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>
+													<p className={`text-xs text-muted-foreground mb-3 transition-all ${isExpanded ? '' : 'line-clamp-2'}`}>
 														{event.parsed?.Details || event.details}
 													</p>
 												)}
@@ -892,7 +892,7 @@ export default function CampusEventsPage() {
 								</button>
 							</div>
 
-							<div className="bg-white dark:bg-gray-900 rounded-none sm:rounded-lg lg:rounded-xl overflow-hidden shadow-2xl h-full flex flex-col">
+							<div className="bg-card text-card-foreground rounded-none sm:rounded-lg lg:rounded-xl overflow-hidden shadow-2xl h-full flex flex-col">
 								<div className="relative w-full h-[70vh] bg-black">
 									<Image
 										src={selectedImage}
@@ -914,7 +914,7 @@ export default function CampusEventsPage() {
 												className="inline-flex items-center gap-2 mb-3 hover:opacity-80 transition-opacity"
 											>
 												{selectedImageData.clubs.instagram_handle && (
-													<div className="relative w-6 h-6 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+													<div className="relative w-6 h-6 rounded-full overflow-hidden bg-muted">
 														<Image
 															src={getClubProfilePic(selectedImageData.clubs.instagram_handle)}
 															alt={selectedImageData.clubs.name}

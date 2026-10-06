@@ -60,6 +60,7 @@ const TechnicalAbout = () => {
         { icon: <FaServer />, name: "Heroku", description: "FastAPI backend API hosted on Heroku." },
         { icon: <SiCloudflare />, name: "Cloudflare R2", description: "Object storage for club profile pictures and post media." },
         { icon: <SiDocker />, name: "Docker", description: "Local scraper and services containerized for consistent environments." },
+        { icon: <SiGithubactions />, name: "GitHub Actions", description: "CI runs backend lint and tests plus the frontend lint and build on every push and pull request; a deploy workflow ships the API to Heroku." },
       ]
     }
   ];

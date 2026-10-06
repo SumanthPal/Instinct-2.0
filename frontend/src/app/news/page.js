@@ -94,7 +94,7 @@ export default function NewsPage() {
 					<h1 className="text-5xl font-bold mb-3 text-foreground">
 						UCI News & Updates
 					</h1>
-					<p className="text-dark-base dark:text-dark-subtext text-lg">
+					<p className="text-muted-foreground text-lg">
 						Stay in the loop with what's happening at UCI
 					</p>
 				</div>

@@ -78,45 +78,46 @@ const ToastItem = ({ toast, dismiss }) => {
         return {
           icon: <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />,
           bg: 'bg-card',
-          border: 'border-green-500/30 dark:border-green-400/30',
+          accent: 'border-l-green-600 dark:border-l-green-400',
           iconBg: 'bg-green-100 dark:bg-green-900/50'
         };
       case 'error':
         return {
           icon: <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />,
           bg: 'bg-card',
-          border: 'border-red-500/30 dark:border-red-400/30',
+          accent: 'border-l-red-600 dark:border-l-red-400',
           iconBg: 'bg-red-100 dark:bg-red-900/50'
         };
       case 'warning':
         return {
-          icon: <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />,
+          icon: <AlertTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400" />,
           bg: 'bg-card',
-          border: 'border-yellow-500/30 dark:border-yellow-400/30',
-          iconBg: 'bg-yellow-100 dark:bg-yellow-900/50'
+          accent: 'border-l-amber-500 dark:border-l-amber-400',
+          iconBg: 'bg-amber-100 dark:bg-amber-900/50'
         };
       case 'info':
         return {
-          icon: <InfoIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" />,
+          icon: <InfoIcon className="w-5 h-5 text-[color:var(--accent-blue)]" />,
           bg: 'bg-card',
-          border: 'border-blue-500/30 dark:border-blue-400/30',
+          accent: 'border-l-[color:var(--accent-blue)]',
           iconBg: 'bg-blue-100 dark:bg-blue-900/50'
         };
       default:
         return {
-          icon: <InfoIcon className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />,
+          icon: <InfoIcon className="w-5 h-5 text-[color:var(--accent-brand)]" />,
           bg: 'bg-card',
-          border: 'border-indigo-500/30 dark:border-indigo-400/30',
-          iconBg: 'bg-indigo-100 dark:bg-indigo-900/50'
+          accent: 'border-l-[color:var(--accent-brand)]',
+          iconBg: 'bg-muted'
         };
     }
   };
   
+  // Solid left accent per variant so error/warning/success/info differ at a glance.
   const config = getStatusConfig();
   
   return (
     <div
-      className={`border ${config.border} ${config.bg}
+      className={`border border-border border-l-4 ${config.accent} ${config.bg}
       rounded-md shadow-sm overflow-hidden flex items-start p-3`}
       role="alert"
     >
@@ -125,14 +126,13 @@ const ToastItem = ({ toast, dismiss }) => {
       </div>
       
       <div className="grow min-w-0">
-        <h3 className="font-semibold text-gray-800 dark:text-white truncate">{title}</h3>
-        {description && <p className="text-sm mt-0.5 text-gray-600 dark:text-gray-300">{description}</p>}
+        <h3 className="font-semibold text-foreground truncate">{title}</h3>
+        {description && <p className="text-sm mt-0.5 text-muted-foreground">{description}</p>}
       </div>
       
       {isClosable && (
         <button
-          className="ml-2 shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:text-gray-500 
-          dark:hover:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+          className="ml-2 shrink-0 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           onClick={() => dismiss(id)}
           aria-label="Close"
         >

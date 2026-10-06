@@ -115,6 +115,8 @@
     --instinct-pink: #db2777;
     --instinct-sky: #0284c7;
     --accent-brand: var(--instinct-purple);
+    /* Solid fill that keeps white text readable in both themes */
+    --accent-brand-solid: #7c3aed;
     --accent-pink: var(--instinct-pink);
     --accent-blue: var(--instinct-sky);
     --chart-1: 12 76% 61%;
@@ -149,6 +151,8 @@
     --instinct-pink: #f472b6;
     --instinct-sky: #38bdf8;
     --accent-brand: var(--instinct-purple);
+    /* Solid fill that keeps white text readable in both themes */
+    --accent-brand-solid: #7c3aed;
     --accent-pink: var(--instinct-pink);
     --accent-blue: var(--instinct-sky);
     --chart-1: 220 70% 50%;
