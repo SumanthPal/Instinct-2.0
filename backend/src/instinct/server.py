@@ -413,10 +413,11 @@ async def get_club_data(instagram_handle: str):
                 detail=f"Club with Instagram handle '{instagram_handle}' not found",
             )
 
-        if club.get("profile_image_path"):
-            # Fixed: Use instagram_handle variable, correct path, and add dot before jpg
-            public_url = f"{cdn_base_url()}/pfps/{instagram_handle}.jpg"
-            club["profile_image_url"] = public_url
+        image_path = club.get("profile_image_path")
+        if image_path:
+            # Use the stored path (e.g. pfps/taoxuci.jpg), not the request's
+            # handle, whose case may differ from the object's name.
+            club["profile_image_url"] = f"{cdn_base_url()}/{image_path.lstrip('/')}"
 
         return club
     except HTTPException as http_e:

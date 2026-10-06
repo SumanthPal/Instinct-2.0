@@ -74,3 +74,17 @@ def test_club_detail_omits_embedding_and_search_vector(monkeypatch):
     assert body["description"] == "Computing club"
     assert (body["followers"], body["following"]) == (10, 2)
     assert body["profile_image_url"] == "https://cdn.example/pfps/acm.jpg"
+
+
+def test_club_image_url_comes_from_the_stored_path(monkeypatch):
+    # A request whose case differs from the stored handle must still point at
+    # the stored object, not at pfps/<request handle>.jpg.
+    db = SupabaseQueries.__new__(SupabaseQueries)
+    db.supabase = StubClient()
+    monkeypatch.setattr(server, "get_db", lambda: db)
+    monkeypatch.setenv("S3_PUBLIC_URL", "https://cdn.example")
+
+    response = TestClient(server.app).get("/club/ACM")
+
+    assert response.status_code == 200
+    assert response.json()["profile_image_url"] == "https://cdn.example/pfps/acm.jpg"
