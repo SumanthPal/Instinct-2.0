@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { FiArrowDown, FiArrowUp } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiChevronDown, FiChevronUp } from "react-icons/fi";
 import { addHours, differenceInMinutes, format, isSameDay, setHours, startOfDay } from "date-fns";
 import { EventPopover, SlotPopover } from "./EventDetails";
 import {
@@ -12,6 +12,7 @@ import {
 	layoutDay,
 	layoutSpans,
 	shortTime,
+	shortTitle,
 	slotEvents,
 	timeRange,
 	visibleHours,
@@ -20,8 +21,10 @@ import {
 const HOUR = 42; // px per hour
 const PAD = 8; // room above the first hour so its label isn't clipped
 const px = (mins) => (mins * HOUR) / 60;
-const MAX_COLS = 3; // side-by-side blocks per overlap group; the rest go behind "+N"
-const MIN_BLOCK = 38; // px: narrower than this a block can't show a word, so use fewer columns
+const MAX_COLS = 2; // side-by-side blocks per overlap group; the rest go behind "+N"
+const MIN_BLOCK = 56; // px: narrower than this a title wraps letter by letter, so use fewer columns
+const ALLDAY_LANES = 3; // all-day lanes shown before "+N more"
+const LANE = 23; // px per all-day lane (20 + 3 gap)
 
 function hourLabel(h) {
 	return format(setHours(startOfDay(new Date(2000, 0, 1)), h), "h a");
@@ -38,13 +41,14 @@ function Block({ item, selected }) {
 				tier ? "py-[3px]" : "justify-center"
 			}`}
 		>
+			{/* Words wrap whole (never mid-word) and the last line ends in an ellipsis. */}
 			<span
-				className={`text-[11.5px] font-medium leading-[14px] text-foreground hyphens-auto break-words @max-[60px]:[overflow-wrap:normal] @max-[60px]:text-[10.5px] @max-[60px]:leading-[13px] ${
-					tier >= 2 ? "line-clamp-2 @max-[63px]:[-webkit-line-clamp:var(--lines)]" : tier === 1 ? "truncate @max-[63px]:line-clamp-2 @max-[63px]:whitespace-normal" : "truncate"
+				className={`text-[11.5px] font-medium leading-[14px] text-foreground [overflow-wrap:normal] [word-break:normal] ${
+					tier >= 2 ? "line-clamp-[var(--lines)]" : "truncate"
 				}`}
-				style={{ "--lines": Math.max(2, Math.floor((h - 6) / 14)) }}
+				style={{ "--lines": Math.min(3, Math.max(2, Math.floor((h - 20) / 14))) }}
 			>
-				{ev.title}
+				{shortTitle(ev.title)}
 				{tier === 0 && <span className="ml-1 hidden font-normal text-muted-foreground @min-[96px]:inline">{shortTime(ev.start)}</span>}
 			</span>
 			{tier >= 1 && (
@@ -79,6 +83,8 @@ const DayColumn = memo(function DayColumn({ d, laid, list, strip, multi, mode, o
 			return (
 				<div
 					key={key}
+					data-tg-block
+					title={item.ev.title}
 					className={`@container absolute pr-[2px] ${item.col ? "cal-overlap" : ""}`}
 					style={{
 						top: PAD + px(item.top) + 1,
@@ -114,6 +120,7 @@ const DayColumn = memo(function DayColumn({ d, laid, list, strip, multi, mode, o
 					<button
 						type="button"
 						aria-label={`${m.hidden.length} more events around ${shortTime(from)}`}
+						data-tg-more
 						className="absolute z-[8] inline-flex h-5 items-center justify-center rounded-full border border-border bg-card text-[10.5px] font-medium tabular-nums text-foreground hover:bg-muted data-[state=open]:border-foreground/40"
 						style={{ top: PAD + px(m.at) + 1, right: 2, width: strip - 4 }}
 					>
@@ -184,9 +191,23 @@ export default function TimeGrid({
 			}
 			return res;
 		});
-		return { startHour, endHour, ...layoutSpans(all, days), laid, flat: laid.flatMap((l) => l.blocks) };
+		const ad = layoutSpans(all, days, { splitOngoing: true });
+		// Per day: how many spans sit below the lane cap ("+N" under that day).
+		const hiddenPerDay = days.map(() => 0);
+		for (const sp of ad.spans) {
+			if (sp.lane < ALLDAY_LANES) continue;
+			for (let c = sp.start; c <= sp.end; c++) hiddenPerDay[c]++;
+		}
+		return { startHour, endHour, ...ad, hiddenPerDay, laid, flat: laid.flatMap((l) => l.blocks) };
 	}, [index, dayKeys, maxCols]);
-	const { startHour, endHour, spans, lanes, laid, flat } = layout;
+	const { startHour, endHour, spans, lanes, ongoing, hiddenPerDay, laid, flat } = layout;
+	// All-day row: up to ALLDAY_LANES lanes, "+N" per day below them, one
+	// "Ongoing (N)" line for long spans on top. Expanding shows every lane.
+	const [allDayOpen, setAllDayOpen] = useState(false);
+	const capped = lanes > ALLDAY_LANES && !allDayOpen;
+	const shownLanes = capped ? ALLDAY_LANES : lanes;
+	const top = ongoing.length ? 1 : 0;
+	const allDayRows = Math.max(top + shownLanes + (capped ? 1 : 0), 1);
 
 	const HOURS = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
 	const nowMins = now ? differenceInMinutes(now, setHours(startOfDay(now), startHour)) : -1;
@@ -281,9 +302,20 @@ export default function TimeGrid({
 						);
 					})}
 				</div>
-				<div className="relative grid border-t border-border" style={{ gridTemplateColumns: cols, height: Math.max(lanes, 1) * 23 + 5 }}>
-					<div className="flex items-start justify-end pr-2 pt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+				<div className="relative grid border-t border-border" style={{ gridTemplateColumns: cols, height: allDayRows * LANE + 5 }}>
+					<div className="flex flex-col items-end gap-1 pr-2 pt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
 						all-day
+						{lanes > ALLDAY_LANES && (
+							<button
+								type="button"
+								onClick={() => setAllDayOpen((o) => !o)}
+								aria-expanded={allDayOpen}
+								aria-label={allDayOpen ? "Show fewer all-day events" : "Show all all-day events"}
+								className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border normal-case text-foreground hover:bg-muted"
+							>
+								{allDayOpen ? <FiChevronUp className="h-3 w-3" aria-hidden /> : <FiChevronDown className="h-3 w-3" aria-hidden />}
+							</button>
+						)}
 					</div>
 					{days.map((d) => (
 						<div key={dayKey(d)} className="border-l border-border" />
@@ -292,7 +324,50 @@ export default function TimeGrid({
 						className="absolute inset-y-0 left-[56px] right-0 grid py-[3px]"
 						style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`, gridAutoRows: "20px", rowGap: 3 }}
 					>
+						{ongoing.length > 0 && (
+							<div className="min-w-0 px-[3px]" style={{ gridColumn: "1 / -1", gridRow: 1 }}>
+								<SlotPopover
+									slot={{
+										subtitle: days.length > 1 ? `${format(days[0], "MMM d")} – ${format(days[days.length - 1], "MMM d")}` : format(days[0], "EEE, MMM d"),
+										title: `Ongoing · ${ongoing.length} multi-day ${ongoing.length === 1 ? "event" : "events"}`,
+										events: ongoing,
+									}}
+									instanceKey={`ongoing-${dayKey(days[0])}`}
+									openKey={openKey}
+									setOpenKey={setOpenKey}
+									onPick={mode === "select" ? onSelect : undefined}
+									side="bottom"
+								>
+									<button
+										type="button"
+										data-ongoing
+										className="flex h-[20px] w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-border px-1.5 text-left text-[11px] hover:bg-muted data-[state=open]:border-foreground/40"
+									>
+										<span className="shrink-0 font-medium text-foreground">Ongoing</span>
+										<span className="shrink-0 tabular-nums text-muted-foreground">({ongoing.length})</span>
+										<span className="min-w-0 truncate text-muted-foreground">· {ongoing.map((ev) => shortTitle(ev.title)).join(", ")}</span>
+										<FiChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+									</button>
+								</SlotPopover>
+							</div>
+						)}
+						{capped &&
+							hiddenPerDay.map((n, c) =>
+								n ? (
+									<div key={`adm-${dayKey(days[c])}`} className="min-w-0 px-[3px]" style={{ gridColumn: c + 1, gridRow: top + ALLDAY_LANES + 1 }}>
+										<button
+											type="button"
+											data-allday-more
+											onClick={() => setAllDayOpen(true)}
+											className="flex h-[20px] w-full items-center rounded-[4px] px-1.5 text-left text-[11px] font-medium tabular-nums text-muted-foreground hover:bg-muted hover:text-foreground"
+										>
+											+{n} more
+										</button>
+									</div>
+								) : null,
+							)}
 						{spans.map((sp) => {
+							if (sp.lane >= shownLanes) return null;
 							const key = `ad-${sp.ev.id}-${dayKey(days[0])}`;
 							const sel = selectedId === sp.ev.id;
 							const node = (
@@ -301,14 +376,16 @@ export default function TimeGrid({
 										sp.cutLeft ? "" : "rounded-l-[4px]"
 									} ${sp.cutRight ? "" : "rounded-r-[4px]"} ${sel ? "ring-1 ring-inset ring-foreground/40" : ""}`}
 								>
-									<span className="truncate">{sp.ev.title}</span>
+<span className="truncate">{shortTitle(sp.ev.title)}</span>
 								</span>
 							);
 							return (
 								<div
 									key={key}
+									data-allday-span
+									title={sp.ev.title}
 									className={`min-w-0 ${sp.cutLeft ? "" : "pl-[3px]"} ${sp.cutRight ? "" : "pr-[3px]"}`}
-									style={{ gridColumn: `${sp.start + 1} / ${sp.end + 2}`, gridRow: sp.lane + 1 }}
+									style={{ gridColumn: `${sp.start + 1} / ${sp.end + 2}`, gridRow: top + sp.lane + 1 }}
 								>
 									{wrap(sp.ev, key, node)}
 								</div>

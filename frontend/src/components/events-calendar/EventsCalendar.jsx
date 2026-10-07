@@ -220,10 +220,15 @@ function readStoredView() {
 	}
 }
 
+// First visit on All campus (no ?view=, nothing stored). A Week of the whole
+// campus (~200 clubs) is too dense, and even Day hides most of a busy day
+// behind "+N" (cards for 11 of the 28 timed events on Oct 6), so List on every screen.
+const ALL_CAMPUS_DESKTOP_VIEW = "list";
+
 export default function EventsCalendar({ client, now, initialView = null, initialDate, initialClub = null, starred, onSignIn }) {
 	// View: ?view= wins, then the last view this browser picked. With neither
-	// (a first visit), All campus opens in List (a Week of the whole campus is
-	// too dense to read) and For you in Month.
+	// (a first visit), All campus opens in ALL_CAMPUS_DESKTOP_VIEW (List on
+	// phones) and For you in Month.
 	const [viewPick, setViewPick] = useState(initialView);
 	const [storedView] = useState(readStoredView);
 	const [anchor, setAnchor] = useState(initialDate || now);
@@ -285,7 +290,7 @@ export default function EventsCalendar({ client, now, initialView = null, initia
 	};
 
 	// Phones have no Week tab; a week request shows the day instead.
-	const view = viewPick ?? storedView ?? (mode === "all" ? "list" : "month");
+	const view = viewPick ?? storedView ?? (mode === "all" ? (isPhone ? "list" : ALL_CAMPUS_DESKTOP_VIEW) : "month");
 	const v = isPhone && view === "week" ? "day" : view;
 	const viewRef = useRef(v);
 	viewRef.current = v;
