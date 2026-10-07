@@ -18,9 +18,9 @@ const About = () => {
 						About Instinct
 					</h1>
 					<p className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-8 text-center leading-relaxed">
-						Instinct helps UCI students discover and connect with the right
-						clubs and events through automation, intelligent search, and a beautifully
-						simple platform.
+						Instinct helps UCI students find clubs and events. It keeps an
+						up-to-date index of 451 student organizations, built from what
+						they actually post.
 					</p>
 
 					<div className="flex justify-center">
@@ -61,12 +61,11 @@ const About = () => {
 								For Students
 							</h3>
 							<p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-								UCI has hundreds of clubs and countless events—but no good way to find the ones that
-								actually match your interests. Instinct makes this intuitive. We
-								surface clubs by vibe, activity, and relevance, while helping you discover
-								upcoming events tailored to your preferences. Track
-								real Instagram updates, browse events by category, and get a feel for each
-								org's personality.
+								UCI has hundreds of clubs, and most of what they do lives on
+								Instagram. Instinct pulls that into one place: search clubs by
+								name, handle, or what they talk about, see their recent posts,
+								and browse upcoming events on a single calendar instead of
+								checking dozens of accounts.
 							</p>
 						</div>
 
@@ -75,10 +74,10 @@ const About = () => {
 								For Clubs
 							</h3>
 							<p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
-								Instinct gives your org a platform where students are actually
-								looking. We analyze social engagement, showcase your events, and let you highlight what
-								makes your club special. With smart scraping and effortless info
-								updates, your events and activities will reach the right audience.
+								If your club posts on Instagram, you don't have to do anything
+								extra. Instinct reads your public posts, picks out the events
+								you announce, and lists them alongside your profile so students
+								can find you when they're looking.
 							</p>
 						</div>
 					</div>
@@ -96,10 +95,12 @@ const About = () => {
 
 					<div className="bg-card/60 rounded-xl border border-border p-6 sm:p-8 shadow-md">
 						<p className="text-base sm:text-lg text-muted-foreground leading-relaxed text-center">
-							Instinct automatically scrapes and indexes UCI club Instagram accounts, processes events and posts,
-							and powers an intelligent search system. Whether you're looking for clubs or upcoming events,
-							everything stays up-to-date through automated task queues
-							and smart prioritization—so you never miss what matters to you.
+							Every day, Instinct checks a rotating set of club Instagram
+							accounts and saves new posts. A language model reads each caption
+							and pulls out any events it mentions, with dates and times in
+							Pacific time. Club profiles, posts, and events are then searchable
+							on the site, so what you see stays close to what clubs are
+							actually announcing.
 						</p>
 					</div>
 				</section>
@@ -182,8 +183,10 @@ const About = () => {
 								How often is club data updated?
 							</summary>
 							<p className="mt-3 text-muted-foreground pl-7">
-								Club Instagram activity and metadata are refreshed regularly via
-								an automated job queue and smart prioritization logic.
+								A scrape runs every day and works through club accounts in
+								rotation, so each club is refreshed every so often rather than
+								all at once. Search results pick up new posts and events after
+								each run.
 							</p>
 						</details>
 
@@ -208,9 +211,9 @@ const About = () => {
 								Can clubs request changes to their profiles?
 							</summary>
 							<p className="mt-3 text-muted-foreground pl-7">
-								Yes! A secure submission feature allows verified club officers
-								to request updates. Validation is done via email and moderation
-								tools.
+								Signed-in users (with a UCI email) can submit a club that's
+								missing, and submissions are reviewed before they're added. For
+								corrections to an existing profile, reach out and we'll fix it.
 							</p>
 						</details>
 

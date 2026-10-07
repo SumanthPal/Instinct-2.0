@@ -16,8 +16,7 @@ import {
   SiPostgresql,
   SiJavascript,
   SiDocker,
-  SiGithubactions,
-  SiTypescript
+  SiGithubactions
 } from 'react-icons/si';
 import { FaGithub, FaReact, FaPython, FaSearch, FaInstagram, FaServer } from 'react-icons/fa';
 import { RiOpenaiFill } from 'react-icons/ri';
@@ -29,28 +28,27 @@ const TechnicalAbout = () => {
     {
       category: "Frontend",
       tools: [
-        { icon: <SiNextdotjs />, name: "Next.js", description: "We use Next.js for fast routing, dynamic pages, and seamless full-stack React development." },
-        { icon: <SiTailwindcss />, name: "TailwindCSS", description: "TailwindCSS is used for the awesome/handmade styling of our components." },
-        { icon: <SiJavascript />, name: "JavaScript", description: "Language of choice used for our frontend." },
-        { icon: <SiTypescript />, name: "TypeScript", description: "Added for type safety and improved developer experience." },
+        { icon: <SiNextdotjs />, name: "Next.js", description: "Next.js 16 with the App Router and React 19, installable as a PWA via Serwist." },
+        { icon: <SiTailwindcss />, name: "TailwindCSS", description: "Tailwind CSS 4 for styling, with a few Radix UI primitives for dialogs and popovers." },
+        { icon: <SiJavascript />, name: "JavaScript", description: "The frontend is plain JavaScript, linted with Biome." },
       ]
     },
     {
       category: "Backend",
       tools: [
-        { icon: <SiFastapi />, name: "FastAPI", description: "FastAPI is our choice for integration of the RESTful API." },
-        { icon: <SiPython />, name: "Python", description: "Language our backend is written in." },
-        { icon: <SiRedis />, name: "Redis", description: "Redis is used for storage of our job priority queues. (Don't have enough money for caching unfortunately. 😭)" },
-        { icon: <SiSelenium />, name: "Selenium", description: "Local Instagram scraper for gathering club posts and profile data." },
+        { icon: <SiFastapi />, name: "FastAPI", description: "The REST API. Routes are plain sync functions run on FastAPI's threadpool." },
+        { icon: <SiPython />, name: "Python", description: "The API, scraper, and event parser are all Python." },
+        { icon: <SiRedis />, name: "Redis", description: "Holds the scrape job queue that the daily rotation feeds." },
+        { icon: <SiSelenium />, name: "Selenium", description: "Drives the Instagram scraper that collects club profiles and posts." },
       ]
     },
     {
       category: "Database & Auth",
       tools: [
-        { icon: <SiSupabase />, name: "Supabase", description: "Supabase is our database choice for authentication, relational mapping, and semantic search." },
-        { icon: <SiPostgresql />, name: "PostgreSQL", description: "Schema language of choice for the database." },
-        { icon: <SiGoogle />, name: "Google", description: "Used for simple OAuth." },
-        { icon: <RiOpenaiFill />, name: "OpenAI", description: "We use OpenAI to help with semantic/smart search and NLP processing." },
+        { icon: <SiSupabase />, name: "Supabase", description: "Hosted Postgres plus authentication for sign-in." },
+        { icon: <SiPostgresql />, name: "PostgreSQL", description: "Full-text search with tsvector columns and pg_trgm for typo-tolerant matching." },
+        { icon: <SiGoogle />, name: "Google", description: "Google sign-in through Supabase Auth, limited to @uci.edu accounts." },
+        { icon: <RiOpenaiFill />, name: "OpenAI", description: "Structured-output parsing turns post captions into events (gpt-4.1-mini by default)." },
       ]
     },
     {
@@ -59,7 +57,7 @@ const TechnicalAbout = () => {
         { icon: <SiVercel />, name: "Vercel", description: "Next.js frontend hosted on Vercel." },
         { icon: <FaServer />, name: "Heroku", description: "FastAPI backend API hosted on Heroku." },
         { icon: <SiCloudflare />, name: "Cloudflare R2", description: "Object storage for club profile pictures and post media." },
-        { icon: <SiDocker />, name: "Docker", description: "Local scraper and services containerized for consistent environments." },
+        { icon: <SiDocker />, name: "Docker", description: "The API and the scraper each have their own Docker image." },
         { icon: <SiGithubactions />, name: "GitHub Actions", description: "CI runs backend lint and tests plus the frontend lint and build on every push and pull request; a deploy workflow ships the API to Heroku." },
       ]
     }
@@ -96,9 +94,9 @@ const TechnicalAbout = () => {
             System Overview
           </h2>
           <p className="text-lg text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
-            Instinct is a full-stack web application designed to help UC Irvine students discover and follow campus clubs.
-            The platform aggregates club data, enables powerful search capabilities, and displays
-            detailed club profiles and events.
+            Instinct helps UC Irvine students find clubs and events. It currently indexes 451 clubs,
+            refreshes them from Instagram every day, and turns their posts into a searchable
+            directory and event calendar.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
@@ -110,9 +108,9 @@ const TechnicalAbout = () => {
                 <h3 className="text-2xl font-semibold text-foreground">Frontend</h3>
               </div>
               <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• Built with Next.js and Tailwind CSS</li>
-                <li>• Responsive design for all device sizes</li>
-                <li>• Landing, about, clubs list, and dynamic club pages</li>
+                <li>• Next.js 16, React 19, and Tailwind CSS 4 on Vercel</li>
+                <li>• Club directory, club pages, events calendar, and news</li>
+                <li>• Installable as a PWA (Serwist service worker)</li>
                 <li>• Google OAuth (restricted to @uci.edu)</li>
               </ul>
             </div>
@@ -124,10 +122,10 @@ const TechnicalAbout = () => {
                 <h3 className="text-2xl font-semibold text-foreground">Backend</h3>
               </div>
               <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• FastAPI (Python) for all API routes</li>
-                <li>• Containerized with Docker</li>
-                <li>• Handles data, auth, search, and scraping</li>
-                <li>• PostgreSQL with full-text + vector search</li>
+                <li>• FastAPI (Python) on Heroku, built from a Docker image</li>
+                <li>• Sync routes running on FastAPI's threadpool</li>
+                <li>• Serves clubs, posts, events, search, and calendar feeds</li>
+                <li>• Supabase Postgres as the database</li>
               </ul>
             </div>
 
@@ -138,9 +136,9 @@ const TechnicalAbout = () => {
                 <h3 className="text-2xl font-semibold text-foreground">Search System</h3>
               </div>
               <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• Hybrid search with FTS + vector embeddings</li>
-                <li>• Scores combined using rank + cosine similarity</li>
-                <li>• Helps students find clubs by interest or vibe</li>
+                <li>• Postgres full-text search over club name, handle, and description</li>
+                <li>• Prefix matching as you type, with pg_trgm as a typo fallback</li>
+                <li>• Also matches post captions and event text, refreshed after each scrape</li>
               </ul>
             </div>
 
@@ -151,10 +149,10 @@ const TechnicalAbout = () => {
                 <h3 className="text-2xl font-semibold text-foreground">Scraper System</h3>
               </div>
               <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• Instagram scraped via Selenium</li>
-                <li>• Proxy rotation, cookies, and rate-limit detection</li>
-                <li>• Redis-based job queue for scraping tasks</li>
-                <li>• Parses event data from captions automatically</li>
+                <li>• Daily Selenium scrape of club accounts, in rotation</li>
+                <li>• Redis job queue feeds the scraper</li>
+                <li>• Images stored on Cloudflare R2</li>
+                <li>• OpenAI parser extracts events from captions, in LA time</li>
               </ul>
             </div>
 
@@ -168,8 +166,7 @@ const TechnicalAbout = () => {
             Our Tech Stack
           </h2>
           <p className="text-lg text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
-            Instinct is built with a modern, scalable tech stack designed for reliability and performance.
-            Here's what powers our platform:
+            Here's what Instinct runs on today:
           </p>
 
           {/* Tech Categories */}
@@ -231,7 +228,7 @@ const TechnicalAbout = () => {
               </div>
               <h3 className="text-xl font-semibold mb-2 text-foreground">Containerization</h3>
               <p className="text-muted-foreground text-sm">
-                Services containerized with Docker for consistent environments
+                Separate Docker images for the API and the scraper
               </p>
             </div>
             
@@ -241,7 +238,7 @@ const TechnicalAbout = () => {
               </div>
               <h3 className="text-xl font-semibold mb-2 text-foreground">CI/CD Pipeline</h3>
               <p className="text-muted-foreground text-sm">
-                GitHub Actions for automated testing, building, and deployment
+                Lint, tests, and frontend build on every push and PR; deploys the API to Heroku
               </p>
             </div>
           </div>
@@ -261,7 +258,7 @@ const TechnicalAbout = () => {
           {/* Description */}
           <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
             Instinct is a Next.js frontend on Vercel talking to a FastAPI backend on Heroku, with Supabase (Postgres),
-            Redis job queues, Cloudflare R2 media storage, and a local Selenium scraper for Instagram data.
+            a Redis job queue, Cloudflare R2 for images, and a Selenium scraper that refreshes club Instagram data daily.
           </p>
 
           {/* Key Components */}
@@ -270,26 +267,10 @@ const TechnicalAbout = () => {
             <ul className="space-y-2 text-muted-foreground text-base pl-4 list-disc">
               <li><strong>Client Layer:</strong> Next.js frontend deployed on Vercel</li>
               <li><strong>API Layer:</strong> FastAPI on Heroku</li>
-              <li><strong>Data Layer:</strong> PostgreSQL database with specialized search capabilities</li>
-              <li><strong>Task Layer:</strong> Redis-backed job queues; local Selenium scraper</li>
-              <li><strong>Storage Layer:</strong> Cloudflare R2 for profile and post media</li>
+              <li><strong>Data Layer:</strong> Supabase Postgres with full-text and trigram search</li>
+              <li><strong>Task Layer:</strong> Daily scrape rotation via a Redis queue; OpenAI event parsing</li>
+              <li><strong>Storage Layer:</strong> Cloudflare R2 for profile and post images</li>
             </ul>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div className="bg-card/70 p-4 rounded-lg border border-border shadow-xs">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">99.9%</div>
-              <div className="text-sm text-muted-foreground mt-1">Uptime</div>
-            </div>
-            <div className="bg-card/70 p-4 rounded-lg border border-border shadow-xs">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">&lt; 100ms</div>
-              <div className="text-sm text-muted-foreground mt-1">API Response</div>
-            </div>
-            <div className="bg-card/70 p-4 rounded-lg border border-border shadow-xs">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">Multiple</div>
-              <div className="text-sm text-muted-foreground mt-1">Deployment Regions</div>
-            </div>
           </div>
         </div>
 
@@ -301,11 +282,9 @@ const TechnicalAbout = () => {
 
           <div className="space-y-4 text-muted-foreground text-base">
             {[
-              "Expanding Cloudflare R2 media coverage for older club assets",
-              "Adding smart job queue prioritization to focus on active clubs or those with missing data",
-              "Improving semantic search capabilities for more intuitive club discovery",
-              "Enhancing scraper speed and reliability through parallel processing",
-              "Additional frontend polish and UI/UX improvements for a more engaging student experience"
+              "Making the scraper faster and more reliable",
+              "Improving event extraction from captions",
+              "Ongoing frontend polish"
             ].map((item, idx) => (
               <div key={idx} className="flex items-start bg-card/60 rounded-lg p-3 border border-border">
                 <span className="inline-block mr-3 mt-0.5 text-yellow-600 dark:text-yellow-400 shrink-0">
