@@ -12,7 +12,7 @@ stats plus a few side-by-side differences. It never writes to the database.
     # Same posts every run: save them once, then evaluate from the file.
     uv run python -m instinct.scripts.eval_event_parser --save-posts posts.json
     uv run python -m instinct.scripts.eval_event_parser --posts-file posts.json \\
-        --models gpt-4.1-mini gpt-4.1
+        --models gpt-6-luna gpt-4.1-mini
 
     # Offline plumbing check: canned client and sample posts, no network.
     uv run python -m instinct.scripts.eval_event_parser --dry-run

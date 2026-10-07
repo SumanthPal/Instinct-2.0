@@ -16,10 +16,10 @@ from zoneinfo import ZoneInfo
 # search index and requires a full re-embed via scripts/populate_embeds.py.
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-# Event parsing model. Undated alias on purpose: the previous pin
-# (gpt-4.1-mini-2025-04-14) was a snapshot that will be retired. Override with
-# OPENAI_EVENT_MODEL to test a different model without a code change.
-DEFAULT_EVENT_MODEL = "gpt-4.1-mini"
+# Event parsing model. Undated alias on purpose, so a retired snapshot can't
+# break parsing. Override with OPENAI_EVENT_MODEL to test a different model
+# without a code change.
+DEFAULT_EVENT_MODEL = "gpt-6-luna"
 
 
 def get_event_model() -> str:
