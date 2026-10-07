@@ -131,9 +131,6 @@ export default function Navbar() {
             <Link href="/events" className={desktopLink("/events")}>
               Events
             </Link>
-            <Link href="/news" className={desktopLink("/news")}>
-              News
-            </Link>
             <Link href="/about" className={desktopLink("/about")}>
               About
             </Link>
@@ -249,9 +246,6 @@ export default function Navbar() {
             </NavLink>
             <NavLink href="/events" active={pathname === "/events"}>
               Events
-            </NavLink>
-            <NavLink href="/news" active={pathname === "/news"}>
-              News
             </NavLink>
             <NavLink href="/about" active={pathname === "/about"}>
               About
