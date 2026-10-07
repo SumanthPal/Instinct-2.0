@@ -26,6 +26,7 @@ export default function HomeClient({
     clubs,
     filteredClubs,
     searchInput,
+    query,
     selectedCategories,
     loading,
     hasMoreClubs,
@@ -45,6 +46,19 @@ export default function HomeClient({
   useEffect(() => {
     if (initialCategory) handleCategoryChange([initialCategory]);
   }, [initialCategory, handleCategoryChange]);
+
+  // Keep ?search= in step with the (debounced) query so a search can be
+  // shared, reloaded or returned to. replaceState: typing shouldn't add
+  // history entries. A ?q= alias is rewritten to ?search=.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const current = url.searchParams.get("search") || "";
+    if (current === query && !url.searchParams.has("q")) return;
+    url.searchParams.delete("q");
+    if (query) url.searchParams.set("search", query);
+    else url.searchParams.delete("search");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [query]);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FiStar, FiInstagram } from "react-icons/fi";
 import { Avatar } from "./avatar";
+import { durationMinutes } from "@/components/events-calendar/calendar-utils";
 
 /*
  * Landing previews. Server components: data arrives as props from the
@@ -43,6 +44,66 @@ export function parseLocalDate(s) {
   if (!m) return null;
   const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const CAMPUS_TZ = "America/Los_Angeles";
+const CAMPUS_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: CAMPUS_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+// Formats a wall-clock instant built with Date.UTC, so the server's own
+// timezone never shifts it.
+const SPAN_DAY = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
+
+/**
+ * Campus wall-clock time of an API date as a UTC-based Date. Naive strings
+ * ("2026-10-06T19:00:00") are already Irvine time; strings with Z or an
+ * offset are converted to America/Los_Angeles.
+ */
+function campusClock(s) {
+  const str = String(s || "");
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/.test(str)) {
+    const d = new Date(str);
+    if (Number.isNaN(d.getTime())) return null;
+    const p = Object.fromEntries(CAMPUS_PARTS.formatToParts(d).map((x) => [x.type, x.value]));
+    return new Date(Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute));
+  }
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)));
+}
+
+function clockLabel(d) {
+  const h = d.getUTCHours() % 12 || 12;
+  const m = d.getUTCMinutes();
+  return m ? `${h}:${String(m).padStart(2, "0")}` : `${h}`;
+}
+const meridiem = (d) => (d.getUTCHours() < 12 ? "AM" : "PM");
+
+/**
+ * When an event happens, in campus time, matching the /events calendar:
+ * "7 – 8 PM", "11:30 AM – 1 PM", "All day", or "Oct 9 – Oct 11" for
+ * multi-day spans (shown once, never as a run of daily entries).
+ */
+export function eventWhen(e) {
+  const start = campusClock(e?.parsed?.Date || e?.date);
+  if (!start) return "";
+  const mins = durationMinutes(e);
+  const midnight = start.getUTCHours() === 0 && start.getUTCMinutes() === 0;
+  if (mins >= 1440 || (midnight && mins === 0)) {
+    const days = Math.max(1, Math.ceil(mins / 1440));
+    if (days === 1) return "All day";
+    const last = new Date(start.getTime() + (days - 1) * 86_400_000);
+    return `${SPAN_DAY.format(start)} – ${SPAN_DAY.format(last)}`;
+  }
+  const end = new Date(start.getTime() + (mins > 0 ? mins : 60) * 60_000);
+  const from = meridiem(start) === meridiem(end) ? clockLabel(start) : `${clockLabel(start)} ${meridiem(start)}`;
+  return `${from} – ${clockLabel(end)} ${meridiem(end)}`;
 }
 
 const MONTH_LONG = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
@@ -173,8 +234,7 @@ export function EventsPreview({ events, todayISO }) {
                 <div className="min-w-0">
                   <p className="line-clamp-2 text-sm font-medium leading-snug">{plainText(e.name)}</p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {e.clubs?.name}
-                    {e.duration ? ` · ${e.duration}` : ""}
+                    {[eventWhen(e), e.clubs?.name].filter(Boolean).join(" · ")}
                   </p>
                 </div>
               </div>

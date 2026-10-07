@@ -22,10 +22,11 @@ export default function HomeServer() {
       try {
         setLoading(true);
         const data = await fetchClubManifest(1, 20);
-        // /clubs?search=... (the landing page search submits here) and
-        // /clubs?category=... (the landing page category chips).
+        // /clubs?search=... (the landing page search and the ⌘K palette
+        // submit here; ?q= is accepted as an alias) and /clubs?category=...
+        // (the landing page category chips).
         const params = new URLSearchParams(window.location.search);
-        const search = params.get("search") || "";
+        const search = params.get("search") || params.get("q") || "";
         const category = params.get("category") || "";
 
         setInitialData({

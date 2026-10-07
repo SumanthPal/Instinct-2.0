@@ -731,8 +731,18 @@ class ScraperRotation:
             logger.error(f"Error updating last_scraped for {instagram_handle}: {e}")
 
     def refresh_club_search_vector(self):
-        """Refresh clubs.content_vector; see refresh_search_content."""
-        return refresh_search_content()
+        """Refresh clubs.content_vector, the post and event text that search uses.
+
+        clubs.search_vector (name, handle, description) is a generated column
+        and is always current; only caption and event matches wait for this.
+        """
+        try:
+            self.db.supabase.rpc("refresh_club_search_vector").execute()
+            logger.info("Refreshed club content vectors")
+            return True
+        except Exception as e:
+            logger.error(f"Error refreshing club search vector: {e}")
+            return False
 
     def trigger_cleanup(self):
         """Trigger database cleanup operations"""
