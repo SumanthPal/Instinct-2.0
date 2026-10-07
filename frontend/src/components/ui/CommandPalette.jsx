@@ -16,7 +16,6 @@ import { fetchSmartSearch } from "@/lib/api";
 const PAGES = [
   { href: "/clubs", label: "Clubs" },
   { href: "/events", label: "Events" },
-  { href: "/news", label: "News" },
   { href: "/about", label: "About" },
 ];
 

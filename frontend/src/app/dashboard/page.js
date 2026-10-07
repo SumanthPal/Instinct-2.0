@@ -18,7 +18,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { toast } = useToast();
   
-  // Add view mode state like in the news page
+  // Grid or list view
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [activeFilter, setActiveFilter] = useState('all');
 

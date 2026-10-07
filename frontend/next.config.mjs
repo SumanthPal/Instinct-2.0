@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
+  // The News page was dropped (#116); keep old links and bookmarks working.
+  async redirects() {
+    return [{ source: "/news", destination: "/", permanent: true }];
+  },
   images: {
     remotePatterns: [
       {
