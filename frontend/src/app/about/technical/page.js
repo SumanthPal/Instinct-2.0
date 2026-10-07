@@ -1,307 +1,203 @@
-import React from 'react';
-import '../../../../styles/globals.css';
-import Navbar from '@/components/ui/Navbar';
-import Footer from '@/components/ui/Footer';
-import { 
-  SiNextdotjs, 
-  SiTailwindcss, 
-  SiRedis, 
-  SiSupabase, 
-  SiFastapi, 
-  SiSelenium,
-  SiVercel,
-  SiCloudflare,
-  SiPython,
-  SiGoogle,
-  SiPostgresql,
-  SiJavascript,
-  SiDocker,
-  SiGithubactions
-} from 'react-icons/si';
-import { FaGithub, FaReact, FaPython, FaSearch, FaInstagram, FaServer } from 'react-icons/fa';
-import { RiOpenaiFill } from 'react-icons/ri';
-import Link from 'next/link';
+import Link from "next/link";
+import "../../../../styles/globals.css";
+import { Card, Flow, Hero, Rule, SectionLabel } from "@/components/about/Section";
+import Logo from "@/components/about/Logo";
+import Footer from "@/components/ui/Footer";
+import Navbar from "@/components/ui/Navbar";
 
-const TechnicalAbout = () => {
-  // Group technologies by category for better organization
-  const technologies = [
-    {
-      category: "Frontend",
-      tools: [
-        { icon: <SiNextdotjs />, name: "Next.js", description: "Next.js 16 with the App Router and React 19, installable as a PWA via Serwist." },
-        { icon: <SiTailwindcss />, name: "TailwindCSS", description: "Tailwind CSS 4 for styling, with a few Radix UI primitives for dialogs and popovers." },
-        { icon: <SiJavascript />, name: "JavaScript", description: "The frontend is plain JavaScript, linted with Biome." },
-      ]
-    },
-    {
-      category: "Backend",
-      tools: [
-        { icon: <SiFastapi />, name: "FastAPI", description: "The REST API. Routes are plain sync functions run on FastAPI's threadpool." },
-        { icon: <SiPython />, name: "Python", description: "The API, scraper, and event parser are all Python." },
-        { icon: <SiRedis />, name: "Redis", description: "Holds the scrape job queue that the daily rotation feeds." },
-        { icon: <SiSelenium />, name: "Selenium", description: "Drives the Instagram scraper that collects club profiles and posts." },
-      ]
-    },
-    {
-      category: "Database & Auth",
-      tools: [
-        { icon: <SiSupabase />, name: "Supabase", description: "Hosted Postgres plus authentication for sign-in." },
-        { icon: <SiPostgresql />, name: "PostgreSQL", description: "Full-text search with tsvector columns and pg_trgm for typo-tolerant matching." },
-        { icon: <SiGoogle />, name: "Google", description: "Google sign-in through Supabase Auth, limited to @uci.edu accounts." },
-        { icon: <RiOpenaiFill />, name: "OpenAI", description: "Structured-output parsing turns post captions into events (gpt-6-luna)." },
-      ]
-    },
-    {
-      category: "DevOps & Deployment",
-      tools: [
-        { icon: <SiVercel />, name: "Vercel", description: "Next.js frontend hosted on Vercel." },
-        { icon: <FaServer />, name: "Heroku", description: "FastAPI backend API hosted on Heroku." },
-        { icon: <SiCloudflare />, name: "Cloudflare R2", description: "Object storage for club profile pictures and post media." },
-        { icon: <SiDocker />, name: "Docker", description: "The API and the scraper each have their own Docker image." },
-        { icon: <SiGithubactions />, name: "GitHub Actions", description: "CI runs backend lint and tests plus the frontend lint and build on every push and pull request; a deploy workflow ships the API to Heroku." },
-      ]
-    }
-  ];
+const FACTS = [
+	["Search", "Postgres full-text, pg_trgm for typos"],
+	["Events", "OpenAI structured output, LA time"],
+	["Scraping", "4 runs a day, clubs in rotation"],
+	["Scale", "451 clubs indexed"],
+];
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar />
-      <main className="container mx-auto px-4 pt-24 pb-12 md:pt-28 md:pb-20">
-        {/* Hero Section */}
-        <div className="max-w-6xl mx-auto mb-20 bg-card rounded-md border border-border p-6 sm:p-10">
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground text-left sm:text-center mb-6">
-            Technical Details
-          </h1>
+const PIPELINE = [
+	{ logo: "instagram", title: "Caption", sub: "+ post date, LA time" },
+	{ title: "Prompt + schema", sub: "strict JSON schema" },
+	{ logo: "openai", title: "Model", sub: "pinned, gpt-6-luna", accent: true },
+	{ title: "Rules + checks", sub: "shape check, durations" },
+	{ logo: "postgresql", title: "Postgres", sub: "event saved" },
+];
 
-          <p className="text-lg sm:text-xl md:text-2xl text-center text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            The technology powering Instinct's platform for UCI club discovery.
-          </p>
+const GUARDRAILS = [
+	["Schema", "Strict JSON schema. Every reply has the same fields and types."],
+	["Rules", "Start time only: 1 hour. No time: 00:00 + whole days. Applied in code too."],
+	["Date context", "Post date sent in LA time with its weekday, so “this Friday” resolves the same way."],
+	["Validation", "Refusals or off-shape replies are errors, not empty results."],
+	["No silent drops", "Failed parses stay unparsed and retry next run."],
+	["Pinned model", "gpt-6-luna."],
+];
 
-          {/* Back to About Link */}
-          <div className="mt-8 flex justify-center">
-            <Link
-              href="/about"
-              className="group inline-flex items-center space-x-2 text-xl text-foreground hover:text-foreground transition-colors duration-200 font-medium"
-            >
-              <span>← Back to About</span>
-            </Link>
-          </div>
-        </div>
-        
-        {/* System Overview Section */}
-        <div className="max-w-6xl mx-auto mb-20 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">
-            System Overview
-          </h2>
-          <p className="text-lg text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
-            Instinct helps UC Irvine students find clubs and events. It currently indexes 451 clubs,
-            refreshes them from Instagram every day, and turns their posts into a searchable
-            directory and event calendar.
-          </p>
+const HARNESS = [
+	{ logo: "supabase", title: "Frozen post set", sub: "saved once, reused" },
+	{ logo: "openai", title: "Side by side", sub: "prompts × models", accent: true },
+	{ title: "Metrics + diffs", sub: "read-only, never writes" },
+];
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            
-            {/* Frontend */}
-            <div className="bg-card p-6 rounded-md border border-border">
-              <div className="flex items-center mb-4">
-                <FaReact className="text-3xl text-foreground mr-3" />
-                <h3 className="text-2xl font-semibold text-foreground">Frontend</h3>
-              </div>
-              <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• Next.js 16, React 19, and Tailwind CSS 4 on Vercel</li>
-                <li>• Club directory, club pages, events calendar, and news</li>
-                <li>• Installable as a PWA (Serwist service worker)</li>
-                <li>• Google OAuth (restricted to @uci.edu)</li>
-              </ul>
-            </div>
+const METRICS = [
+	"zero duration %",
+	"timed zero duration %",
+	"midnight starts %",
+	"all-day whole days %",
+	"bad output",
+	"API errors",
+	"side-by-side diffs",
+];
 
-            {/* Backend */}
-            <div className="bg-card p-6 rounded-md border border-border">
-              <div className="flex items-center mb-4">
-                <FaPython className="text-3xl text-blue-600 dark:text-blue-400 mr-3" />
-                <h3 className="text-2xl font-semibold text-foreground">Backend</h3>
-              </div>
-              <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• FastAPI (Python) on Heroku, built from a Docker image</li>
-                <li>• Sync routes running on FastAPI's threadpool</li>
-                <li>• Serves clubs, posts, events, search, and calendar feeds</li>
-                <li>• Supabase Postgres as the database</li>
-              </ul>
-            </div>
+const STACK = [
+	["Frontend", [["nextdotjs", "Next.js", "App Router, PWA"], ["react", "React", "UI, v19"], ["tailwindcss", "Tailwind CSS", "Styling, v4"]]],
+	[
+		"Backend",
+		[
+			["fastapi", "FastAPI", "REST API"],
+			["python", "Python", "API + scraper"],
+			["redis", "Redis", "Scrape queue"],
+			["selenium", "Selenium", "Instagram scraper"],
+			["instagram", "Instagram", "Source of posts"],
+			["openai", "OpenAI", "Caption → events"],
+		],
+	],
+	["Data & auth", [["supabase", "Supabase", "Postgres + auth"], ["postgresql", "PostgreSQL", "FTS + pg_trgm"], ["google", "Google", "@uci.edu sign-in"]]],
+	[
+		"Infra",
+		[
+			["vercel", "Vercel", "Hosts the site"],
+			["heroku", "Heroku", "Hosts the API"],
+			["cloudflare", "Cloudflare R2", "Image storage"],
+			["docker", "Docker", "API + scraper images"],
+			["githubactions", "GitHub Actions", "CI + API deploy"],
+		],
+	],
+];
 
-            {/* Search System */}
-            <div className="bg-card p-6 rounded-md border border-border">
-              <div className="flex items-center mb-4">
-                <FaSearch className="text-3xl text-green-600 dark:text-green-400 mr-3" />
-                <h3 className="text-2xl font-semibold text-foreground">Search System</h3>
-              </div>
-              <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• Postgres full-text search over club name, handle, and description</li>
-                <li>• Prefix matching as you type, with pg_trgm as a typo fallback</li>
-                <li>• Also matches post captions and event text, refreshed after each scrape</li>
-              </ul>
-            </div>
+function SubHead({ title, file }) {
+	return (
+		<h3 className="mt-7 mb-3 text-sm font-semibold text-foreground">
+			{title}
+			{file && <span className="ml-2 font-mono text-xs font-normal text-muted-foreground">{file}</span>}
+		</h3>
+	);
+}
 
-            {/* Scraper System */}
-            <div className="bg-card p-6 rounded-md border border-border">
-              <div className="flex items-center mb-4">
-                <FaInstagram className="text-3xl text-pink-600 dark:text-pink-400 mr-3" />
-                <h3 className="text-2xl font-semibold text-foreground">Scraper System</h3>
-              </div>
-              <ul className="text-muted-foreground space-y-2 text-lg pl-2">
-                <li>• Daily Selenium scrape of club accounts, in rotation</li>
-                <li>• Redis job queue feeds the scraper</li>
-                <li>• Images stored on Cloudflare R2</li>
-                <li>• OpenAI parser extracts events from captions, in LA time</li>
-              </ul>
-            </div>
+export default function TechnicalAbout() {
+	return (
+		<div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+			<Navbar />
+			<main className="mx-auto max-w-6xl px-6 pb-20">
+				<div className="mx-auto max-w-3xl">
+					<Hero
+						eyebrow="Technical details"
+						title="How Instinct is"
+						accent="built"
+						lede="Next.js, FastAPI, Postgres, and a scraper that runs 4× a day."
+					>
+						<Link
+							href="/about"
+							className="mt-7 inline-block border-b border-[var(--accent-brand)]/40 pb-0.5 text-sm font-medium text-[var(--accent-brand)] hover:border-[var(--accent-brand)]"
+						>
+							← Back to About
+						</Link>
+					</Hero>
+				</div>
 
-          </div>
-        </div>
+				<SectionLabel>Architecture</SectionLabel>
+				<div className="overflow-x-auto rounded-2xl border border-border bg-[#0d0d0f] p-4 sm:p-6">
+					{/* biome-ignore lint/performance/noImgElement: static SVG diagram */}
+					<img
+						src="/architecture.svg"
+						alt="Site: Google sign-in, Next.js on Vercel, FastAPI on Heroku, Supabase Postgres. Scraper, 4 times a day: launchd on a Mac, Redis queue, Selenium on Instagram, OpenAI event parser, writing posts and events to Postgres and images to Cloudflare R2."
+						className="mx-auto h-auto w-full min-w-[720px]"
+					/>
+				</div>
 
+				<Rule />
+				<SectionLabel>Key facts</SectionLabel>
+				<div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+					{FACTS.map(([k, v]) => (
+						<Card key={k} className="p-5">
+							<p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--accent-brand)]">{k}</p>
+							<p className="text-sm text-foreground">{v}</p>
+						</Card>
+					))}
+				</div>
 
-        {/* Technical Details Section - Tech Stack */}
-        <div className="max-w-6xl mx-auto mb-20 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">
-            Our Tech Stack
-          </h2>
-          <p className="text-lg text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
-            Here's what Instinct runs on today:
-          </p>
+				<Rule />
+				<SectionLabel>How events get extracted</SectionLabel>
+				<p className="text-sm text-muted-foreground">
+					An LLM reads each caption. Guardrails keep its output consistent and stop quality slipping over time.
+				</p>
+				<SubHead title="Pipeline" file="tools/ai_validation.py" />
+				<Flow steps={PIPELINE} />
+				<SubHead title="Guardrails" />
+				<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{GUARDRAILS.map(([k, v]) => (
+						<Card key={k} className="p-5">
+							<p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--accent-brand)]">{k}</p>
+							<p className="text-sm text-foreground">{v}</p>
+						</Card>
+					))}
+				</div>
+				<p className="mt-4 text-xs text-muted-foreground">
+					Why the duration rules: 272 of 2,282 events in prod had zero duration (~12%). Repeatability comes from the
+					schema, rules, and evals; no temperature is sent, since gpt-6-luna only accepts the default.
+				</p>
 
-          {/* Tech Categories */}
-          <div className="space-y-16">
-            {technologies.map((techCategory, index) => (
-              <div key={index} className="bg-card/50 rounded-xl border border-border p-6 shadow-md">
-                <h3 className="text-2xl font-bold mb-8 text-foreground">
-                  {techCategory.category}
-                </h3>
+				<Rule />
+				<SectionLabel>Evaluation</SectionLabel>
+				<p className="text-sm text-muted-foreground">
+					Before changing the model or prompt, run both on the same frozen posts and compare.
+				</p>
+				<SubHead title="Harness" file="scripts/eval_event_parser.py" />
+				<Flow steps={HARNESS} />
+				<SubHead title="Reported per variant" />
+				<ul className="flex flex-wrap gap-2">
+					{METRICS.map((m) => (
+						<li key={m} className="rounded-lg border border-border bg-card px-2.5 py-1.5 font-mono text-xs text-foreground">
+							{m}
+						</li>
+					))}
+				</ul>
+				<p className="mt-4 text-xs text-muted-foreground">
+					Used to compare gpt-4.1-mini with gpt-6-luna. Run by hand, not in CI; no results are committed. 17 unit
+					tests in tests/test_event_parser.py cover the schema, rules, retries, and an offline dry run of the harness.
+				</p>
 
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-                  {techCategory.tools.map((tool, toolIndex) => (
-                    <div
-                      key={toolIndex}
-                      className="relative p-4 flex flex-col items-center justify-center text-center group bg-card/70 rounded-lg border border-border shadow-xs hover:shadow-md transition duration-300"
-                    >
-                      <div className="text-4xl mb-3 text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
-                        {tool.icon}
-                      </div>
-                      <span className="text-base font-semibold text-foreground mb-1">
-                        {tool.name}
-                      </span>
-                      
-                      {/* Mobile-friendly description - Always visible on small screens */}
-                      <p className="md:hidden text-xs text-muted-foreground mt-2 leading-tight">
-                        {tool.description}
-                      </p>
-                      
-                      {/* Desktop tooltip - Only shows on hover */}
-                      <div className="hidden md:block absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 rounded-md bg-popover text-popover-foreground px-4 py-3 shadow-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-border pointer-events-none mt-2">
-                        <p className="text-sm leading-relaxed">{tool.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Cloud Infrastructure */}
-        <div className="max-w-6xl mx-auto mb-20 bg-card/60 rounded-xl border border-border p-6 sm:p-8 shadow-md">
-          <h2 className="text-3xl font-bold mb-8 text-foreground text-center">Cloud Infrastructure</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="bg-card/60 rounded-lg border border-border p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
-              <div className="text-5xl text-blue-600 dark:text-blue-400 mb-4 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-300">
-                <FaServer />
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-foreground">Heroku API</h3>
-              <p className="text-muted-foreground text-sm">
-                FastAPI backend deployed on Heroku
-              </p>
-            </div>
-            
-            <div className="bg-card/60 rounded-lg border border-border p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
-              <div className="text-5xl text-green-600 dark:text-green-400 mb-4 hover:text-green-500 dark:hover:text-green-300 transition-colors duration-300">
-                <SiDocker />
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-foreground">Containerization</h3>
-              <p className="text-muted-foreground text-sm">
-                Separate Docker images for the API and the scraper
-              </p>
-            </div>
-            
-            <div className="bg-card/60 rounded-lg border border-border p-4 text-center flex flex-col items-center justify-center hover:shadow-md transition-all duration-300">
-              <div className="text-5xl text-purple-600 dark:text-purple-400 mb-4 hover:text-purple-500 dark:hover:text-purple-300 transition-colors duration-300">
-                <SiGithubactions />
-              </div>
-              <h3 className="text-xl font-semibold mb-2 text-foreground">CI/CD Pipeline</h3>
-              <p className="text-muted-foreground text-sm">
-                Lint, tests, and frontend build on every push and PR; deploys the API to Heroku
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        {/* System Architecture */}
-        <div className="max-w-6xl mx-auto mb-20 bg-card/60 rounded-xl border border-border p-6 sm:p-8 shadow-md">
-          <h2 className="text-3xl md:text-4xl font-bold mb-8 text-foreground text-center">
-            System Architecture
-          </h2>
+				<Rule />
+				<SectionLabel>Stack</SectionLabel>
+				{STACK.map(([cat, tools]) => (
+					<div key={cat} className="grid gap-4 border-t border-border py-5 md:grid-cols-[140px_1fr] md:gap-6">
+						<span className="pt-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{cat}</span>
+						<ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+							{tools.map(([logo, name, desc]) => (
+								<li key={name} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3">
+									<span className="grid h-8 w-8 flex-none place-items-center rounded-md border border-border bg-background text-foreground">
+										<Logo name={logo} size={18} />
+									</span>
+									<span>
+										<span className="block text-sm font-semibold">{name}</span>
+										<span className="text-xs text-muted-foreground">{desc}</span>
+									</span>
+								</li>
+							))}
+						</ul>
+					</div>
+				))}
 
-          {/* Diagram */}
-          <div className="w-full flex justify-center mb-8 overflow-x-auto bg-card/60 rounded-lg border border-border p-4">
-            <img src="/diagram.svg" alt="System Architecture Diagram" className="w-full max-w-4xl h-auto" />
-          </div>
-
-          {/* Description */}
-          <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-            Instinct is a Next.js frontend on Vercel talking to a FastAPI backend on Heroku, with Supabase (Postgres),
-            a Redis job queue, Cloudflare R2 for images, and a Selenium scraper that refreshes club Instagram data daily.
-          </p>
-
-          {/* Key Components */}
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-4 text-foreground">Key Components:</h3>
-            <ul className="space-y-2 text-muted-foreground text-base pl-4 list-disc">
-              <li><strong>Client Layer:</strong> Next.js frontend deployed on Vercel</li>
-              <li><strong>API Layer:</strong> FastAPI on Heroku</li>
-              <li><strong>Data Layer:</strong> Supabase Postgres with full-text and trigram search</li>
-              <li><strong>Task Layer:</strong> Daily scrape rotation via a Redis queue; OpenAI event parsing</li>
-              <li><strong>Storage Layer:</strong> Cloudflare R2 for profile and post images</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* In Progress/Future Section */}
-        <div className="max-w-6xl mx-auto mb-20 bg-card/60 rounded-xl border border-border p-6 sm:p-8 shadow-md">
-          <h2 className="text-3xl font-bold mb-8 text-foreground text-center">
-            In Progress & Coming Soon
-          </h2>
-
-          <div className="space-y-4 text-muted-foreground text-base">
-            {[
-              "Making the scraper faster and more reliable",
-              "Improving event extraction from captions",
-              "Ongoing frontend polish"
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-start bg-card/60 rounded-lg p-3 border border-border">
-                <span className="inline-block mr-3 mt-0.5 text-yellow-600 dark:text-yellow-400 shrink-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </span>
-                <span className="flex-1">{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      <Footer />
-    </div>
-  );
-};
-
-export default TechnicalAbout;
+				<Rule />
+				<SectionLabel>Next up</SectionLabel>
+				<ul className="flex flex-wrap gap-2.5">
+					{["Faster, sturdier scraper", "Better event extraction", "UI polish"].map((x) => (
+						<li
+							key={x}
+							className="rounded-full border border-[var(--accent-brand)]/40 bg-[color-mix(in_srgb,var(--accent-brand-solid)_12%,transparent)] px-3.5 py-1.5 text-sm text-[var(--accent-brand)]"
+						>
+							{x}
+						</li>
+					))}
+				</ul>
+			</main>
+			<Footer />
+		</div>
+	);
+}
