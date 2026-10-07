@@ -1229,6 +1229,26 @@ def parse_events(instagram_handle: str) -> None:
         logger.error(f"Event parsing failed for {instagram_handle}: {exc}")
 
 
+def refresh_search_content() -> bool:
+    """Rebuild clubs.content_vector, the post and event text that search uses.
+
+    clubs.search_vector (name, handle, description) is a generated column and
+    is always current; caption and event matches wait for this. It rebuilds
+    every club in one statement (about 2s at 451 clubs and 19k posts). A
+    failure is logged and returns False; it never fails a scrape.
+    """
+    from instinct.db.queries import SupabaseQueries
+
+    started = time.monotonic()
+    try:
+        SupabaseQueries().supabase.rpc("refresh_club_search_vector").execute()
+    except Exception as exc:
+        logger.error(f"Could not refresh club search content: {exc}")
+        return False
+    logger.info(f"Refreshed club search content in {time.monotonic() - started:.1f}s")
+    return True
+
+
 def driver_alive(scraper) -> bool:
     """False when the scraper's browser was quit or no longer answers."""
     if scraper._driver is None:
@@ -1254,6 +1274,10 @@ def run_session(
     config, a locked Chrome profile, Supabase) is raised to the caller.
     Nothing is retried and accounts are never switched. on_attempted is
     called after each club that was tried without hitting a stop.
+
+    Unless dry_run, once any club was tried, it ends by refreshing the
+    caption and event text that search matches (refresh_search_content), so
+    posts and events from this run are searchable.
     """
     from instinct.db.queries import normalize_handle
     from instinct.tools.insta_scraper import InstagramScraper
@@ -1261,6 +1285,7 @@ def run_session(
 
     scraper = None
     failed: List[str] = []
+    tried = 0
     try:
         scraper = InstagramScraper(
             os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
@@ -1275,6 +1300,7 @@ def run_session(
                 delay = random.uniform(*ONCE_CLUB_DELAY_SECONDS)
                 logger.info(f"Waiting {delay:.0f}s before the next club...")
                 time.sleep(delay)
+            tried += 1
             try:
                 scrape_one(scraper, instagram_handle, dry_run=dry_run)
             except InstagramLoginError, RateLimitDetected:
@@ -1304,6 +1330,8 @@ def run_session(
     finally:
         if scraper:
             scraper._driver_quit()
+        if tried and not dry_run:
+            refresh_search_content()
 
 
 def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
