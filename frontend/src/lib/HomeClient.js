@@ -19,7 +19,6 @@ export default function HomeClient({
   initialCategory = "",
 }) {
   const clubsRef = useRef(null);
-  const [viewMode, setViewMode] = useState("grid");
   const [allCategories, setAllCategories] = useState(categoriesList);
 
   const {
@@ -142,8 +141,6 @@ export default function HomeClient({
         </div>
 
         <ViewControls
-          viewMode={viewMode}
-          setViewMode={setViewMode}
           selectedCategories={selectedCategories}
           onCategoryChange={handleCategoryChange}
           allCategories={allCategories}
@@ -155,7 +152,6 @@ export default function HomeClient({
             clubs={filteredClubs}
             selectedCategories={selectedCategories}
             totalClubCount={totalClubCount}
-            viewMode={viewMode}
             hasMoreClubs={hasMoreClubs}
             loading={loading}
             onClearFilters={handleClearFilters}

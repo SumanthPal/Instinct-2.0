@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { likesService } from '@/lib/like-service';
 import ClubCard from '@/components/ClubCard';
-import ViewModeToggle from '@/components/ViewModeToggle';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
 import { useToast } from '@/components/ui/toast'; 
@@ -18,8 +17,6 @@ export default function Dashboard() {
   const router = useRouter();
   const { toast } = useToast();
   
-  // Grid or list view
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [activeFilter, setActiveFilter] = useState('all');
 
   // Fetch liked clubs when component mounts
@@ -141,7 +138,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="mb-8">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -162,9 +159,6 @@ export default function Dashboard() {
                 {category}
               </button>
             ))}
-          </div>
-          <div className="shrink-0">
-            <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
           </div>
         </div>
 
@@ -204,16 +198,10 @@ export default function Dashboard() {
           )}
 
           {!isLoading && filteredClubs.length > 0 && (
-            <div
-              className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
-                  : 'flex flex-col gap-3 sm:gap-4'
-              }
-            >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredClubs.map((club, index) => (
-                <div key={club.id || club.instagram} className={viewMode === 'grid' ? 'h-full' : 'w-full'}>
-                  <ClubCard club={club} viewMode={viewMode} index={index} />
+                <div key={club.id || club.instagram} className="h-full">
+                  <ClubCard club={club} index={index} />
                 </div>
               ))}
             </div>

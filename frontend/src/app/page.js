@@ -238,7 +238,7 @@ export default async function Home() {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {examples.map((club, i) => (
-                  <ClubCard key={club.id} club={toCard(club)} viewMode="grid" index={i} eager />
+                  <ClubCard key={club.id} club={toCard(club)} index={i} eager />
                 ))}
               </div>
             )}
