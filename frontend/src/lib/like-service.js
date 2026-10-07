@@ -47,7 +47,6 @@ export const likesService = {
 
       if (clubsError) throw clubsError;
 
-      console.log("Raw club data:", clubsData);
 
       // Map the clubs data to the format expected by the ClubCard component
       return clubsData.map((club) => {
@@ -103,10 +102,6 @@ export const likesService = {
       } = await supabase.auth.getSession();
       if (!session) return false;
 
-      console.log("Checking if club is liked:", {
-        userId: session.user.id,
-        instagramHandle: handle,
-      });
 
       const { data, error } = await supabase
         .from("user_liked_clubs")
@@ -145,7 +140,6 @@ export const likesService = {
       throw new Error("Instagram handle is required");
     }
 
-    console.log("Toggling like for Instagram handle:", handle);
 
     const supabase = createClient();
 
@@ -159,11 +153,9 @@ export const likesService = {
 
       // Check if already liked
       const isLiked = await this.isClubLiked(handle);
-      console.log("Current like status:", isLiked);
 
       if (isLiked) {
         // Unlike the club
-        console.log("Unliking club...");
         const { error } = await supabase
           .from("user_liked_clubs")
           .delete()
@@ -178,10 +170,6 @@ export const likesService = {
         return false; // Now unliked
       } else {
         // Like the club
-        console.log("Liking club...", {
-          user_id: session.user.id,
-          instagram_handle: handle,
-        });
 
         const { data, error } = await supabase
           .from("user_liked_clubs")
@@ -196,7 +184,6 @@ export const likesService = {
           throw error;
         }
 
-        console.log("Like successful:", data);
         return true; // Now liked
       }
     } catch (error) {
