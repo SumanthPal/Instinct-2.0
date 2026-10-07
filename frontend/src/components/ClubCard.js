@@ -10,7 +10,7 @@ import { useToast } from "./ui/toast";
 
 // `eager` renders the full card on the server (landing page examples)
 // instead of a placeholder that waits for the IntersectionObserver.
-const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, eager = false }) {
+const ClubCard = memo(function ClubCard({ club, index = 0, eager = false }) {
   const [isVisible, setIsVisible] = useState(eager);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -188,43 +188,9 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
     </div>
   );
 
-  const ListCard = () => (
-    <div className="instinct-card relative w-full overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex p-4">
-        <div className="mr-4 shrink-0">
-          <Avatar sizeClass="h-16 w-16 sm:h-20 sm:w-20" />
-        </div>
-
-        <div className="flex grow flex-col">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 text-left">
-              <h3 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                {club.name}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                @{club.instagram}
-              </p>
-            </div>
-            <StarButton className="shrink-0" />
-          </div>
-
-          <p className="mt-2 grow text-left text-sm leading-relaxed text-muted-foreground line-clamp-3 md:text-base">
-            {extractQuotedContent(club.description || "")}
-          </p>
-
-          <div className="mt-2 flex justify-start">
-            <CategoryTags limit={3} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   const LoadingPlaceholder = () => (
     <div
-      className={`${
-        viewMode === "grid" ? "h-[360px]" : "h-[120px]"
-      } animate-pulse rounded-xl border border-border bg-muted/40 motion-reduce:animate-none`}
+      className="h-[360px] animate-pulse rounded-xl border border-border bg-muted/40 motion-reduce:animate-none"
     >
       <div className="flex h-full flex-col items-center justify-center p-4">
         <div className="mb-3 h-16 w-16 rounded-full bg-muted" />
@@ -242,7 +208,7 @@ const ClubCard = memo(function ClubCard({ club, viewMode = "grid", index = 0, ea
       {isVisible ? (
         <Link href={`/club/${club.instagram}`} passHref>
           <div onClick={handleCardClick} className="h-full">
-            {viewMode === "grid" ? <GridCard /> : <ListCard />}
+            <GridCard />
           </div>
         </Link>
       ) : (

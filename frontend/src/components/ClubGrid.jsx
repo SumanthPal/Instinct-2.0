@@ -7,7 +7,6 @@ const ClubGrid = memo(function ClubGrid({
   clubs,
   selectedCategories,
   totalClubCount,
-  viewMode,
   hasMoreClubs,
   loading,
   onClearFilters,
@@ -22,18 +21,12 @@ const ClubGrid = memo(function ClubGrid({
         {title} ({clubs.length} of {totalClubCount})
       </h2>
 
-      <div
-        className={`${
-          viewMode === "grid"
-            ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-            : "flex flex-col gap-3 sm:gap-4"
-        }`}
-      >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {clubs.length > 0 ? (
           clubs.map((club, index) => (
             <div
               key={`${club.id}-${club.instagram_handle || club.name}-${index}`}
-              className={viewMode === "grid" ? "h-full" : "w-full"}
+              className="h-full"
               style={{ animationDelay: `${Math.min(index * 50, 1000)}ms` }}
             >
               <ClubCard
@@ -45,7 +38,6 @@ const ClubGrid = memo(function ClubGrid({
                   instagram: club.instagram_handle,
                   categories: club.categories,
                 }}
-                viewMode={viewMode}
                 index={index}
               />
             </div>
