@@ -10,7 +10,7 @@ import { useToast } from "./ui/toast";
 
 // `eager` renders the full card on the server (landing page examples)
 // instead of a placeholder that waits for the IntersectionObserver.
-const ClubCard = memo(function ClubCard({ club, index = 0, eager = false }) {
+const ClubCard = memo(function ClubCard({ club, index = 0, eager = false, onLikeChange }) {
   const [isVisible, setIsVisible] = useState(eager);
   const [isLiked, setIsLiked] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -82,6 +82,7 @@ const ClubCard = memo(function ClubCard({ club, index = 0, eager = false }) {
       setIsLikeLoading(true);
       const newLikedState = await likesService.toggleLikeClub(club.instagram);
       setIsLiked(newLikedState);
+      onLikeChange?.(newLikedState);
       toast({
         title: newLikedState
           ? "Club Added to Favorites"
