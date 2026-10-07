@@ -134,6 +134,43 @@ export function collapseLongSpan(ev) {
 	return { ...ev, end, endMs: end.getTime(), spanEnd: ev.end };
 }
 
+/**
+ * All-day spans longer than this many days (conferences, "week of action",
+ * application windows) are summarized as one "Ongoing (N)" line in Week, Day
+ * and Month instead of each taking an all-day lane.
+ */
+export const ONGOING_DAYS = 3;
+
+/** Calendar days an all-day event covers, using the real end of a collapsed span. */
+export function spanDays(ev) {
+	return differenceInCalendarDays(ev.spanEnd || ev.end, ev.start);
+}
+
+export function isOngoing(ev) {
+	return ev.allDay && spanDays(ev) > ONGOING_DAYS;
+}
+
+/** "to Oct 9": last day of an all-day span (its end is exclusive). */
+export function untilLabel(ev) {
+	return `to ${format(addDays(ev.spanEnd || ev.end, -1), "MMM d")}`;
+}
+
+/**
+ * Compact grid title: parentheticals and " | ..." / " – ..." tails dropped
+ * ("Tennessee Primary Care Association (TPCA) 2026 Annual Conference" ->
+ * "Tennessee Primary Care Association 2026 Annual Conference"). The full
+ * title stays in the popover, aria-label and tooltip.
+ */
+export function shortTitle(title) {
+	const t = String(title || "");
+	const s = t
+		.replace(/\s*\([^)]*\)/g, "")
+		.replace(/\s+[|–—]\s+.*$/, "")
+		.replace(/\s{2,}/g, " ")
+		.trim();
+	return s.length >= 3 ? s : t;
+}
+
 /** True when the event touches calendar day `day`. */
 export function occursOn(ev, day) {
 	return ev.startMs < nextDayMs(day) && ev.endMs > dayStartMs(day);
@@ -258,12 +295,22 @@ export function layoutDay(events, day, startHour = DAY_START_HOUR, endHour = DAY
 			shown.push(it);
 		}
 		const cols = colEnds.length;
-		for (const it of shown) {
+		for (let i = 0; i < shown.length; i++) {
+			const it = shown[i];
 			// A block may reach under its right-hand neighbours when they all
-			// start well after it, so its title stays readable.
-			const later = shown.filter((o) => o.col > it.col && o.top < it.bottom && o.bottom > it.top);
-			const canWiden = later.length > 0 && later.every((o) => o.top - it.top >= 30);
-			const span = canWiden ? Math.min(cols - it.col, 1.7) : 1;
+			// start well after it, so its title stays readable. `shown` is sorted
+			// by top, so only blocks starting before this one ends can overlap:
+			// stop scanning there (keeps a busy day close to linear).
+			let later = 0;
+			let canWiden = true;
+			for (let j = 0; j < shown.length && canWiden; j++) {
+				const o = shown[j];
+				if (o.top >= it.bottom) break;
+				if (o.col <= it.col || o.bottom <= it.top) continue;
+				later++;
+				if (o.top - it.top < 30) canWiden = false;
+			}
+			const span = canWiden && later > 0 ? Math.min(cols - it.col, 1.7) : 1;
 			blocks.push({ ev: it.ev, top: it.top, height: it.bottom - it.top, col: it.col, cols, span, reserve: overflow });
 		}
 		cluster = [];
@@ -278,15 +325,13 @@ export function layoutDay(events, day, startHour = DAY_START_HOUR, endHour = DAY
 	const byHour = new Map();
 	for (const it of hiddenAll) {
 		const hour = Math.floor(it.top / 60);
-		if (!byHour.has(hour)) byHour.set(hour, []);
-		byHour.get(hour).push(it.ev);
+		const g = byHour.get(hour);
+		if (g) {
+			g.hidden.push(it.ev);
+			g.first = Math.min(g.first, it.top);
+		} else byHour.set(hour, { hidden: [it.ev], first: it.top });
 	}
-	const more = [...byHour].map(([hour, hidden]) => ({
-		hour: startHour + hour,
-		top: hour * 60,
-		first: Math.min(...hiddenAll.filter((it) => Math.floor(it.top / 60) === hour).map((it) => it.top)),
-		hidden,
-	}));
+	const more = [...byHour].map(([hour, g]) => ({ hour: startHour + hour, top: hour * 60, first: g.first, hidden: g.hidden }));
 	return { blocks, more };
 }
 
@@ -425,13 +470,20 @@ export function icsHref(ev, now = new Date()) {
 /**
  * All-day / multi-day events across a run of consecutive days (a week row)
  * as bars: [{ ev, start, end (inclusive col), lane, cutLeft, cutRight }].
+ * With splitOngoing, spans longer than ONGOING_DAYS come back in `ongoing`
+ * (soonest end first) instead of taking a lane, when there are two or more.
  */
-export function layoutSpans(events, days) {
+export function layoutSpans(events, days, { splitOngoing = false } = {}) {
 	const first = startOfDay(days[0]);
 	const last = addDays(startOfDay(days[days.length - 1]), 1);
 	const col = (d) => Math.round(differenceInMinutes(startOfDay(d), first) / 1440);
-	const spans = events
-		.filter((ev) => ev.allDay && ev.start < last && ev.end > first)
+	const inRange = events.filter((ev) => ev.allDay && ev.start < last && ev.end > first);
+	// One long span alone reads fine as its own bar; summarize from two up.
+	let ongoing = splitOngoing ? inRange.filter(isOngoing) : [];
+	if (ongoing.length < 2) ongoing = [];
+	const summarized = new Set(ongoing);
+	const spans = inRange
+		.filter((ev) => !summarized.has(ev))
 		.map((ev) => {
 			const s = Math.max(0, col(ev.start));
 			const e = Math.min(days.length - 1, col(addMinutes(ev.end, -1)));
@@ -447,5 +499,6 @@ export function layoutSpans(events, days) {
 		} else laneEnds[lane] = sp.end;
 		sp.lane = lane;
 	}
-	return { spans, lanes: laneEnds.length };
+	ongoing.sort((a, b) => (a.spanEnd || a.end) - (b.spanEnd || b.end) || a.startMs - b.startMs);
+	return { spans, lanes: laneEnds.length, ongoing };
 }

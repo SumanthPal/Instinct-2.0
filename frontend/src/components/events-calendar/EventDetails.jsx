@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { FiCalendar, FiChevronLeft, FiClock, FiDownload, FiFilter, FiImage, FiMapPin, FiX } from "react-icons/fi";
 import ClubAvatar from "@/components/ClubAvatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { icsHref, shortTime, timeRange } from "./calendar-utils";
+import { icsHref, shortTime, timeRange, untilLabel } from "./calendar-utils";
 
 /**
  * isMobile: details open in one shared bottom sheet instead of popovers.
@@ -229,7 +229,7 @@ export function SlotList({ title, subtitle, events, onPick, onClose }) {
 							onClick={() => (onPick ? onPick(ev) : setSel(ev))}
 							className={`cal-cat-${ev.tone} flex w-full items-center gap-2.5 px-4 py-1.5 text-left hover:bg-muted/60`}
 						>
-							<span className="w-[50px] shrink-0 text-xs tabular-nums text-muted-foreground">{shortTime(ev.start)}</span>
+							<span className="w-[56px] shrink-0 text-xs tabular-nums text-muted-foreground">{ev.allDay ? untilLabel(ev) : shortTime(ev.start)}</span>
 							<span className="cal-bar h-7 w-[3px] shrink-0 rounded-full" />
 							<span className="min-w-0 flex-1">
 								<span className="block truncate text-[13px] font-medium text-foreground">{ev.title}</span>

@@ -2,8 +2,9 @@
 
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import { format, isSameDay, isSameMonth } from "date-fns";
-import { EventPopover } from "./EventDetails";
-import { TONES, dayKey, dayList, eventsInDays, layoutSpans, monthGrid, shortTime, timeRange } from "./calendar-utils";
+import { FiChevronDown } from "react-icons/fi";
+import { EventPopover, SlotPopover } from "./EventDetails";
+import { TONES, dayKey, dayList, eventsInDays, layoutSpans, monthGrid, shortTime, shortTitle, timeRange } from "./calendar-utils";
 
 const SLOT = 18;
 const GAP = 3;
@@ -13,7 +14,7 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 function TimedChip({ ev }) {
 	return (
 		<span className={`cal-cat-${ev.tone} cal-chip @container flex h-full w-full items-center gap-1 rounded-[4px] pl-1.5 pr-1 text-left text-[11px] leading-none text-foreground`}>
-			<span className="min-w-0 flex-1 truncate font-medium">{ev.title}</span>
+			<span className="min-w-0 flex-1 truncate font-medium">{shortTitle(ev.title)}</span>
 			<span className="hidden shrink-0 tabular-nums text-muted-foreground @min-[112px]:inline">{shortTime(ev.start)}</span>
 		</span>
 	);
@@ -26,7 +27,7 @@ function SpanChip({ sp }) {
 				sp.cutLeft ? "rounded-l-none" : "rounded-l-[4px]"
 			} ${sp.cutRight ? "rounded-r-none" : "rounded-r-[4px]"}`}
 		>
-			<span className="truncate">{sp.ev.title}</span>
+			<span className="truncate">{shortTitle(sp.ev.title)}</span>
 		</span>
 	);
 }
@@ -49,7 +50,20 @@ function CategoryDots({ list }) {
  * opens the day, instead of a column of chips plus "+N more".
  */
 function layoutWeek(index, days, maxSlots) {
-	const { spans } = layoutSpans(eventsInDays(index, days), days);
+	const laid = layoutSpans(eventsInDays(index, days), days, { splitOngoing: true });
+	let spans = laid.spans;
+	// Long spans share one "Ongoing (N)" bar in the top lane, across the days they cover.
+	if (laid.ongoing.length) {
+		const first = days[0].getTime();
+		const col = (d) => Math.round((d.getTime() - first) / 86_400_000);
+		let start = days.length - 1;
+		let end = 0;
+		for (const ev of laid.ongoing) {
+			start = Math.min(start, Math.max(0, col(ev.start)));
+			end = Math.max(end, Math.min(days.length - 1, col(ev.end) - 1));
+		}
+		spans = [{ ongoing: laid.ongoing, start, end: Math.max(start, end), lane: 0 }, ...spans.map((sp) => ({ ...sp, lane: sp.lane + 1 }))];
+	}
 	const perDay = days.map((day, c) => {
 		const list = dayList(index, day);
 		const taken = new Set(spans.filter((sp) => sp.start <= c && sp.end >= c).map((sp) => sp.lane));
@@ -113,6 +127,39 @@ const WeekRow = memo(function WeekRow({ days, first, anchor, index, now, maxSlot
 				style={{ top: HEAD + 4, gridAutoRows: `${SLOT}px`, rowGap: GAP }}
 			>
 				{shownSpans.map((sp) => {
+					if (sp.ongoing) {
+						const key = `mo-${wk}`;
+						return (
+							<div
+								key={key}
+								className="pointer-events-auto min-w-0 px-1"
+								style={{ gridColumn: `${sp.start + 1} / ${sp.end + 2}`, gridRow: 1 }}
+							>
+								<SlotPopover
+									slot={{
+										subtitle: `Week of ${format(days[0], "MMM d")}`,
+										title: `Ongoing · ${sp.ongoing.length} multi-day ${sp.ongoing.length === 1 ? "event" : "events"}`,
+										events: sp.ongoing,
+									}}
+									instanceKey={key}
+									openKey={openKey}
+									setOpenKey={setOpenKey}
+									side="bottom"
+								>
+									<button
+										type="button"
+										data-ongoing
+										className="flex h-full w-full min-w-0 items-center gap-1.5 rounded-[4px] border border-border px-1.5 text-left text-[11px] leading-none hover:bg-muted data-[state=open]:border-foreground/40"
+									>
+										<span className="shrink-0 font-medium text-foreground">Ongoing</span>
+										<span className="shrink-0 tabular-nums text-muted-foreground">({sp.ongoing.length})</span>
+										<span className="min-w-0 truncate text-muted-foreground">· {sp.ongoing.map((ev) => shortTitle(ev.title)).join(", ")}</span>
+										<FiChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+									</button>
+								</SlotPopover>
+							</div>
+						);
+					}
 					const key = `ms-${sp.ev.id}-${wk}`;
 					return (
 						<div
