@@ -48,7 +48,7 @@ const TechnicalAbout = () => {
         { icon: <SiSupabase />, name: "Supabase", description: "Hosted Postgres plus authentication for sign-in." },
         { icon: <SiPostgresql />, name: "PostgreSQL", description: "Full-text search with tsvector columns and pg_trgm for typo-tolerant matching." },
         { icon: <SiGoogle />, name: "Google", description: "Google sign-in through Supabase Auth, limited to @uci.edu accounts." },
-        { icon: <RiOpenaiFill />, name: "OpenAI", description: "Structured-output parsing turns post captions into events (gpt-4.1-mini by default)." },
+        { icon: <RiOpenaiFill />, name: "OpenAI", description: "Structured-output parsing turns post captions into events (gpt-6-luna, set via OPENAI_EVENT_MODEL)." },
       ]
     },
     {
