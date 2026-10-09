@@ -1,78 +1,66 @@
-# Instinct: A Production-Grade Club Discovery Platform
+# Instinct
 
-Instinct is a full-stack web application designed to solve the problem of club discovery at UC Irvine. It automates the process of finding club events by scraping Instagram, parsing event details using AI, and presenting them in a searchable, user-friendly interface. This project was a solo endeavor, built from the ground up during my freshman year of college, evolving from a simple Python script into a scalable, cloud-native application.
+Club and event discovery for UC Irvine. Instinct scrapes club Instagram accounts and turns their posts into a searchable club directory and a campus events calendar.
 
-[Live Site (Temporarily Offline)](www.instincts.systems)
+Live: [instinct-2-0.vercel.app](https://instinct-2-0.vercel.app)
 
-## Key Features
-- Automated Instagram Scraper: A resilient Selenium-based scraper that navigates Instagram, handles session cookies, and detects rate limits to gather club posts.
+I built it solo, starting freshman year, because there was no single place to find out what clubs were doing.
 
-- AI-Powered Event Parsing: Utilizes OpenAI's gpt-4-mini to extract structured event data (date, time, location, summary) from unstructured, emoji-filled, and slang-heavy post captions.
+## Numbers
 
-- Hybrid Search Engine: Implements a powerful search combining lexical (PostgreSQL tsvector) and semantic (vector embeddings) search, weighted 60/40, for intuitive and relevant club discovery.
+- About 451 clubs, 19k scraped posts and 2.3k parsed events in production (Oct 2026)
+- v1 reached over 3,000 page views and 200+ registered users
+- About 200 clubs scraped per day
 
-- UCI-Exclusive Authentication: Secure user login via Google OAuth, restricted to users with a @uci.edu email address, with a custom dashboard for signed-in users.
+## How it works
 
-- Microservices Architecture: The backend is composed of containerized services deployed on Azure Container Apps, ensuring scalability and separation of concerns.
-
-- Advanced Scraper Orchestration: A Redis-based priority queue manages scraping tasks, preventing rate-limit errors and ensuring data freshness.
-
-- Discord Bot Management: A custom two-bot system (Fixie Bixie & Queuetie) serves as a mobile-friendly dashboard for system monitoring, task orchestration, and database management.
-
-- CI/CD Pipeline: Automated build, test, and deployment workflows using GitHub Actions for both the frontend (Vercel) and backend (Azure Container Registry).
-
-## System Architecture
-Instinct is built on a microservices architecture to ensure scalability, resilience, and maintainability.
-
-## The Journey: From Script to Production App
-This project's evolution mirrors a journey from a hobbyist coder to a self-taught systems architect.
-
-**V0** (The Idea): Started as a simple Python script using Selenium and storing data in local JSON files to solve a personal problem: "Where are the club events?"
-
-**V1** (The Prototype): Grew into a web app with a Next.js frontend and FastAPI backend, deployed on Heroku. This version faced significant challenges with Heroku's ephemeral filesystem and complex secret management.
-
-- **Rejection & Pivot**: After being rejected for support by a student organization due to concerns about maintenance and cost, the project was temporarily shelved. A subsequent attempt to form a team was unsuccessful, reinforcing the lesson that for a passion project, the most reliable path forward is often solo.
-
-**V2** (The Re-architecture): The project was resurrected with a complete architectural overhaul.
-
-- Database: Migrated from a file system to PostgreSQL via Supabase for structured, scalable data storage.
-- Scraper: Re-engineered the scraper into an orchestrated system using a Redis priority queue to manage rate limits and schedule tasks efficiently.
-- Management: Developed a Discord bot dashboard for system control, proving more flexible and accessible than traditional cloud dashboards.
-
-**V3** (Production Grade): After receiving Azure and GCP credits from a contact at UCI's Office of Information Technology (OIT), the project was migrated to a production-grade cloud environment.
-
-Containerization: Learned Docker to containerize all services.
-
-Cloud Deployment: Migrated from Heroku to Azure Container Apps, overcoming challenges with Azure's lack of native docker-compose and .env support by scripting custom solutions.
-
-CI/CD: Implemented a full CI/CD pipeline with GitHub Actions to automate deployments.
-
-## Local database
-
-`make db-local` starts a throwaway Postgres, applies `supabase/migrations/` and the fake data in `supabase/seed.sql`, and prints its `DATABASE_URL`. `make db-reset` wipes it and rebuilds from scratch. Neither touches the live Supabase project.
-
-With the Supabase CLI installed it uses `supabase db start` (Postgres only, no API containers). Without the CLI it runs one `pgvector/pgvector:pg15` container with a small auth stub (`scripts/db-local-stub.sql`). Set `DOCKER="sudo docker"` if Docker needs sudo. The seed only loads into an empty database, so restarting keeps your data. Grants are stripped from the migrations until #73, so locally `anon` and `authenticated` get `permission denied` on every table, and RLS policies can't be tested locally yet.
-
-For real data, create the gitignored `supabase/seed.local.sql`; it is loaded instead of `seed.sql`. Refresh it with a read-only, data-only dump of the public tables, never `pending_clubs` (submitter emails) or `user_liked_clubs` (user IDs). `calendar_files` only holds per-club `.ics` files built from public events, so it is included.
-
-```bash
-supabase db dump --linked --data-only -s public \
-  -x public.pending_clubs,public.user_liked_clubs \
-  -f supabase/seed.local.sql
+```mermaid
+flowchart LR
+    L[launchd on a Mac] --> S[Selenium scraper]
+    S -->|images| R2[(Cloudflare R2)]
+    S -->|posts| DB[(Supabase Postgres<br/>pgvector + full-text)]
+    DB --> P[OpenAI event parser]
+    P -->|events| DB
+    DB --> API[FastAPI]
+    API --> W[Next.js on Vercel]
 ```
 
-> **Before you ever run `supabase db push` against the live project**, mark the baseline as already applied: `supabase migration repair --linked --status applied 20261004050858`. The live database already has that schema, but the baseline was made with pg_dump, so the project's migration history won't list it until you repair it, and `db push` would try to run it against prod.
+- **Scraper** (`backend/src/instinct/tools`): launchd runs `daily_scrape` four times a day on my Mac. Each run takes the clubs scraped longest ago, scrapes them on one browser session and one login, opens only the newest 3 posts it hasn't seen, and stops for the rest of the day at 200 clubs or on any challenge, checkpoint or rate-limit page.
+- **Storage**: post images go to Cloudflare R2 through the plain S3 API, so the provider is one endpoint URL.
+- **Parsing**: OpenAI structured outputs turn emoji-heavy captions into events with dates, times and locations. Posts that fail to parse stay unparsed instead of saving bad data.
+- **Data**: Supabase Postgres, with a generated `tsvector` for club search and pgvector embeddings. Schema lives in `supabase/migrations`.
+- **API and web**: FastAPI serves clubs, posts and a date-range `/events` endpoint; the Next.js frontend renders club profiles and a month/week/day/list calendar.
 
-## Project Status
-Currently Offline: The application is temporarily offline. After the initial launch, which garnered over 3,000 page views and 200+ registered users, the Azure instance was accidentally overprovisioned, leading to unforeseen costs that exhausted the initial credits.
+## Interesting problems
 
-### Future Plans:
+- **Not getting banned.** The old rotation loop started a fresh browser and login for every club and fell back to a second account on failure. To Instagram that looks like repeated logins, which is what gets accounts flagged. I moved to one shared session per run and made challenge and checkpoint pages a hard stop instead of a rate limit to retry around.
+- **Scraping on a budget.** A daily cap plus an oldest-first queue keeps every club fresh without spiking traffic. A club with no new posts costs one profile load, and a broken club moves to the back of the line instead of blocking it.
+- **Making the LLM parser measurable.** Captions are messy, so I wrote `eval_event_parser` to compare prompts and models on real posts before changing the default.
+- **Getting off Azure.** v3 ran on Azure Container Apps until an overprovisioned instance burned through the credits. The current setup keeps the database intact and moves the expensive Selenium work onto a machine I already own.
+- **GCS to R2.** I moved images to R2 for zero egress fees and nulled the database paths that pointed into the deleted GCS bucket so the frontend falls back cleanly.
 
-- Restart the application for the Fall quarter with optimized, cost-effective resource allocation.
-- Improve semantic search capabilities for even more intuitive discovery.
-- Refine the UI/UX based on user feedback.
-- Apply lessons learned in marketing for a more impactful relaunch.
+## Version history
 
-Questions? Feel free to reach out at spallamr@uci.edu.
+- **v0**: a Python Selenium script writing local JSON files.
+- **v1**: Next.js and FastAPI on Heroku. 3,000+ page views and 200+ users, then shelved.
+- **v2**: rebuilt on Supabase Postgres with a Redis priority queue and a Discord bot dashboard.
+- **v3**: containerized on Azure Container Apps with GitHub Actions CI/CD, until the credits ran out.
+- **Now**: a cheap stack: local scraper, R2, Supabase and Vercel, with a redesigned calendar and club pages.
+
+## Running locally
+
+```bash
+cp backend/.env.example backend/.env && cp frontend/.env.example frontend/.env.local
+make install     # uv + bun dependencies
+make db-local    # throwaway Postgres with migrations and seed data
+make up          # Redis + API at localhost:8000/docs
+make dev-web     # Next.js dev server
+```
+
+`make help` lists everything else. `make db-local` never touches the live Supabase project.
+
+**Stack:** Python, FastAPI, Selenium, OpenAI, Supabase Postgres (pgvector), Redis, Cloudflare R2, Next.js, Tailwind, Vercel.
+
+Questions: spallamr@uci.edu
 
 _Instinct is not affiliated with or endorsed by the University of California, Irvine._
