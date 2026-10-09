@@ -4,7 +4,8 @@ import {
   fetchClubManifest,
   fetchSmartSearch,
   fetchMoreClubs,
-  fetchClubsByCategory
+  fetchClubsByCategory,
+  SEARCH_DEBOUNCE_MS
 } from '@/lib/api';
 
 const PAGE_SIZE = 20;
@@ -50,7 +51,7 @@ export function useClubsData(initialClubs, totalCount, hasMore, currentPage, ini
   const skipInitialFetch = useRef(Boolean(initialClubs?.length) && !seededQuery);
 
   useEffect(() => {
-    const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), 500);
+    const timeout = setTimeout(() => setDebouncedSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timeout);
   }, [searchInput]);
 

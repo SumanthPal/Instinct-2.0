@@ -11,7 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import ClubAvatar from "@/components/ClubAvatar";
-import { fetchSmartSearch } from "@/lib/api";
+import { fetchSmartSearch, SEARCH_DEBOUNCE_MS } from "@/lib/api";
 
 const PAGES = [
   { href: "/clubs", label: "Clubs" },
@@ -55,7 +55,7 @@ export default function CommandPalette({ open, onOpenChange }) {
       setResults(found);
       setSelected(found.length ? `club-${found[0].instagram_handle}` : "search-all");
       setLoading(false);
-    }, 200);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
 
