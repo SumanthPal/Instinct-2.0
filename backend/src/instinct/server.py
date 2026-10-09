@@ -27,7 +27,9 @@ app = FastAPI(
 router = APIRouter()
 
 origins = [
-    "https://instinct-2-0.vercel.app",  # production frontend
+    "https://instincts.one",  # production frontend (custom domain)
+    "https://www.instincts.one",
+    "https://instinct-2-0.vercel.app",  # vercel.app frontend
     "https://instinct.vercel.app",  # backup/staging
     "http://localhost:3000",  # local development
     "http://127.0.0.1:3000",
