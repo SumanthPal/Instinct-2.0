@@ -1,7 +1,7 @@
 from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries, normalize_handle
 from instinct.utils.images import IMAGE_EXTENSIONS, cdn_url
-import hmac
+from instinct.admin import admin_router, lifespan, mcp_route, reports_router
 import uuid
 import os
 from typing import List, Optional
@@ -17,13 +17,13 @@ from pydantic import BaseModel, EmailStr
 
 # Load environment variables
 dotenv.load_dotenv()
-from instinct.tools.logger import logger
 
 
 app = FastAPI(
     title="UCI Club Discovery API",
     description="API for discovering UCI clubs and their events",
     version="2.0.0",
+    lifespan=lifespan,
 )
 router = APIRouter()
 
@@ -69,36 +69,6 @@ def get_db() -> SupabaseQueries:
     if _db is None:
         _db = SupabaseQueries()
     return _db
-
-
-def require_internal_token(request: Request) -> None:
-    """Authenticate an internal caller on admin endpoints.
-
-    Uses INTERNAL_API_TOKEN, a secret whose only purpose is internal -> API auth.
-    The Discord bots that used to call these endpoints are retired; the token
-    still gates them for admin scripts and tooling.
-    This used to compare against the Supabase service_role key, which meant the
-    API bearer token doubled as full, RLS-bypassing database access and that
-    rotating the database key silently broke internal auth (#50).
-    """
-    expected = os.getenv("INTERNAL_API_TOKEN")
-    if not expected:
-        raise HTTPException(
-            status_code=503,
-            detail="Server misconfigured: INTERNAL_API_TOKEN is not set",
-        )
-
-    auth_header = request.headers.get("authorization")
-    if not auth_header:
-        raise HTTPException(status_code=401, detail="Missing authorization token")
-
-    # Constant-time compare: a plain != leaks the token a byte at a time.
-    # Compare bytes, not str: Starlette decodes headers as latin-1, and
-    # hmac.compare_digest raises TypeError on non-ASCII str, which would turn a
-    # malformed header into a 500 instead of a 401.
-    provided = auth_header.strip().encode("latin-1", "replace")
-    if not hmac.compare_digest(provided, f"Bearer {expected}".encode("utf-8")):
-        raise HTTPException(status_code=401, detail="Invalid service token")
 
 
 class Club(BaseModel):
@@ -196,160 +166,6 @@ async def submit_pending_club(new_club: PendingClubSubmission, request: Request)
 
     # If it gets here, it was successful
     return {"message": "Club submitted successfully. Awaiting approval."}
-
-
-@router.delete("/pending-club/{pending_id}/reject")
-def reject_pending_club(pending_id: str, request: Request):
-    require_internal_token(request)
-
-    try:
-        # Set approved = false
-        (
-            supabase.table("pending_clubs")
-            .update({"approved": False})
-            .eq("id", pending_id)
-            .execute()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to reject club: {str(e)}")
-
-    return {
-        "message": f"Club {pending_id} rejected and will be auto-deleted by trigger."
-    }
-
-
-@router.get("/pending-clubs")
-def list_pending_clubs(
-    limit: int = Query(20, description="Number of pending clubs to fetch"),
-    offset: int = Query(0, description="Pagination offset"),
-):
-    """List pending clubs that have not been approved yet."""
-    try:
-        response = (
-            supabase.table("pending_clubs")
-            .select("*")
-            .eq("approved", False)
-            .order("submitted_at", desc=False)
-            .range(offset, offset + limit - 1)
-            .execute()
-        )
-
-        # FIX: Check if response.data is not None
-        pending = response.data
-        if not pending:
-            pending = []
-
-        return {"count": len(pending), "results": pending}
-
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error fetching pending clubs: {str(e)}"},
-        )
-
-
-@router.post("/pending-club/{pending_id}/approve")
-def approve_pending_club(pending_id: str, request: Request):
-    # 1. Validate admin authentication
-    require_internal_token(request)
-
-    # 2. Fetch pending club
-    try:
-        response = (
-            get_db()
-            .supabase.table("pending_clubs")
-            .select("*")
-            .eq("id", pending_id)
-            .single()
-            .execute()
-        )
-        pending_club = response.data
-        if not pending_club:
-            raise HTTPException(status_code=404, detail="Pending club not found")
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Pending club not found: {str(e)}")
-
-    # 3. Insert into real clubs table
-    insert_payload = {
-        "name": pending_club["name"],
-        "instagram_handle": pending_club["instagram_handle"],
-    }
-
-    # Note: club_links don't exist yet, but we'll need to handle categories
-    # Categories should be processed separately after club creation
-
-    try:
-        # Insert the club
-        club_result = get_db().supabase.table("clubs").insert(insert_payload).execute()
-
-        # Get the new club ID for category association
-        if not club_result.data or len(club_result.data) == 0:
-            raise Exception("Failed to insert club - no data returned")
-
-        new_club_id = club_result.data[0]["id"]
-
-        # Process categories if they exist
-        if pending_club.get("categories") and isinstance(
-            pending_club["categories"], list
-        ):
-            # Log for debugging
-            logger.info(f"Processing categories: {pending_club['categories']}")
-
-            # Handle your categories based on your schema
-            # This assumes you have a club_categories junction table
-            # and that categories are formatted as objects with a "name" field
-            for category in pending_club["categories"]:
-                # Find or create the category
-                category_name = category.get("name")
-                if not category_name:
-                    continue
-
-                # Look up category ID by name
-                cat_response = (
-                    get_db()
-                    .supabase.table("categories")
-                    .select("id")
-                    .eq("name", category_name)
-                    .execute()
-                )
-
-                if cat_response.data and len(cat_response.data) > 0:
-                    category_id = cat_response.data[0]["id"]
-
-                    # Insert association
-                    get_db().supabase.table("clubs_categories").insert(
-                        {"club_id": new_club_id, "category_id": category_id}
-                    ).execute()
-                else:
-                    logger.warning(f"Category '{category_name}' not found, skipping")
-
-    except Exception as e:
-        logger.error(f"Failed to insert into clubs: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to insert into clubs: {str(e)}"
-        )
-
-    # 4. Delete the pending club entry
-    try:
-        delete_result = (
-            get_db()
-            .supabase.table("pending_clubs")
-            .delete()
-            .eq("id", pending_id)
-            .execute()
-        )
-        logger.info(f"Deleted pending club: {delete_result.data}")
-
-    except Exception as e:
-        logger.error(f"Failed to delete pending club: {str(e)}")
-        # Note: We don't raise an exception here because the club was already successfully added
-        # Just log the error and return a warning
-        return {
-            "message": "Club approved and added successfully, but failed to remove from pending queue",
-            "warning": f"Failed to delete pending club: {str(e)}",
-        }
-
-    return {"message": "Club approved and added successfully"}
 
 
 @app.get("/")
@@ -815,6 +631,9 @@ def run_scraper_process():
 
 
 app.include_router(router)
+app.include_router(admin_router)
+app.include_router(reports_router)
+app.router.routes.append(mcp_route)
 if __name__ == "__main__":
     import uvicorn
 
