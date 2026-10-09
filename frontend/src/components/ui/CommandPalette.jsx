@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CommandDialog,
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/command";
 import ClubAvatar from "@/components/ClubAvatar";
 import { fetchSmartSearch, SEARCH_DEBOUNCE_MS } from "@/lib/api";
+import { eventHref, formatEventWhen, loadUpcomingEvents, searchEvents } from "@/lib/eventSearch";
+import { normalizeQuery } from "@/lib/queryCache";
 
 const PAGES = [
   { href: "/clubs", label: "Clubs" },
@@ -19,8 +21,19 @@ const PAGES = [
   { href: "/about", label: "About" },
 ];
 
+// Smart search is fuzzy, so its clubs often only loosely match. Events go
+// first unless a club's name or handle actually contains the query.
+const clubNameHit = (clubs, term) => {
+  const q = normalizeQuery(term);
+  return clubs.some(
+    (c) => normalizeQuery(c.name).includes(q) || normalizeQuery(c.instagram_handle).includes(q),
+  );
+};
+
 /**
- * ⌘K palette: club search against /smart-search plus page shortcuts.
+ * ⌘K palette: club search against /smart-search, event search over the
+ * next 92 days of /events (filtered here; see lib/eventSearch), and page
+ * shortcuts.
  * Loaded with next/dynamic from the Navbar so cmdk stays off first load.
  */
 export default function CommandPalette({ open, onOpenChange }) {
@@ -28,13 +41,29 @@ export default function CommandPalette({ open, onOpenChange }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  // Controlled selection so Enter picks the top club once results arrive.
+  // Controlled selection so Enter picks the top result once clubs arrive.
   const [selected, setSelected] = useState("");
   const requestId = useRef(0);
+  const [events, setEvents] = useState(null);
 
   useEffect(() => {
-    if (!open) setQuery("");
+    if (!open) {
+      setQuery("");
+      return;
+    }
+    // Load (or reuse) the upcoming events as soon as the palette opens.
+    let live = true;
+    loadUpcomingEvents().then((list) => {
+      if (live) setEvents(list);
+    });
+    return () => {
+      live = false;
+    };
   }, [open]);
+
+  const eventResults = useMemo(() => (events ? searchEvents(events, query, 5) : []), [events, query]);
+  const topEvent = useRef(null);
+  topEvent.current = eventResults[0] || null;
 
   // Debounced search; a stale response never overwrites a newer one.
   useEffect(() => {
@@ -53,7 +82,14 @@ export default function CommandPalette({ open, onOpenChange }) {
       const { results: found } = await fetchSmartSearch(term, 1, 8);
       if (id !== requestId.current) return;
       setResults(found);
-      setSelected(found.length ? `club-${found[0].instagram_handle}` : "search-all");
+      const ev = topEvent.current;
+      setSelected(
+        ev && !clubNameHit(found, term)
+          ? `event-${ev.id}`
+          : found.length
+            ? `club-${found[0].instagram_handle}`
+            : "search-all",
+      );
       setLoading(false);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -61,8 +97,10 @@ export default function CommandPalette({ open, onOpenChange }) {
 
   const go = (href) => {
     onOpenChange(false);
-    // /clubs reads ?search= once on mount; a same-route push wouldn't re-seed it.
-    if (href.startsWith("/clubs?") && window.location.pathname === "/clubs") {
+    // /clubs and /events read their params once on mount; a same-route push
+    // wouldn't re-seed them.
+    const path = href.split("?")[0];
+    if (href.includes("?") && (path === "/clubs" || path === "/events") && window.location.pathname === path) {
       window.location.assign(href);
       return;
     }
@@ -70,6 +108,49 @@ export default function CommandPalette({ open, onOpenChange }) {
   };
 
   const term = query.trim();
+  const eventsFirst = eventResults.length > 0 && !clubNameHit(results, term);
+  // With events showing, fewer clubs so both groups fit.
+  const shownClubs = eventResults.length > 0 ? results.slice(0, 4) : results;
+
+  const clubsGroup = shownClubs.length > 0 && (
+    <CommandGroup key="clubs" heading="Clubs">
+      {shownClubs.map((club) => (
+        <CommandItem
+          key={club.instagram_handle}
+          value={`club-${club.instagram_handle}`}
+          onSelect={() => go(`/club/${encodeURIComponent(club.instagram_handle)}`)}
+        >
+          <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full">
+            <ClubAvatar src={club.profile_image_path} alt="" sizes="24px" />
+          </span>
+          <span className="truncate">{club.name}</span>
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+            @{club.instagram_handle}
+          </span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  );
+  const eventsGroup = eventResults.length > 0 && (
+    <CommandGroup key="events" heading="Events">
+      {eventResults.map((ev) => (
+        <CommandItem key={ev.id} value={`event-${ev.id}`} onSelect={() => go(eventHref(ev))}>
+          <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full">
+            <ClubAvatar src={ev.avatar} alt="" sizes="24px" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate">{ev.name}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {ev.clubName || `@${ev.handle}`}
+            </span>
+          </span>
+          <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
+            {formatEventWhen(ev.date)}
+          </span>
+        </CommandItem>
+      ))}
+    </CommandGroup>
+  );
 
   return (
     <CommandDialog
@@ -80,34 +161,16 @@ export default function CommandPalette({ open, onOpenChange }) {
       onValueChange={setSelected}
     >
       <CommandInput
-        placeholder="Search clubs…"
+        placeholder="Search clubs, events…"
         value={query}
         onValueChange={setQuery}
-        aria-label="Search clubs"
+        aria-label="Search clubs and events"
       />
-      <CommandList>
-        {term && !loading && results.length === 0 && (
-          <CommandEmpty>No clubs found.</CommandEmpty>
+      <CommandList className="max-h-[min(26rem,60vh)]">
+        {term && !loading && events && results.length === 0 && eventResults.length === 0 && (
+          <CommandEmpty>No clubs or events found.</CommandEmpty>
         )}
-        {results.length > 0 && (
-          <CommandGroup heading="Clubs">
-            {results.map((club) => (
-              <CommandItem
-                key={club.instagram_handle}
-                value={`club-${club.instagram_handle}`}
-                onSelect={() => go(`/club/${encodeURIComponent(club.instagram_handle)}`)}
-              >
-                <span className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full">
-                  <ClubAvatar src={club.profile_image_path} alt="" sizes="24px" />
-                </span>
-                <span className="truncate">{club.name}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                  @{club.instagram_handle}
-                </span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
+        {eventsFirst ? [eventsGroup, clubsGroup] : [clubsGroup, eventsGroup]}
         {term && (
           <CommandGroup heading="Search">
             <CommandItem

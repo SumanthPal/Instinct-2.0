@@ -181,7 +181,7 @@ export function EventsPreview({ events, todayISO }) {
   const cells = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div aria-hidden="true" className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-sm font-medium">{MONTH_LONG.format(ref)}</p>
         <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] text-muted-foreground">

@@ -57,7 +57,7 @@ function Section({ eyebrow, title, body, actions, visual, stats, flip = false, f
   return (
     <section className="border-t border-border">
       <div
-        className={`mx-auto grid max-w-6xl items-center gap-12 px-4 py-24 sm:px-6 lg:gap-16 lg:py-28 ${
+        className={`mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-4 py-24 sm:px-6 lg:gap-16 lg:py-28 ${
           flip
             ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]"
             : "lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
