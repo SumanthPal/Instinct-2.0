@@ -151,5 +151,21 @@ def test_query_is_one_request_with_a_per_club_limit():
     params = dict(request.url.params)
     assert params["select"] == "id,posts(id,club_id,post_url,caption,image_path,posted)"
     assert params["id"] == f"in.({A},{B})"
-    assert params["posts.order"] == "posted.desc,id.asc"
+    assert params["posts.scrapped"] == "eq.True"
+    assert params["posts.order"] == "posted.desc.nullslast,id.asc"
     assert params["posts.limit"] == "6"
+
+
+def test_posts_to_parse_skips_rows_without_a_caption(monkeypatch):
+    db = SupabaseQueries.__new__(SupabaseQueries)
+    db.supabase, requests = recording_client([{"id": "p1"}])
+    monkeypatch.setattr(db, "get_club_by_instagram_handle", lambda handle: A)
+
+    assert db.posts_to_parse("acm") == [{"id": "p1"}]
+
+    (request,) = requests
+    assert request.url.path.endswith("/posts")
+    params = request.url.params
+    assert params["parsed"] == "eq.False"
+    assert params["club_id"] == f"eq.{A}"
+    assert params.get_list("caption") == ["not.is.null", "neq."]
