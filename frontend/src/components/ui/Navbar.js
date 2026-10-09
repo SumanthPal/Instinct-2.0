@@ -109,7 +109,7 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border bg-background">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-10">
+        <div className="flex shrink-0 items-center gap-10">
           <Link href="/" className="flex items-center gap-2.5">
             <img
               src="/logo.png"
@@ -142,24 +142,26 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-8 flex min-w-0 flex-1 items-center justify-end gap-2">
+          {/* Grows into the space between the nav links and the buttons, 200-400px. */}
           <button
             type="button"
             onClick={openPalette}
-            aria-label="Search clubs"
+            aria-label="Search clubs and events"
             aria-keyshortcuts="Meta+K Control+K"
-            className="hidden h-8 items-center gap-2 rounded-full border border-border bg-transparent pl-3 pr-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:inline-flex"
+            className="hidden h-10 min-w-[200px] max-w-[400px] flex-1 items-center gap-2 rounded-full border border-border bg-transparent pl-4 pr-2.5 text-[15px] text-muted-foreground transition-colors hover:border-(--accent-brand)/50 hover:text-foreground focus-visible:border-(--accent-brand) focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-(--accent-brand) sm:inline-flex"
           >
-            Search
-            <kbd className="rounded-md border border-border bg-muted px-1.5 text-[10px] leading-4">
+            <FiSearch className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-left">Search clubs, events…</span>
+            <kbd className="shrink-0 rounded-md border border-border bg-muted px-1.5 font-sans text-xs leading-5 text-muted-foreground">
               ⌘K
             </kbd>
           </button>
           <button
             type="button"
             onClick={openPalette}
-            aria-label="Search clubs"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:hidden"
+            aria-label="Search clubs and events"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-(--accent-brand)/50 hover:text-foreground focus-visible:border-(--accent-brand) focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-(--accent-brand) sm:hidden"
           >
             <FiSearch className="h-4 w-4" aria-hidden="true" />
           </button>
