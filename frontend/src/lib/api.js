@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase";
+import { createQueryCache, normalizeQuery } from "@/lib/queryCache";
 
 // Resolved from the environment (#33). Was hardcoded to a dead Cloud Run URL
 // with three more commented out above it, so pointing at a local backend meant
@@ -6,6 +7,12 @@ import { createClient } from "@/lib/supabase";
 // per-environment in project settings.
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+// How long search inputs wait after the last keystroke before querying.
+export const SEARCH_DEBOUNCE_MS = 200;
+
+// Recent /smart-search responses, so repeating a query doesn't hit the network.
+const smartSearchCache = createQueryCache(50);
 export const fetchClubManifest = async (
   page = 1,
   limit = 20,
@@ -105,6 +112,10 @@ export const fetchSmartSearch = async (
   limit = 20,
   category = null,
 ) => {
+  const cacheKey = `${normalizeQuery(query)}|${page}|${limit}|${category || ""}`;
+  const cached = smartSearchCache.get(cacheKey);
+  if (cached) return cached;
+
   try {
     let queryParams = `q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
     if (category) {
@@ -121,12 +132,15 @@ export const fetchSmartSearch = async (
     }
 
     const data = await response.json();
-    return {
+    const result = {
       results: data.results || [],
       totalCount: data.count || 0,
       hasMore: data.hasMore || false,
       page: data.page || page,
     };
+    // Only successful responses are cached; errors fall through uncached.
+    smartSearchCache.set(cacheKey, result);
+    return result;
   } catch (error) {
     console.error("Error fetching smart search:", error);
     return { results: [], totalCount: 0, hasMore: false, page: 1 };

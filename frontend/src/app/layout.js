@@ -73,6 +73,12 @@ export const metadata = {
 	},
 };
 
+// Open the DNS + TCP + TLS connection to the API while the page loads, so the
+// first search doesn't pay for the handshake. Same env var as src/lib/api.js.
+const API_ORIGIN = new URL(
+	process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+).origin;
+
 // Resolve theme before first paint: instinct-theme (system|light|dark),
 // with fallback to legacy isDarkMode, then prefers-color-scheme.
 const themeScript = `try{
@@ -94,6 +100,8 @@ export default function RootLayout({ children }) {
 			className={`${GeistSans.variable} ${GeistMono.variable}`}
 		>
 			<head>
+				<link rel="preconnect" href={API_ORIGIN} crossOrigin="anonymous" />
+				<link rel="dns-prefetch" href={API_ORIGIN} />
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static inline theme bootstrap, no user input */}
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>
