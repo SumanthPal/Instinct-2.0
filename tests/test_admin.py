@@ -221,12 +221,34 @@ def test_create_report_is_public_and_stores_payload(client, fake):
         {"category": "spam"},
         {"category": None},
         {"club_id": "not-a-uuid"},
+        {"club_id": None},  # kind "club" must name its club
         {"note": ""},
         {"email": "nope"},
     ],
 )
 def test_create_report_validation(client, fake, overrides):
     assert client.post("/reports", json=report(**overrides)).status_code == 422
+
+
+def test_create_report_site_without_club(client, fake):
+    """Footer reports have no club: kind "site", club_id omitted, stored as NULL."""
+    fake.responses = {"reports": [[{"id": REPORT_ID}]]}
+    body = report(kind="site", category="other", page_url="https://instincts.one/")
+    del body["club_id"]
+    r = client.post("/reports", json=body)
+    assert r.status_code == 201
+    assert fake.calls[0][1][0] == (
+        "insert",
+        (body | {"club_id": None, "event_id": None, "email": None},),
+    )
+
+
+@pytest.mark.parametrize("kind", ["event", "site"])
+def test_create_report_club_optional_unless_kind_club(client, fake, kind):
+    fake.responses = {"reports": [[{"id": REPORT_ID}]]}
+    assert (
+        client.post("/reports", json=report(kind=kind, club_id=None)).status_code == 201
+    )
 
 
 def test_create_report_accepts_every_category(client, fake):

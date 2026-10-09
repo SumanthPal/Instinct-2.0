@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from mcp.server.mcpserver import MCPServer
 from postgrest.exceptions import APIError
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 from starlette.routing import Route
 
 from instinct.db.queries import normalize_handle
@@ -233,15 +233,22 @@ reports_router = APIRouter()
 
 
 class ReportIn(BaseModel):
-    kind: Literal["club", "event"]
+    # "site" = a report about the site itself (footer link), no club attached.
+    kind: Literal["club", "event", "site"]
     category: Literal[
         "wrong_info", "wrong_time_place", "wrong_instagram", "broken_image", "other"
     ]
-    club_id: UUID
+    club_id: Optional[UUID] = None
     event_id: Optional[UUID] = None
     page_url: str = Field(min_length=1, max_length=500)
     note: str = Field(min_length=1, max_length=2000)
     email: Optional[EmailStr] = None
+
+    @model_validator(mode="after")
+    def _club_report_names_club(self):
+        if self.kind == "club" and self.club_id is None:
+            raise ValueError("club_id is required when kind is 'club'")
+        return self
 
 
 def _client_ip(request: Request) -> str:
@@ -276,6 +283,7 @@ def create_report(report: ReportIn, request: Request):
             .data[0]
         )
     except APIError as e:
+        # Only reachable with a club_id: a NULL club_id never trips the FK.
         if e.code == "23503":  # club_id not in clubs
             raise HTTPException(status_code=400, detail="Unknown club_id")
         raise
