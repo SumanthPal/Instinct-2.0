@@ -6,6 +6,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { format } from "date-fns";
 import { FiCalendar, FiChevronLeft, FiClock, FiDownload, FiFilter, FiImage, FiMapPin, FiX } from "react-icons/fi";
 import ClubAvatar from "@/components/ClubAvatar";
+import ReportLink from "@/components/ReportLink";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { icsHref, shortTime, timeRange, untilLabel } from "./calendar-utils";
 
@@ -142,6 +143,9 @@ export function EventDetailsBody({ ev, onClose, showClub = true, onViewPost = nu
 						Directions
 					</a>
 				)}
+			</div>
+			<div className="border-t border-border px-4 py-2.5">
+				<ReportLink event={ev} />
 			</div>
 		</div>
 	);
