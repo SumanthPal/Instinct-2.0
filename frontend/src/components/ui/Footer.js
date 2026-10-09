@@ -3,12 +3,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { checkApiHealth } from "@/lib/api";
+import ReportDialog, { SITE_REPORT_SUBJECT as REPORT_SUBJECT } from "@/components/ReportDialog";
 import { reportMailto } from "@/lib/report";
 
 const FEEDBACK_URL =
   "https://airtable.com/app6eZfxp1tX3cTr1/pag44eL08NgLSEdu0/form";
-
-const REPORT_SUBJECT = "Instinct: problem report";
 
 const STATUS_DOT = {
   Online: "bg-emerald-500",
@@ -18,6 +17,7 @@ const STATUS_DOT = {
 export default function Footer() {
   const [status, setStatus] = useState("loading");
   const pathname = usePathname();
+  const [reportOpen, setReportOpen] = useState(false);
   const [reportHref, setReportHref] = useState(() =>
     reportMailto({ subject: REPORT_SUBJECT }),
   );
@@ -79,11 +79,12 @@ export default function Footer() {
           <a
             href={reportHref}
             onClick={(e) => {
-              e.currentTarget.href = reportMailto({
-                subject: REPORT_SUBJECT,
-                url: window.location.href,
-              });
+              // Plain mailto: before hydration or with a modifier key; otherwise the form.
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              setReportOpen(true);
             }}
+            aria-haspopup="dialog"
             className={link}
           >
             Report a problem
@@ -96,6 +97,7 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl px-4 pb-6 text-xs text-muted-foreground/80 sm:px-6">
         Not affiliated with or endorsed by the University of California, Irvine.
       </div>
+      {reportOpen && <ReportDialog open={reportOpen} onOpenChange={setReportOpen} />}
     </footer>
   );
 }

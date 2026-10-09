@@ -172,7 +172,7 @@ export default function ClubProfileHeader({
         )}
         {handle && (
           <p className="mt-2">
-            <ReportLink club={handle} />
+            <ReportLink club={{ id: clubData?.id, name: clubData?.name, handle }} />
           </p>
         )}
       </div>

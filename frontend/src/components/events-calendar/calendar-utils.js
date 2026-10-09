@@ -95,6 +95,7 @@ export function normalizeEvent(raw) {
 	return {
 		id: String(raw.id),
 		postId: raw.post_id ? String(raw.post_id) : null,
+		clubId: raw.club_id != null ? String(raw.club_id) : null,
 		// GET /events?clubs=<one handle> (#123); often a dead R2 link for older posts.
 		postImage: raw.post_image_url || null,
 		title,
@@ -109,6 +110,7 @@ export function normalizeEvent(raw) {
 		tone: toneFor(categories),
 		club: raw.clubs
 			? {
+					id: raw.clubs.id != null ? String(raw.clubs.id) : raw.club_id != null ? String(raw.club_id) : null,
 					name: raw.clubs.name,
 					handle: raw.clubs.instagram_handle,
 					avatar: raw.clubs.profile_image_path || null,
