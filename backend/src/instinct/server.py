@@ -2,6 +2,7 @@ from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries, normalize_handle
 from instinct.utils.images import IMAGE_EXTENSIONS, cdn_url
 import hmac
+import uuid
 import os
 from typing import List, Optional
 from datetime import date, datetime
@@ -429,6 +430,20 @@ def get_club_data(instagram_handle: str):
         )
 
 
+def add_post_image_url(post: dict) -> dict:
+    """Set post["image_url"] and normalise post["image_path"], in place.
+
+    Mirrored post images are stored as posts/{handle}/{post_id} and served as
+    .jpg; a missing or "NULL" path means no image.
+    """
+    post["image_url"] = cdn_url(post.get("image_path"), ".jpg")
+    if post["image_url"] is None:
+        post["image_path"] = None
+    elif not post["image_path"].lower().endswith(IMAGE_EXTENSIONS):
+        post["image_path"] += ".jpg"
+    return post
+
+
 @app.get("/club/{instagram_handle}/posts")
 def get_club_posts(
     instagram_handle: str,
@@ -454,13 +469,7 @@ def get_club_posts(
         posts = result["posts"]
 
         for post in posts:
-            # Mirrored post images are stored as posts/{handle}/{post_id} and
-            # served as .jpg; a missing or "NULL" path means no image.
-            post["image_url"] = cdn_url(post.get("image_path"), ".jpg")
-            if post["image_url"] is None:
-                post["image_path"] = None
-            elif not post["image_path"].lower().endswith(IMAGE_EXTENSIONS):
-                post["image_path"] += ".jpg"
+            add_post_image_url(post)
 
         return {
             "count": len(posts),
@@ -476,6 +485,62 @@ def get_club_posts(
         return JSONResponse(
             status_code=500, content={"message": f"Error fetching club posts: {str(e)}"}
         )
+
+
+# /posts batch limits. The dashboard shows posts from up to 12 starred clubs,
+# 6 posts each.
+POSTS_BATCH_MAX_CLUBS = 12
+POSTS_BATCH_DEFAULT_LIMIT = 6
+POSTS_BATCH_MAX_LIMIT = 20
+
+
+@app.get("/posts")
+def get_posts_for_clubs(
+    club_ids: str = Query(..., description="Comma-separated club ids (UUIDs)"),
+    limit: int = Query(
+        POSTS_BATCH_DEFAULT_LIMIT,
+        ge=1,
+        le=POSTS_BATCH_MAX_LIMIT,
+        description="Newest posts to return per club",
+    ),
+):
+    """The newest `limit` posts of each listed club, in one request.
+
+    Replaces one /club/{handle}/posts call per club on the dashboard. Results
+    are flat and newest first; each post carries its `club_id` and
+    `image_url` (null when the post has no image). Unknown ids return no
+    posts rather than an error.
+    """
+    ids = []
+    for raw in club_ids.split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            club_id = str(uuid.UUID(raw))
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail=f"`club_ids` has an invalid id: {raw!r}"
+            )
+        if club_id not in ids:
+            ids.append(club_id)
+    if not ids:
+        raise HTTPException(status_code=400, detail="`club_ids` has no ids")
+    if len(ids) > POSTS_BATCH_MAX_CLUBS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"`club_ids` has {len(ids)} ids; the maximum is "
+            f"{POSTS_BATCH_MAX_CLUBS}",
+        )
+    try:
+        posts = get_db().get_recent_posts_by_club_ids(ids, limit)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, content={"message": f"Error fetching posts: {str(e)}"}
+        )
+    for post in posts:
+        add_post_image_url(post)
+    return {"count": len(posts), "limit": limit, "results": posts}
 
 
 @app.get("/club/{instagram_handle}/events")

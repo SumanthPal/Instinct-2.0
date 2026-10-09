@@ -1012,3 +1012,29 @@ class SupabaseQueries:
             return {"posts": [], "total": counted.count or 0}
 
         return {"posts": response.data or [], "total": response.count or 0}
+
+    def get_recent_posts_by_club_ids(
+        self, club_ids: List[str], limit: int
+    ) -> List[Dict]:
+        """The newest `limit` posts of each club in `club_ids`, in one request.
+
+        PostgREST limits an embedded resource per parent row, so selecting the
+        clubs with their posts embedded gives a top-N per club without a SQL
+        function. Unknown ids simply match no club. Rows come back flat, each
+        with its club_id, newest first.
+        """
+        response = (
+            self.supabase.table("clubs")
+            .select("id, posts(id, club_id, post_url, caption, image_path, posted)")
+            .in_("id", club_ids)
+            # id breaks ties, as in get_posts_by_club_id.
+            .order("posted", desc=True, foreign_table="posts")
+            .order("id", foreign_table="posts")
+            .limit(limit, foreign_table="posts")
+            .execute()
+        )
+        posts = [p for club in response.data or [] for p in club.get("posts") or []]
+        # Newest first across clubs; posts without a date go last.
+        posts.sort(key=lambda p: p.get("id") or "")
+        posts.sort(key=lambda p: p.get("posted") or "", reverse=True)
+        return posts
