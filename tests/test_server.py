@@ -52,3 +52,35 @@ def test_get_club_image_url_uses_s3_public_url(client, monkeypatch):
     fake_db(monkeypatch, get_club_by_instagram=lambda handle: dict(CLUB))
     response = client.get("/club/acm")
     assert response.json()["profile_image_url"] == "https://cdn.example/pfps/acm.jpg"
+
+
+def preflight(client, origin):
+    return client.options(
+        "/health",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://instincts.one",
+        "https://www.instincts.one",
+        "https://instinct-2-0.vercel.app",
+        "http://localhost:3000",
+    ],
+)
+def test_cors_preflight_allows_frontend_origins(client, origin):
+    response = preflight(client, origin)
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
+def test_cors_preflight_rejects_unknown_origin(client):
+    response = preflight(client, "https://evil.example")
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in response.headers
