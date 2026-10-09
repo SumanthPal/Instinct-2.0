@@ -27,7 +27,14 @@ POST_CONTENT = (By.CSS_SELECTOR, "main img, div[role='presentation'] img")
 STORY_CONTENT = (By.CSS_SELECTOR, "div[role='dialog'] img, div[role='presentation']")
 
 # Posts
-POST_CAPTION = (By.XPATH, "//main//span[string-length(normalize-space()) > 20]")
+# The caption is the post's <h1>. The first long span is only a fallback: it
+# often matched the location tag, a collab header or the username instead.
+POST_CAPTION = (By.XPATH, "//main//h1[normalize-space()]")
+POST_CAPTION_FALLBACK = (
+    By.XPATH,
+    "//main//span[string-length(normalize-space()) > 20]",
+)
+POST_LOCATION = (By.XPATH, "//main//a[contains(@href, '/explore/locations/')]")
 POST_DATETIME = (By.XPATH, "//main//time[@datetime]")
 POST_IMAGE = (By.XPATH, "//main//img[contains(@src, 'cdninstagram.com')]")
 POST_VIDEO_POSTER = (By.CSS_SELECTOR, "main video[poster]")
@@ -57,7 +64,10 @@ PROFILE_LINK_TRIGGERS = (
 )
 CLOSE_DIALOG = (By.CSS_SELECTOR, "div[aria-label='Close']")
 PAGE_BODY = (By.TAG_NAME, "body")
-PROFILE_POST_LINKS = (By.XPATH, "//a[contains(@href, '/p/')]")
+PROFILE_POST_LINKS = (
+    By.XPATH,
+    "//a[contains(@href, '/p/') or contains(@href, '/reel/')]",
+)
 # Club display name sources. The parser applies these CSS locators to
 # page_source with BeautifulSoup. The header locator stays inside the profile
 # <header>: when logged in, the page's first span[dir=auto] is the sidebar's

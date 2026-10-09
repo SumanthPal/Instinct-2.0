@@ -393,6 +393,18 @@ class SupabaseQueries:
 
         return response.data or []
 
+    def get_posts_for_rescrape(self, club_id, max_attempts: int = 3):
+        """A club's stored posts for --rescrape: every scraped post, plus
+        unscraped ones that have failed fewer than max_attempts times."""
+        response = (
+            self.supabase.from_("posts")
+            .select("id", "post_url", "scrape_attempts", "scrapped", "caption")
+            .eq("club_id", club_id)
+            .or_(f"scrapped.eq.true,scrape_attempts.lt.{int(max_attempts)}")
+            .execute()
+        )
+        return response.data or []
+
     def record_failed_scrape(self, post_id: str, attempts: int) -> None:
         """Store a post's new failed-attempt count (one scraper runs at a time)."""
         self.supabase.from_("posts").update({"scrape_attempts": attempts}).eq(

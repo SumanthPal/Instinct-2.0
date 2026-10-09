@@ -14,7 +14,11 @@ from instinct.tools.logger import logger, LOG_FILE_PATH
 from instinct.db.queries import SupabaseQueries
 from selenium.common.exceptions import WebDriverException
 
-from instinct.tools.insta_scraper import InstagramLoginError, RateLimitDetected
+from instinct.tools.insta_scraper import (
+    DRIVER_GONE_ERRORS,
+    InstagramLoginError,
+    RateLimitDetected,
+)
 from instinct.tools.ai_validation import (
     EventParser,
     QuotaExhausted,
@@ -26,7 +30,7 @@ from instinct.tools.redis_queue import RedisScraperQueue, QueueType, SystemHealt
 
 # --once runs a small, supervised batch on one browser session.
 MAX_ONCE_HANDLES = 3
-ONCE_CLUB_DELAY_SECONDS = (30, 90)
+ONCE_CLUB_DELAY_SECONDS = (15, 45)
 
 
 class ScraperRotation:
@@ -1197,8 +1201,15 @@ class ScraperRotation:
         return False
 
 
-def scrape_one(scraper, instagram_handle: str, *, dry_run: bool) -> None:
-    """Scrape one club on an existing session; raise on any failure."""
+def scrape_one(
+    scraper, instagram_handle: str, *, dry_run: bool, rescrape: bool = False
+) -> None:
+    """Scrape one club on an existing session; raise on any failure.
+
+    Events are not parsed here: run_session parses the scraped clubs after
+    the browser is closed. With rescrape, only the club's stored posts are
+    re-fetched (InstagramScraper.rescrape_club).
+    """
     if dry_run:
         club_info = scraper.get_club_info(instagram_handle)
         if club_info is None:
@@ -1210,10 +1221,10 @@ def scrape_one(scraper, instagram_handle: str, *, dry_run: bool) -> None:
             club_info["Club Name"],
             len(club_info["Recent Posts"]),
         )
+    elif rescrape:
+        scraper.rescrape_club(instagram_handle)
     elif not scraper.store_club_data(instagram_handle):
         raise RuntimeError(f"Scrape failed for {instagram_handle}")
-    else:
-        parse_events(instagram_handle)
 
 
 # Set when the API account runs out of credit; event parsing is skipped for
@@ -1277,7 +1288,9 @@ def driver_alive(scraper) -> bool:
         return False
     try:
         scraper._driver.current_url
-    except WebDriverException:
+    except DRIVER_GONE_ERRORS:
+        # Includes urllib3 read timeouts and refused connections: a frozen
+        # or killed chromedriver, not just a closed session.
         return False
     return True
 
@@ -1286,6 +1299,7 @@ def run_session(
     instagram_handles: List[str],
     *,
     dry_run: bool = False,
+    rescrape: bool = False,
     on_attempted: Optional[Callable[[str], None]] = None,
 ) -> Tuple[List[str], Optional[str]]:
     """Scrape clubs on one browser session and one login.
@@ -1296,6 +1310,11 @@ def run_session(
     config, a locked Chrome profile, Supabase) is raised to the caller.
     Nothing is retried and accounts are never switched. on_attempted is
     called after each club that was tried without hitting a stop.
+
+    After the browser is closed (also after a stop), events are parsed for
+    every club scraped successfully, so the API calls never hold Instagram
+    pages open; an out-of-credit error stops parsing for the rest of the run.
+    With rescrape, clubs' stored posts are re-fetched and nothing is parsed.
 
     Unless dry_run, once any club was tried, it ends by refreshing the
     caption and event text that search matches (refresh_search_content), so
@@ -1309,6 +1328,7 @@ def run_session(
     _parsing_stopped = None
     scraper = None
     failed: List[str] = []
+    scraped: List[str] = []
     tried = 0
     try:
         scraper = InstagramScraper(
@@ -1326,7 +1346,10 @@ def run_session(
                 time.sleep(delay)
             tried += 1
             try:
-                scrape_one(scraper, instagram_handle, dry_run=dry_run)
+                scrape_one(
+                    scraper, instagram_handle, dry_run=dry_run, rescrape=rescrape
+                )
+                scraped.append(instagram_handle)
             except InstagramLoginError, RateLimitDetected:
                 raise
             except WebDriverException as exc:
@@ -1354,14 +1377,21 @@ def run_session(
     finally:
         if scraper:
             scraper._driver_quit()
+        if not dry_run and not rescrape:
+            for instagram_handle in scraped:
+                parse_events(instagram_handle)
         if tried and not dry_run:
             refresh_search_content()
 
 
-def run_once(instagram_handles: List[str], *, dry_run: bool = False) -> bool:
+def run_once(
+    instagram_handles: List[str], *, dry_run: bool = False, rescrape: bool = False
+) -> bool:
     """Scrape a few clubs on one browser session and exit; True if all worked."""
     try:
-        failed, stopped = run_session(instagram_handles, dry_run=dry_run)
+        failed, stopped = run_session(
+            instagram_handles, dry_run=dry_run, rescrape=rescrape
+        )
     except Exception as exc:
         logger.error(f"One-shot scrape failed without retrying: {exc}")
         return False
@@ -1398,13 +1428,29 @@ def main() -> int:
         action="store_true",
         help="with --once, fetch the clubs without writing to Supabase or storage",
     )
+    parser.add_argument(
+        "--rescrape",
+        action="store_true",
+        help=(
+            "with --once, re-fetch captions and images of the clubs' newest "
+            "stored posts instead of a normal scrape; never parses events"
+        ),
+    )
     args = parser.parse_args()
     if args.dry_run and not args.once:
         parser.error("--dry-run requires --once INSTAGRAM_HANDLE")
+    if args.rescrape and not args.once:
+        parser.error("--rescrape requires --once INSTAGRAM_HANDLE")
+    if args.rescrape and args.dry_run:
+        parser.error("--rescrape cannot be combined with --dry-run")
     if args.once and len(args.once) > MAX_ONCE_HANDLES:
         parser.error(f"--once accepts at most {MAX_ONCE_HANDLES} handles per run")
     if args.once:
-        return 0 if run_once(args.once, dry_run=args.dry_run) else 1
+        return (
+            0
+            if run_once(args.once, dry_run=args.dry_run, rescrape=args.rescrape)
+            else 1
+        )
 
     ScraperRotation().run()
     return 0
