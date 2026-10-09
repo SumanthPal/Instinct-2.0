@@ -193,6 +193,29 @@ def test_event_errors_never_fail_the_scrape(monkeypatch):
     scraper_rotation.parse_events("acm.uci")
 
 
+def test_out_of_credit_stops_parsing_for_the_rest_of_the_run(monkeypatch, caplog):
+    from instinct.tools.ai_validation import QuotaExhausted
+
+    calls = []
+
+    class OutOfCredit:
+        def parse_all_posts(self, handle):
+            calls.append(handle)
+            raise QuotaExhausted("credit_balance_exhausted")
+
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.setenv("META_API_KEY", "test")
+    monkeypatch.setattr(scraper_rotation, "EventParser", OutOfCredit)
+    monkeypatch.setattr(scraper_rotation, "_parsing_stopped", None)
+
+    for handle in ("acm.uci", "hack.uci", "wics.uci"):
+        scraper_rotation.parse_events(handle)
+
+    assert calls == ["acm.uci"]  # later clubs are scraped but not parsed
+    stops = [r for r in caplog.records if "out of credit" in r.getMessage()]
+    assert len(stops) == 1
+
+
 def test_no_event_api_key_skips_events(monkeypatch):
     monkeypatch.delenv("EVENT_PROVIDER", raising=False)
     monkeypatch.delenv("META_API_KEY", raising=False)
@@ -315,3 +338,11 @@ def test_refresh_failure_does_not_fail_the_scrape(session, monkeypatch):
     assert daily_scrape.run(1, 200, dry_run=False, state_path=state) == 0
     assert steps[-1] == "rpc refresh_club_search_vector"
     assert REAL_REFRESH() is False
+
+
+def test_each_run_starts_with_parsing_enabled(session, monkeypatch):
+    # A previous run in the same process ran out of credit; a new run (after a
+    # top-up) tries parsing again.
+    monkeypatch.setattr(scraper_rotation, "_parsing_stopped", "out of credit")
+    assert scraper_rotation.run_once(["acm.uci"]) is True
+    assert scraper_rotation._parsing_stopped is None
