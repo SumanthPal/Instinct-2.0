@@ -6,13 +6,18 @@ over the same posts, optionally for several models, and prints per-variant
 stats plus a few side-by-side differences. It never writes to the database.
 
     # 50 most recent captioned posts from Supabase (needs SUPABASE_URL,
-    # SUPABASE_SECRET_KEY and OPENAI_API_KEY in the environment or .env):
+    # SUPABASE_SECRET_KEY and the provider's key, META_API_KEY by default,
+    # in the environment or .env):
     uv run python -m instinct.scripts.eval_event_parser
 
     # Same posts every run: save them once, then evaluate from the file.
     uv run python -m instinct.scripts.eval_event_parser --save-posts posts.json
     uv run python -m instinct.scripts.eval_event_parser --posts-file posts.json \\
-        --models gpt-6-luna gpt-4.1-mini
+        --prompts new --models muse-spark-1.2-contributor muse-spark-1.3-contributor
+
+    # The same posts on OpenAI, to compare (one provider per run):
+    EVENT_PROVIDER=openai uv run python -m instinct.scripts.eval_event_parser \\
+        --posts-file posts.json --prompts new --models gpt-6-luna gpt-4.1-mini
 
     # Offline plumbing check: canned client and sample posts, no network.
     uv run python -m instinct.scripts.eval_event_parser --dry-run
@@ -33,7 +38,8 @@ from instinct.tools.ai_validation import (
     EventParseError,
     extract_events,
     get_event_model,
-    get_openai_api_key,
+    get_event_provider,
+    make_event_client,
     safe_int,
     starts_at_midnight,
 )
@@ -300,7 +306,8 @@ def main(argv=None):
         "--models",
         nargs="+",
         default=None,
-        help=f"models to try (default: OPENAI_EVENT_MODEL or {get_event_model()})",
+        help="models to try (default: the EVENT_PROVIDER's model, "
+        f"currently {get_event_model()})",
     )
     parser.add_argument("--diffs", type=int, default=5, help="side-by-side diffs")
     parser.add_argument("--workers", type=int, default=4, help="parallel requests")
@@ -315,12 +322,10 @@ def main(argv=None):
     if args.dry_run:
         client = CannedClient()
     else:
-        key = get_openai_api_key()
-        if not key:
-            parser.error("OPENAI_API_KEY is not set (use --dry-run to test offline)")
-        from openai import OpenAI
-
-        client = OpenAI(api_key=key)
+        client = make_event_client()
+        if client is None:
+            key_env = get_event_provider()["key_env"]
+            parser.error(f"{key_env} is not set (use --dry-run to test offline)")
 
     posts = [p for p in load_posts(args) if p.get("caption")]
     if not posts:
@@ -331,8 +336,10 @@ def main(argv=None):
             json.dump(posts, f, indent=2, default=str)
 
     models = args.models or [get_event_model()]
+    provider = "canned" if args.dry_run else get_event_provider()["name"]
     print(
-        f"{len(posts)} posts, prompts {args.prompts}, models {models}"
+        f"{len(posts)} posts, provider {provider}, prompts {args.prompts}, "
+        f"models {models}"
         + (" (DRY RUN: canned client, numbers are meaningless)" if args.dry_run else "")
     )
     runs = {}

@@ -3,6 +3,7 @@
 import json
 from types import SimpleNamespace
 
+import httpx2
 import pytest
 
 from instinct.scripts import eval_event_parser
@@ -73,7 +74,8 @@ EVENT = {
 
 
 def test_parse_post_sends_strict_schema_and_unwraps_events(monkeypatch):
-    monkeypatch.setenv("OPENAI_EVENT_MODEL", "test-model")
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.setenv("META_EVENT_MODEL", "test-model")
     parser, completions = make_parser([json.dumps({"events": [EVENT]})])
 
     assert parser.parse_post("post-1") == [EVENT]
@@ -351,3 +353,127 @@ def test_eval_summary_counts():
     assert summary["midnight"] == "50.0%"
     assert summary["all_day_midnight_whole_days"] == "50.0%"
     assert summary["bad_output"] == 1
+
+
+# --- provider: Meta Model API (default) or OpenAI, same SDK -----------------
+
+PROVIDER_ENV = (
+    "EVENT_PROVIDER",
+    "META_API_KEY",
+    "META_BASE_URL",
+    "META_EVENT_MODEL",
+    "OPENAI_API_KEY",
+    "OPENAI",
+    "OPENAI_EVENT_MODEL",
+)
+
+
+@pytest.fixture
+def clean_env(monkeypatch):
+    for name in PROVIDER_ENV:
+        monkeypatch.delenv(name, raising=False)
+    return monkeypatch
+
+
+def test_default_provider_is_meta_contributor(clean_env):
+    clean_env.setenv("META_API_KEY", "meta-key")
+    # An OpenAI model left in .env must never be sent to Meta.
+    clean_env.setenv("OPENAI_EVENT_MODEL", "gpt-6-luna")
+
+    client = ai_validation.make_event_client()
+
+    assert ai_validation.get_event_model() == "muse-spark-1.2-contributor"
+    assert str(client.base_url).rstrip("/") == "https://api.meta.ai/v1"
+    assert client.api_key == "meta-key"
+
+
+def test_meta_overrides(clean_env):
+    clean_env.setenv("META_API_KEY", "meta-key")
+    clean_env.setenv("META_BASE_URL", "https://example.test/v1")
+    clean_env.setenv("META_EVENT_MODEL", "muse-spark-1.3-contributor")
+
+    client = ai_validation.make_event_client()
+
+    assert ai_validation.get_event_model() == "muse-spark-1.3-contributor"
+    assert str(client.base_url).rstrip("/") == "https://example.test/v1"
+
+
+def test_openai_provider(clean_env):
+    clean_env.setenv("EVENT_PROVIDER", "openai")
+    clean_env.setenv("META_API_KEY", "meta-key")
+    clean_env.setenv("OPENAI_API_KEY", "sk-test")
+
+    client = ai_validation.make_event_client()
+
+    assert ai_validation.get_event_model() == "gpt-6-luna"
+    assert str(client.base_url).rstrip("/") == "https://api.openai.com/v1"
+    assert client.api_key == "sk-test"
+    clean_env.setenv("OPENAI_EVENT_MODEL", "gpt-4.1-mini")
+    assert ai_validation.get_event_model() == "gpt-4.1-mini"
+
+
+def test_no_key_means_no_client(clean_env):
+    assert ai_validation.make_event_client() is None
+    clean_env.setenv("OPENAI_API_KEY", "sk-test")  # wrong provider's key
+    assert ai_validation.make_event_client() is None
+
+
+def test_unknown_provider_is_an_error(clean_env):
+    clean_env.setenv("EVENT_PROVIDER", "anthropic")
+    with pytest.raises(ValueError, match="EVENT_PROVIDER"):
+        ai_validation.get_event_model()
+
+
+def test_meta_request_on_the_wire(clean_env):
+    """Through the real SDK, no network: the request Meta Model API gets."""
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        body = {
+            "id": "x",
+            "object": "chat.completion",
+            "created": 0,
+            "model": "muse-spark-1.2-contributor",
+            "choices": [
+                {
+                    "index": 0,
+                    "finish_reason": "stop",
+                    "message": {
+                        "role": "assistant",
+                        "content": json.dumps({"events": [EVENT]}),
+                    },
+                }
+            ],
+        }
+        return httpx2.Response(200, json=body)
+
+    clean_env.setenv("META_API_KEY", "meta-key")
+    client = ai_validation.make_event_client(
+        http_client=httpx2.Client(transport=httpx2.MockTransport(handler))
+    )
+
+    events = ai_validation.extract_events(client, "Meeting Friday 6-8pm", "2026-10-03")
+
+    assert events == [EVENT]
+    request = seen[0]
+    assert str(request.url) == "https://api.meta.ai/v1/chat/completions"
+    assert request.headers["authorization"] == "Bearer meta-key"
+    sent = json.loads(request.content)
+    assert sent["model"] == "muse-spark-1.2-contributor"
+    assert sent["response_format"] == EVENT_RESPONSE_FORMAT
+    # Parameters Muse Spark rejects with HTTP 400 are never sent.
+    assert not {"temperature", "stop", "n", "logit_bias"} & set(sent)
+
+
+def test_embeddings_stay_on_openai(monkeypatch):
+    """Dedupe vectors must match the stored text-embedding-3-small index, so
+    they never go through the (Meta) parsing client."""
+    parser, _ = make_parser([])
+    parser.client = SimpleNamespace()  # no .embeddings: would raise if used
+    calls = []
+    monkeypatch.setattr(
+        ai_validation, "get_embedding", lambda text: calls.append(text) or [0.1]
+    )
+    assert parser.get_embedding("General Meeting") == [0.1]
+    assert calls == ["General Meeting"]

@@ -15,7 +15,11 @@ from instinct.db.queries import SupabaseQueries
 from selenium.common.exceptions import WebDriverException
 
 from instinct.tools.insta_scraper import InstagramLoginError, RateLimitDetected
-from instinct.tools.ai_validation import EventParser
+from instinct.tools.ai_validation import (
+    EventParser,
+    get_event_api_key,
+    get_event_provider,
+)
 from instinct.tools.calendar_connection import CalendarConnection
 from instinct.tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
 
@@ -1217,12 +1221,13 @@ def parse_events(instagram_handle: str) -> None:
     Runs after a successful scrape. It makes no Instagram requests, so an
     OpenAI or calendar error is logged and never fails the scrape.
     """
-    if not os.getenv("OPENAI_API_KEY"):
-        logger.warning(
-            f"OPENAI_API_KEY unset; skipping event parsing for {instagram_handle}"
-        )
-        return
     try:
+        key_env = get_event_provider()["key_env"]
+        if not get_event_api_key():
+            logger.warning(
+                f"{key_env} unset; skipping event parsing for {instagram_handle}"
+            )
+            return
         EventParser().parse_all_posts(instagram_handle)
         CalendarConnection().create_calendar_file(instagram_handle)
     except Exception as exc:

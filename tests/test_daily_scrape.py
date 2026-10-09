@@ -187,13 +187,16 @@ def test_event_errors_never_fail_the_scrape(monkeypatch):
         def parse_all_posts(self, handle):
             raise RuntimeError("openai down")
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.setenv("META_API_KEY", "test")
     monkeypatch.setattr(scraper_rotation, "EventParser", Boom)
     scraper_rotation.parse_events("acm.uci")
 
 
-def test_no_openai_key_skips_events(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+def test_no_event_api_key_skips_events(monkeypatch):
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.delenv("META_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")  # not the parsing key
 
     def explode():
         raise AssertionError("should not construct EventParser")
