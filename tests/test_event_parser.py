@@ -3,6 +3,8 @@
 import json
 from types import SimpleNamespace
 
+import httpx2
+import openai
 import pytest
 
 from instinct.scripts import eval_event_parser
@@ -10,6 +12,7 @@ from instinct.tools import ai_validation
 from instinct.tools.ai_validation import (
     EVENT_RESPONSE_FORMAT,
     EventParser,
+    QuotaExhausted,
     post_date_in_campus_tz,
     resolve_duration,
 )
@@ -351,3 +354,96 @@ def test_eval_summary_counts():
     assert summary["midnight"] == "50.0%"
     assert summary["all_day_midnight_whole_days"] == "50.0%"
     assert summary["bad_output"] == 1
+
+
+# --- out of credit: stop the run, never retry -------------------------------
+
+QUOTA_BODY = {
+    "error": {
+        "message": "You have no credits remaining.",
+        "type": "insufficient_quota",
+        "param": None,
+        "code": "credit_balance_exhausted",
+    }
+}
+
+
+def quota_error():
+    """The exact exception the SDK raises for the out-of-credit 429."""
+    request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx2.Response(429, request=request, json=QUOTA_BODY)
+    return openai.RateLimitError(
+        "Error code: 429", response=response, body=QUOTA_BODY["error"]
+    )
+
+
+def rate_limit_error():
+    request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
+    body = {"message": "slow down", "type": "requests", "code": "rate_limit_exceeded"}
+    response = httpx2.Response(429, request=request, json={"error": body})
+    return openai.RateLimitError("Error code: 429", response=response, body=body)
+
+
+def test_is_quota_error():
+    assert ai_validation.is_quota_error(quota_error())
+    assert not ai_validation.is_quota_error(rate_limit_error())
+    assert not ai_validation.is_quota_error(RuntimeError("insufficient_quota"))
+
+
+def test_quota_error_is_not_retried(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(ai_validation.time, "sleep", sleeps.append)
+    parser, completions = make_parser([quota_error()] * 3)
+
+    with pytest.raises(QuotaExhausted):
+        parser.parse_post("post-1")
+
+    assert len(completions.requests) == 1
+    assert sleeps == []
+
+
+def test_plain_rate_limit_is_still_retried(monkeypatch):
+    monkeypatch.setattr(ai_validation.time, "sleep", lambda s: None)
+    parser, completions = make_parser(
+        [rate_limit_error(), json.dumps({"events": [EVENT]})]
+    )
+    assert parser.parse_post("post-1") == [EVENT]
+    assert len(completions.requests) == 2
+
+
+class ManyPostsDB(FakeDB):
+    def posts_to_parse(self, username):
+        return [{"id": "post-1"}, {"id": "post-2"}, {"id": "post-3"}]
+
+
+def test_quota_error_stops_parse_all_posts_and_leaves_posts_unparsed(monkeypatch):
+    monkeypatch.setattr(ai_validation.time, "sleep", lambda s: None)
+    db = ManyPostsDB()
+    parser, completions = make_parser([quota_error()] * 9, db=db)
+
+    with pytest.raises(QuotaExhausted):
+        parser.parse_all_posts("acm.uci")
+
+    assert len(completions.requests) == 1  # not 3 posts x 3 attempts
+    assert db.updated == [] and db.inserted == []
+
+
+def test_parser_client_makes_one_http_call_on_quota_error(monkeypatch):
+    """Through the real SDK: no hidden SDK-level retries on the 429."""
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx2.Response(429, json=QUOTA_BODY)
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr(ai_validation, "SupabaseQueries", lambda: FakeDB())
+    parser = EventParser()
+    assert parser.client.max_retries == 0
+    parser.client = parser.client.with_options(
+        http_client=httpx2.Client(transport=httpx2.MockTransport(handler))
+    )
+
+    with pytest.raises(QuotaExhausted):
+        parser.parse_post("post-1")
+    assert len(calls) == 1

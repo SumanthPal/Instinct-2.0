@@ -130,6 +130,22 @@ class EventParseError(ValueError):
     """The model replied, but not with a usable event list."""
 
 
+# OpenAI's "no credit left" reply: HTTP 429 like a rate limit, but it never
+# clears on its own, so retrying it only burns time and log lines.
+QUOTA_ERROR_CODES = {"insufficient_quota", "credit_balance_exhausted"}
+
+
+class QuotaExhausted(RuntimeError):
+    """The API account is out of credit. Stop the whole parse run."""
+
+
+def is_quota_error(exc: BaseException) -> bool:
+    """True for OpenAI's insufficient_quota / credit_balance_exhausted error."""
+    return bool(
+        {getattr(exc, "code", None), getattr(exc, "type", None)} & QUOTA_ERROR_CODES
+    )
+
+
 def post_date_in_campus_tz(posted) -> str:
     """posts.posted (UTC, usually naive) as Los Angeles local time with weekday."""
     try:
@@ -159,12 +175,17 @@ def build_event_messages(caption: str, posted) -> List[Dict]:
 
 def extract_events(client, caption: str, posted, model: Optional[str] = None):
     """One structured-output request; the event list, or an exception."""
-    completion = client.chat.completions.create(
-        model=model or get_event_model(),
-        messages=build_event_messages(caption, posted),
-        response_format=EVENT_RESPONSE_FORMAT,
-        # No temperature: some models (e.g. gpt-6-luna) only accept the default.
-    )
+    try:
+        completion = client.chat.completions.create(
+            model=model or get_event_model(),
+            messages=build_event_messages(caption, posted),
+            response_format=EVENT_RESPONSE_FORMAT,
+            # No temperature: some models (e.g. gpt-6-luna) only accept the default.
+        )
+    except Exception as e:
+        if is_quota_error(e):
+            raise QuotaExhausted(str(e)) from e
+        raise
     message = completion.choices[0].message
     if getattr(message, "refusal", None):
         raise EventParseError(f"model refused: {message.refusal}")
@@ -279,7 +300,10 @@ class EventParser:
         # Load environment variables (for OpenAI API key)
         dotenv.load_dotenv()
         key = get_openai_api_key()
-        self.client = OpenAI(api_key=key) if key else None
+        # No SDK retries: the SDK retries every 429 the same way, including
+        # an out-of-credit reply that never clears. parse_post retries
+        # transient errors itself, and stops on QuotaExhausted.
+        self.client = OpenAI(api_key=key, max_retries=0) if key else None
 
         self.db = SupabaseQueries()
 
@@ -297,6 +321,9 @@ class EventParser:
         Returns:
             The events (Name, Date, Details, Duration); [] when the post has
             none; None when parsing failed, so the post can be retried.
+
+        Raises:
+            QuotaExhausted: the account is out of credit; nothing is retried.
         """
         MAX_RETRIES = 3
         RETRY_DELAY = 2  # seconds
@@ -318,6 +345,8 @@ class EventParser:
                 events = extract_events(self.client, post_text, post_date)
                 logger.info(f"Successful parse: {len(events)} event(s).")
                 return events
+            except QuotaExhausted:
+                raise
             except Exception as e:
                 logger.error(f"Error during API call: {e}")
             if attempt < MAX_RETRIES - 1:
@@ -495,6 +524,8 @@ class EventParser:
             return None
 
     def parse_all_posts(self, username):
+        """Parse the club's unparsed posts. Raises QuotaExhausted, untouched,
+        when the account is out of credit."""
         try:
             logger.info("fetching posts to parse...")
             posts_to_parse = self.db.posts_to_parse(username)
@@ -521,6 +552,10 @@ class EventParser:
                 club_id = self.db.get_club_by_instagram_handle(username)
                 self.store_parsed_info(parsed_info, post_id, club_id)
                 logger.info("successfully stored.")
+        except QuotaExhausted:
+            # Every remaining post would fail the same way; the caller stops
+            # the run. Unparsed posts keep parsed = false for the next run.
+            raise
         except Exception as e:
             logger.error(f"Unexpected Error: {e}")
             logger.error(f"Error type: {type(e)}")
