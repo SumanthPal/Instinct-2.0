@@ -4,6 +4,7 @@ import { FiInstagram, FiStar } from "react-icons/fi";
 import ClubAvatar from "@/components/ClubAvatar";
 import { Button } from "@/components/ui/button";
 import ClubLinks from "./ClubLinks";
+import ReportLink from "@/components/ReportLink";
 import {
   extractQuotedContent,
   categoryNames,
@@ -167,6 +168,11 @@ export default function ClubProfileHeader({
         {cats.length > 0 && (
           <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2">
             {cats.join(" · ")}
+          </p>
+        )}
+        {handle && (
+          <p className="mt-2">
+            <ReportLink club={handle} />
           </p>
         )}
       </div>

@@ -1,10 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { checkApiHealth } from "@/lib/api";
+import { reportMailto } from "@/lib/report";
 
 const FEEDBACK_URL =
   "https://airtable.com/app6eZfxp1tX3cTr1/pag44eL08NgLSEdu0/form";
+
+const REPORT_SUBJECT = "Instinct: problem report";
 
 const STATUS_DOT = {
   Online: "bg-emerald-500",
@@ -13,6 +17,16 @@ const STATUS_DOT = {
 
 export default function Footer() {
   const [status, setStatus] = useState("loading");
+  const pathname = usePathname();
+  const [reportHref, setReportHref] = useState(() =>
+    reportMailto({ subject: REPORT_SUBJECT }),
+  );
+
+  // Prefill the current page URL once we're in the browser, and again on navigation.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when the route changes
+  useEffect(() => {
+    setReportHref(reportMailto({ subject: REPORT_SUBJECT, url: window.location.href }));
+  }, [pathname]);
 
   useEffect(() => {
     let alive = true;
@@ -61,6 +75,18 @@ export default function Footer() {
           </a>
           <a href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer" className={link}>
             Feedback
+          </a>
+          <a
+            href={reportHref}
+            onClick={(e) => {
+              e.currentTarget.href = reportMailto({
+                subject: REPORT_SUBJECT,
+                url: window.location.href,
+              });
+            }}
+            className={link}
+          >
+            Report a problem
           </a>
           <a href="mailto:spallamr@uci.edu" className={link}>
             spallamr@uci.edu
