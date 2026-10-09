@@ -24,10 +24,6 @@
   },
   "overrides": [
     {
-      "includes": ["src/app/auth/callback/route.js"],
-      "linter": { "rules": { "suspicious": { "useIterableCallbackReturn": "off" } } }
-    },
-    {
       "includes": ["src/app/error.js"],
       "linter": { "rules": { "suspicious": { "noShadowRestrictedNames": "off" } } }
     },

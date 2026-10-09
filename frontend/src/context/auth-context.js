@@ -1,9 +1,9 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, Suspense } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase'
-import { authCallbackUrl } from '@/lib/auth-url'
+import { SignInDialog } from '@/components/ui/SignInDialog'
 import { useToast } from '@/components/ui/toast';
 
 const AuthContext = createContext()
@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [signInOpen, setSignInOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -62,27 +63,30 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }
 
-  // Sign in with Google
+  // Sign in with Google: opens the dialog holding Google's own button
   const signInWithGoogle = async () => {
+    setSignInOpen(true)
+  };
+
+  // Google hands the ID token to the page; Supabase verifies it and creates the session
+  const handleGoogleCredential = useCallback(async (token, nonce) => {
+    setSignInOpen(false)
     try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'consent',
-            },
-            redirectTo: authCallbackUrl(process.env.NEXT_PUBLIC_SITE_URL, window.location.origin),
-          },
-        });
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token,
+        nonce,
+      });
       if (error) throw error;
+      // Non-UCI accounts are signed out and redirected by handleSession
+      if (data.user?.email?.endsWith('@uci.edu')) router.push('/dashboard');
     } catch (error) {
       console.error('Error signing in with Google:', error);
       // Push error to homepage
       router.push('/?error=invalid-login');
     }
-  };
-  
+  }, [router]);
+
 
   const signOut = async () => {
     try {
@@ -110,12 +114,17 @@ export function AuthProvider({ children }) {
       <Suspense fallback={null}>
         <InvalidEmailToast />
       </Suspense>
+      <SignInDialog
+        open={signInOpen}
+        onOpenChange={setSignInOpen}
+        onCredential={handleGoogleCredential}
+      />
       {children}
     </AuthContext.Provider>
   )
 }
 
-// Shows a toast when the OAuth callback redirects back with ?error=invalid-email.
+// Shows a toast when a non-UCI sign-in redirects back with ?error=invalid-email.
 function InvalidEmailToast() {
   const searchParams = useSearchParams();
   const router = useRouter()
