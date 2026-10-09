@@ -85,7 +85,11 @@ export function SignInDialog({ open, onOpenChange, onCredential }) {
 				<DialogDescription className="mt-1 text-sm text-muted-foreground">
 					Use your UCI Google account.
 				</DialogDescription>
-				<div ref={setSlot} className="mt-5 flex min-h-[44px] justify-center" />
+				{/* Google's button is an iframe whose page is light. When the OS is dark,
+				    the iframe inherits a dark color-scheme from our meta tag, and Chrome
+				    paints a white box behind the mismatched frame. Pinning the slot to
+				    light makes the two match, so the frame stays transparent. */}
+				<div ref={setSlot} className="mt-5 flex min-h-[44px] justify-center [color-scheme:light]" />
 				{error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 			</DialogContent>
 		</Dialog>
