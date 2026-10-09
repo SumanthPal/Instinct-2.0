@@ -16,15 +16,69 @@ from zoneinfo import ZoneInfo
 # search index and requires a full re-embed via scripts/populate_embeds.py.
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-# Event parsing model. Undated alias on purpose, so a retired snapshot can't
-# break parsing. Override with OPENAI_EVENT_MODEL to test a different model
-# without a code change.
-DEFAULT_EVENT_MODEL = "gpt-6-luna"
+# Event parsing provider. Meta Model API is OpenAI-compatible (Chat
+# Completions, strict json_schema structured output), so both providers use
+# the OpenAI SDK; only the key, base URL and model differ. EVENT_PROVIDER
+# picks one; each provider's model can be overridden by its own variable, so
+# an OpenAI model name left in .env is never sent to Meta.
+#
+# muse-spark-1.2-contributor is Meta's training-eligible tier: much cheaper,
+# and Meta may train on the prompts and replies. Captions are public posts.
+EVENT_PROVIDERS = {
+    "meta": {
+        "key_env": "META_API_KEY",
+        "base_url_env": "META_BASE_URL",
+        "base_url": "https://api.meta.ai/v1",
+        "model_env": "META_EVENT_MODEL",
+        "model": "muse-spark-1.2-contributor",
+    },
+    "openai": {
+        "key_env": "OPENAI_API_KEY",
+        "base_url_env": None,
+        "base_url": None,  # the SDK default
+        "model_env": "OPENAI_EVENT_MODEL",
+        "model": "gpt-6-luna",
+    },
+}
+DEFAULT_EVENT_PROVIDER = "meta"
+DEFAULT_EVENT_MODEL = EVENT_PROVIDERS[DEFAULT_EVENT_PROVIDER]["model"]
+
+
+def get_event_provider() -> Dict[str, Optional[str]]:
+    """The event-parsing provider's settings, from EVENT_PROVIDER."""
+    name = os.getenv("EVENT_PROVIDER", DEFAULT_EVENT_PROVIDER).strip().lower()
+    if name not in EVENT_PROVIDERS:
+        raise ValueError(
+            f"EVENT_PROVIDER={name!r}; expected one of {', '.join(EVENT_PROVIDERS)}"
+        )
+    return {"name": name, **EVENT_PROVIDERS[name]}
 
 
 def get_event_model() -> str:
     """Model used for caption -> event JSON extraction."""
-    return os.getenv("OPENAI_EVENT_MODEL", DEFAULT_EVENT_MODEL)
+    provider = get_event_provider()
+    return os.getenv(provider["model_env"]) or provider["model"]
+
+
+def get_event_api_key() -> Optional[str]:
+    provider = get_event_provider()
+    if provider["name"] == "openai":
+        return get_openai_api_key()
+    return os.getenv(provider["key_env"])
+
+
+def make_event_client(**options) -> Optional[OpenAI]:
+    """OpenAI SDK client for event parsing, or None without an API key."""
+    provider = get_event_provider()
+    key = get_event_api_key()
+    if not key:
+        return None
+    base_url = (
+        os.getenv(provider["base_url_env"]) if provider["base_url_env"] else None
+    ) or provider["base_url"]
+    if base_url:
+        options["base_url"] = base_url
+    return OpenAI(api_key=key, **options)
 
 
 # Captions, event times and events.date are all America/Los_Angeles wall-clock
@@ -299,11 +353,10 @@ class EventParser:
     def __init__(self):
         # Load environment variables (for OpenAI API key)
         dotenv.load_dotenv()
-        key = get_openai_api_key()
         # No SDK retries: the SDK retries every 429 the same way, including
         # an out-of-credit reply that never clears. parse_post retries
         # transient errors itself, and stops on QuotaExhausted.
-        self.client = OpenAI(api_key=key, max_retries=0) if key else None
+        self.client = make_event_client(max_retries=0)
 
         self.db = SupabaseQueries()
 
@@ -329,7 +382,10 @@ class EventParser:
         RETRY_DELAY = 2  # seconds
 
         if not self.client:
-            logger.error("OpenAI client not initialized (missing API key)")
+            provider = get_event_provider()
+            logger.error(
+                f"Event parser client not initialized ({provider['key_env']} unset)"
+            )
             return None
         try:
             post_date, post_text = self.db.get_post_date_and_caption(post_id)
@@ -359,14 +415,11 @@ class EventParser:
     def get_embedding(self, text: str) -> List[float]:
         """
         Get embeddings for text using OpenAI's embeddings API.
-        This enables semantic similarity matching.
+        This enables semantic similarity matching. Always OpenAI, whatever
+        the parsing provider: the stored vectors are text-embedding-3-small.
+        None (no semantic score) without an OpenAI key.
         """
-        try:
-            response = self.client.embeddings.create(model=EMBEDDING_MODEL, input=text)
-            return response.data[0].embedding
-        except Exception as e:
-            logger.error(f"Error getting embedding: {e}")
-            return None
+        return get_embedding(text)
 
     def cosine_similarity(self, a: List[float], b: List[float]) -> float:
         """

@@ -187,7 +187,8 @@ def test_event_errors_never_fail_the_scrape(monkeypatch):
         def parse_all_posts(self, handle):
             raise RuntimeError("openai down")
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.setenv("META_API_KEY", "test")
     monkeypatch.setattr(scraper_rotation, "EventParser", Boom)
     scraper_rotation.parse_events("acm.uci")
 
@@ -202,7 +203,8 @@ def test_out_of_credit_stops_parsing_for_the_rest_of_the_run(monkeypatch, caplog
             calls.append(handle)
             raise QuotaExhausted("credit_balance_exhausted")
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.setenv("META_API_KEY", "test")
     monkeypatch.setattr(scraper_rotation, "EventParser", OutOfCredit)
     monkeypatch.setattr(scraper_rotation, "_parsing_stopped", None)
 
@@ -214,8 +216,10 @@ def test_out_of_credit_stops_parsing_for_the_rest_of_the_run(monkeypatch, caplog
     assert len(stops) == 1
 
 
-def test_no_openai_key_skips_events(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+def test_no_event_api_key_skips_events(monkeypatch):
+    monkeypatch.delenv("EVENT_PROVIDER", raising=False)
+    monkeypatch.delenv("META_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")  # not the parsing key
 
     def explode():
         raise AssertionError("should not construct EventParser")
