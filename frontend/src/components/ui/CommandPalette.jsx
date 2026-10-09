@@ -11,11 +11,12 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import ClubAvatar from "@/components/ClubAvatar";
+import { useAuth } from "@/context/auth-context";
 import { fetchSmartSearch, SEARCH_DEBOUNCE_MS } from "@/lib/api";
 import { eventHref, formatEventWhen, loadUpcomingEvents, searchEvents } from "@/lib/eventSearch";
 import { normalizeQuery } from "@/lib/queryCache";
 
-const PAGES = [
+const BASE_PAGES = [
   { href: "/clubs", label: "Clubs" },
   { href: "/events", label: "Events" },
   { href: "/about", label: "About" },
@@ -33,11 +34,16 @@ const clubNameHit = (clubs, term) => {
 /**
  * ⌘K palette: club search against /smart-search, event search over the
  * next 92 days of /events (filtered here; see lib/eventSearch), and page
- * shortcuts.
+ * shortcuts. Dashboard is listed first when signed in.
  * Loaded with next/dynamic from the Navbar so cmdk stays off first load.
  */
 export default function CommandPalette({ open, onOpenChange }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const pages = useMemo(
+    () => (user ? [{ href: "/dashboard", label: "Dashboard" }, ...BASE_PAGES] : BASE_PAGES),
+    [user],
+  );
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -71,7 +77,7 @@ export default function CommandPalette({ open, onOpenChange }) {
     if (!term) {
       requestId.current += 1;
       setResults([]);
-      setSelected("page-/clubs");
+      setSelected(`page-${pages[0].href}`);
       setLoading(false);
       return;
     }
@@ -93,7 +99,7 @@ export default function CommandPalette({ open, onOpenChange }) {
       setLoading(false);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, pages]);
 
   const go = (href) => {
     onOpenChange(false);
@@ -185,7 +191,7 @@ export default function CommandPalette({ open, onOpenChange }) {
         )}
         {!term && (
           <CommandGroup heading="Go to">
-            {PAGES.map((p) => (
+            {pages.map((p) => (
               <CommandItem key={p.href} value={`page-${p.href}`} onSelect={() => go(p.href)}>
                 {p.label}
               </CommandItem>
