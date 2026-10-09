@@ -1,44 +1,37 @@
 "use client";
 
-import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import ReportDialog, { describe, reportPageUrl } from "@/components/ReportDialog";
 import { reportMailto } from "@/lib/report";
 
 /**
- * Quiet "Something wrong? Let us know" link that opens a prefilled email.
- * Pass `club` (handle) for a club page, or `event` (a normalized event) for an event.
- * The page URL needs the live origin, so the full href is filled in after mount
- * (and rebuilt on click); no sign-in needed.
+ * Quiet "Something wrong? Let us know" link that opens the report form.
+ * Pass `club` ({ id, name, handle }) on a club page, or `event` (a normalized
+ * event) in event details. No sign-in needed. The href stays a prefilled
+ * mailto: so the link still works before hydration or without JS.
  */
 export default function ReportLink({ club, event, className = "" }) {
-	const build = () => {
-		const origin = window.location.origin;
-		if (event) {
-			const day = format(event.start, "yyyy-MM-dd");
-			const handle = event.club?.handle;
-			const q = new URLSearchParams({ ...(handle ? { club: handle } : {}), date: day, view: "day" });
-			return reportMailto({
-				subject: `Instinct correction: ${event.title} (${format(event.start, "MMM d, yyyy")})`,
-				url: `${origin}/events?${q}`,
-				context: [handle && `Club: @${handle}`, `Event: ${event.title}`, `When: ${format(event.start, event.allDay ? "EEE MMM d, yyyy '(all day)'" : "EEE MMM d, yyyy h:mm a")}`],
-			});
-		}
-		return reportMailto({ subject: `Instinct correction: @${club}`, url: `${origin}/club/${club}` });
-	};
-	const [href, setHref] = useState(() =>
-		reportMailto({ subject: `Instinct correction: ${club ? `@${club}` : event?.title || ""}` }),
-	);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: build() only reads club/event
-	useEffect(() => setHref(build()), [club, event]);
+	const [open, setOpen] = useState(false);
+	const [href, setHref] = useState(() => reportMailto({ subject: describe({ club, event }).subject }));
+	useEffect(() => {
+		const about = describe({ club, event });
+		setHref(reportMailto({ subject: about.subject, url: reportPageUrl({ club, event }), context: about.context }));
+	}, [club, event]);
 	return (
-		<a
-			href={href}
-			onClick={(e) => {
-				e.currentTarget.href = build();
-			}}
-			className={`text-xs text-muted-foreground/80 underline decoration-border underline-offset-4 hover:text-[var(--accent-brand)] hover:decoration-[var(--accent-brand)] ${className}`}
-		>
-			Something wrong? Let us know
-		</a>
+		<>
+			<a
+				href={href}
+				onClick={(e) => {
+					if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+					e.preventDefault();
+					setOpen(true);
+				}}
+				aria-haspopup="dialog"
+				className={`text-xs text-muted-foreground/80 underline decoration-border underline-offset-4 hover:text-[var(--accent-brand)] hover:decoration-[var(--accent-brand)] ${className}`}
+			>
+				Something wrong? Let us know
+			</a>
+			{open && <ReportDialog open={open} onOpenChange={setOpen} club={club} event={event} />}
+		</>
 	);
 }
