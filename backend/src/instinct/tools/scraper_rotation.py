@@ -15,7 +15,7 @@ from instinct.db.queries import SupabaseQueries
 from selenium.common.exceptions import WebDriverException
 
 from instinct.tools.insta_scraper import InstagramLoginError, RateLimitDetected
-from instinct.tools.ai_validation import EventParser
+from instinct.tools.ai_validation import EventParser, QuotaExhausted
 from instinct.tools.calendar_connection import CalendarConnection
 from instinct.tools.redis_queue import RedisScraperQueue, QueueType, SystemHealthMonitor
 
@@ -1211,12 +1211,22 @@ def scrape_one(scraper, instagram_handle: str, *, dry_run: bool) -> None:
         parse_events(instagram_handle)
 
 
+# Set when the API account runs out of credit; event parsing is skipped for
+# the rest of the run. run_session clears it at the start of each run.
+_parsing_stopped: Optional[str] = None
+
+
 def parse_events(instagram_handle: str) -> None:
     """Turn the club's unparsed captions into events and rebuild its calendar.
 
     Runs after a successful scrape. It makes no Instagram requests, so an
-    OpenAI or calendar error is logged and never fails the scrape.
+    OpenAI or calendar error is logged and never fails the scrape. Once the
+    account is out of credit, parsing stops for the rest of the run (logged
+    once); scraping goes on and the posts stay unparsed for the next run.
     """
+    global _parsing_stopped
+    if _parsing_stopped:
+        return
     if not os.getenv("OPENAI_API_KEY"):
         logger.warning(
             f"OPENAI_API_KEY unset; skipping event parsing for {instagram_handle}"
@@ -1225,6 +1235,12 @@ def parse_events(instagram_handle: str) -> None:
     try:
         EventParser().parse_all_posts(instagram_handle)
         CalendarConnection().create_calendar_file(instagram_handle)
+    except QuotaExhausted as exc:
+        _parsing_stopped = str(exc)
+        logger.error(
+            "Event parsing stopped for the rest of this run: the API account is "
+            f"out of credit ({exc}). Unparsed posts stay queued for the next run."
+        )
     except Exception as exc:
         logger.error(f"Event parsing failed for {instagram_handle}: {exc}")
 
@@ -1283,6 +1299,8 @@ def run_session(
     from instinct.tools.insta_scraper import InstagramScraper
     from instinct.storage import get_storage
 
+    global _parsing_stopped
+    _parsing_stopped = None
     scraper = None
     failed: List[str] = []
     tried = 0
