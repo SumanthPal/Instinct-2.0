@@ -15,6 +15,11 @@ the Instagram session (see scripts/launchd/). Each run:
   every remaining run that day. Any other error (CHROME_BIN unset, a locked
   Chrome profile, Supabase) fails only this run; the next run tries again.
 
+Each run (not --dry-run) records itself in scrape_runs, is skipped while
+scraper_state.paused is set, reads its waits and timeouts from scraper_state,
+and ends cleanly after the current club on a stop or pause command. Only one
+run uses Chrome at a time (a lock file); a run that finds it held exits 3.
+
 A club with no new posts costs one profile load: only posts that are not
 already scraped get opened.
 
@@ -37,7 +42,10 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from instinct.tools import scraper_control
 from instinct.tools.logger import logger
+
+BUSY = 3
 
 STATE_PATH = Path(
     os.getenv("SCRAPE_STATE_PATH", Path.home() / ".cache/instinct/daily_scrape.json")
@@ -103,10 +111,41 @@ def run(
     dry_run: bool,
     state_path: Path,
     rescrape: Optional[List[str]] = None,
+    trigger: str = "scheduled",
 ) -> int:
     """One scheduled run. rescrape (a list, possibly empty) switches to
-    re-fetching stored posts for those handles, or for the clubs due."""
+    re-fetching stored posts for those handles, or for the clubs due.
+    Returns 0 ok or skipped, 1 failed, 2 stopped for the day, 3 busy."""
+    with scraper_control.run_lock() as locked:
+        if not locked:
+            logger.info("Another scrape holds the lock; not starting.")
+            return BUSY
+        return _run_locked(
+            clubs,
+            daily_cap,
+            dry_run=dry_run,
+            state_path=state_path,
+            rescrape=rescrape,
+            trigger=trigger,
+        )
+
+
+def _run_locked(
+    clubs: int,
+    daily_cap: int,
+    *,
+    dry_run: bool,
+    state_path: Path,
+    rescrape: Optional[List[str]],
+    trigger: str,
+) -> int:
     from instinct.tools.scraper_rotation import run_session
+
+    control = scraper_control.get_state()
+    if control.get("paused"):
+        logger.info(f"Skipping: scraper paused since {control.get('paused_at')}.")
+        return 0
+    config = scraper_control.config_from_row(control)
 
     state = load_state(state_path, datetime.date.today().isoformat())
     if state["stopped"]:
@@ -122,7 +161,29 @@ def run(
         f"Scraping {len(handles)} club(s); {state['scraped']}/{daily_cap} done today."
     )
 
+    run_id = None if dry_run else scraper_control.start_run(trigger)
+    attempted: List[str] = []
+    interrupted: List[str] = []
+
+    def should_stop() -> Optional[str]:
+        if dry_run:
+            return None
+        reason = scraper_control.interrupt_reason()
+        if reason:
+            interrupted.append(reason)
+        return reason
+
+    def finish(status: str, failed: List[str], error: Optional[str]) -> None:
+        scraper_control.finish_run(
+            run_id,
+            status=status,
+            clubs_attempted=len(attempted),
+            clubs_failed=len(failed),
+            error=error,
+        )
+
     def on_attempted(handle: str) -> None:
+        attempted.append(handle)
         if dry_run:
             return
         if rescrape is None:
@@ -139,16 +200,30 @@ def run(
             dry_run=dry_run,
             rescrape=rescrape is not None,
             on_attempted=on_attempted,
+            should_stop=should_stop,
+            config=config,
+            refresh_config=lambda: scraper_control.config_from_row(
+                scraper_control.get_state()
+            ),
         )
     except Exception as exc:
         # Not an Instagram stop, so the next scheduled run tries again.
+        finish("failed", [], str(exc))
         notify(f"Scraper run failed (will retry next run): {exc}")
         return 1
     if stopped:
         state["stopped"] = stopped
         save_state(state_path, state)
+        finish("stopped", failed, stopped)
         notify(f"Scraper stopped for today: {stopped}")
         return 2
+    if interrupted:
+        finish("stopped", failed, f"ended early: {interrupted[0]}")
+    elif failed:
+        status = "failed" if len(failed) == len(attempted) else "partial"
+        finish(status, failed, f"failed: {', '.join(failed)}")
+    else:
+        finish("ok", failed, None)
     logger.info(
         f"Done: {len(handles) - len(failed)} ok, {len(failed)} failed; "
         f"{state['scraped']}/{daily_cap} today."
