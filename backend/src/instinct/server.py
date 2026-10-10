@@ -1,7 +1,13 @@
 from instinct.db.supabase_client import supabase
 from instinct.db.queries import SupabaseQueries, normalize_handle
 from instinct.utils.images import IMAGE_EXTENSIONS, cdn_url
-from instinct.admin import admin_router, lifespan, mcp_route, reports_router
+from instinct.admin import (
+    admin_router,
+    lifespan,
+    mcp_route,
+    reports_router,
+    status_router,
+)
 import uuid
 import os
 from typing import List, Optional
@@ -633,6 +639,7 @@ def run_scraper_process():
 app.include_router(router)
 app.include_router(admin_router)
 app.include_router(reports_router)
+app.include_router(status_router)
 app.router.routes.append(mcp_route)
 if __name__ == "__main__":
     import uvicorn

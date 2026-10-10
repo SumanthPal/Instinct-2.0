@@ -1,4 +1,5 @@
-"""Admin API and its MCP wrapper: club vetting, bad handles, user reports.
+"""Admin API and its MCP wrapper: club vetting, bad handles, user reports,
+scraper run log/commands/config, plus the public GET /status.
 
 Both surfaces call the same plain functions below and are gated by the same
 bearer token (INTERNAL_API_TOKEN), so the bots get admin actions without ever
@@ -8,6 +9,7 @@ holding Supabase keys. Unset token = admin surface disabled (503).
 import hmac
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from typing import Literal, Optional
@@ -167,16 +169,181 @@ def resolve_report(report_id: str) -> dict:
     return rows[0]
 
 
+# --- scraper: run log, commands, config, public status -------------------------
+
+SCRAPER_COMMANDS = ("pause", "resume", "stop", "run_now", "rescrape")
+STALE_AFTER = timedelta(hours=8)
+
+
+def list_scrape_runs(limit: int = 20) -> list[dict]:
+    """Most recent scraper runs, newest first."""
+    rows = (
+        supabase.table("scrape_runs")
+        .select("*")
+        .order("started_at", desc=True)
+        .limit(max(1, min(limit, 200)))
+        .execute()
+        .data
+    )
+    return rows or []
+
+
+def send_scraper_command(command: str, handle: Optional[str] = None) -> dict:
+    """Queue a command for the scraper's runner: pause, resume, stop, run_now,
+    or rescrape (needs the Instagram handle of a club in the directory)."""
+    if command not in SCRAPER_COMMANDS:
+        raise ValueError(f"command must be one of {', '.join(SCRAPER_COMMANDS)}")
+    row: dict = {"command": command}
+    if command == "rescrape":
+        h = normalize_handle(handle or "")
+        if not h:
+            raise ValueError("handle is required for rescrape")
+        found = (
+            supabase.table("clubs")
+            .select("id")
+            .eq("instagram_handle", h)
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not found:
+            raise LookupError(f"No club with handle {h}")
+        row["handle"] = h
+    elif handle:
+        raise ValueError("handle is only used with rescrape")
+    return supabase.table("scraper_commands").insert(row).execute().data[0]
+
+
+def list_scraper_commands(status: Optional[str] = None, limit: int = 50) -> list[dict]:
+    """Scraper commands, newest first; optional status filter
+    (pending, running, done, failed)."""
+    q = supabase.table("scraper_commands").select("*")
+    if status:
+        q = q.eq("status", status)
+    rows = (
+        q.order("created_at", desc=True).limit(max(1, min(limit, 200))).execute().data
+    )
+    return rows or []
+
+
+CONFIG_BOUNDS = {
+    "club_delay_min_s": (5, 600),
+    "club_delay_max_s": (5, 600),
+    "page_load_timeout_s": (10, 120),
+    "club_timeout_s": (60, 1800),
+    "max_posts_per_club": (1, 12),
+}
+
+
+def get_scraper_config() -> dict:
+    """Scraper tunables: delay between clubs (min/max seconds), page load
+    timeout, per-club timeout and max posts per club."""
+    rows = (
+        supabase.table("scraper_state")
+        .select(", ".join(CONFIG_BOUNDS))
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not rows:
+        raise LookupError("scraper_state row is missing")
+    return rows[0]
+
+
+def set_scraper_config(
+    club_delay_min_s: Optional[int] = None,
+    club_delay_max_s: Optional[int] = None,
+    page_load_timeout_s: Optional[int] = None,
+    club_timeout_s: Optional[int] = None,
+    max_posts_per_club: Optional[int] = None,
+) -> dict:
+    """Partially update scraper tunables. Bounds: delays 5-600 s with
+    min <= max, page load 10-120 s, club timeout 60-1800 s, max posts 1-12."""
+    given = {
+        "club_delay_min_s": club_delay_min_s,
+        "club_delay_max_s": club_delay_max_s,
+        "page_load_timeout_s": page_load_timeout_s,
+        "club_timeout_s": club_timeout_s,
+        "max_posts_per_club": max_posts_per_club,
+    }
+    changes = {k: v for k, v in given.items() if v is not None}
+    if not changes:
+        raise ValueError("no config fields given")
+    for k, v in changes.items():
+        lo, hi = CONFIG_BOUNDS[k]
+        if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
+            raise ValueError(f"{k} must be an integer between {lo} and {hi}")
+    merged = get_scraper_config() | changes
+    if merged["club_delay_min_s"] > merged["club_delay_max_s"]:
+        raise ValueError("club_delay_min_s must be <= club_delay_max_s")
+    rows = (
+        supabase.table("scraper_state")
+        .update(changes | {"updated_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", True)
+        .execute()
+        .data
+    )
+    if not rows:
+        return merged
+    return {k: rows[0][k] for k in CONFIG_BOUNDS if k in rows[0]}
+
+
+def _parse_ts(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def scraper_status(now: Optional[datetime] = None) -> dict:
+    """Public scraper health. Only times, statuses and counts: no error text."""
+    now = now or datetime.now(timezone.utc)
+    cols = "started_at, finished_at, status, clubs_attempted, clubs_failed, posts_added"
+    last = (
+        supabase.table("scrape_runs")
+        .select(cols)
+        .order("started_at", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    good = (
+        supabase.table("scrape_runs")
+        .select("started_at, finished_at")
+        .in_("status", ["ok", "partial"])
+        .order("started_at", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    state = (
+        supabase.table("scraper_state")
+        .select("paused, paused_at")
+        .limit(1)
+        .execute()
+        .data
+    )
+    paused = bool(state and state[0].get("paused"))
+    good_at = (good[0].get("finished_at") or good[0]["started_at"]) if good else None
+    good_dt = _parse_ts(good_at)
+    return {
+        "last_run": last[0] if last else None,
+        "last_success_at": good_at,
+        "paused": paused,
+        "paused_at": state[0].get("paused_at") if state else None,
+        "stale": not paused and (good_dt is None or now - good_dt > STALE_AFTER),
+    }
+
+
 # --- REST --------------------------------------------------------------------
 
 
-def _call(fn, *args):
+def _call(fn, *args, bad_status: int = 422, **kwargs):
     try:
-        return fn(*args)
+        return fn(*args, **kwargs)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=bad_status, detail=str(e))
 
 
 admin_router = APIRouter(
@@ -221,6 +388,57 @@ def get_reports(status: Literal["open", "resolved"] = "open", limit: int = 50):
 @admin_router.post("/reports/{report_id}/resolve")
 def post_resolve(report_id: UUID):
     return _call(resolve_report, str(report_id))
+
+
+class ScraperCommandIn(BaseModel):
+    command: Literal["pause", "resume", "stop", "run_now", "rescrape"]
+    handle: Optional[str] = Field(default=None, max_length=100)
+
+
+class ScraperConfigIn(BaseModel):
+    # Bounds live in set_scraper_config so REST and MCP share them (400 here).
+    club_delay_min_s: Optional[int] = None
+    club_delay_max_s: Optional[int] = None
+    page_load_timeout_s: Optional[int] = None
+    club_timeout_s: Optional[int] = None
+    max_posts_per_club: Optional[int] = None
+
+
+@admin_router.get("/scrape-runs")
+def get_scrape_runs(limit: int = 20):
+    return list_scrape_runs(limit)
+
+
+@admin_router.post("/scraper/commands", status_code=201)
+def post_scraper_command(body: ScraperCommandIn):
+    return _call(send_scraper_command, body.command, body.handle)
+
+
+@admin_router.get("/scraper/commands")
+def get_scraper_commands(
+    status: Optional[Literal["pending", "running", "done", "failed"]] = None,
+    limit: int = 50,
+):
+    return list_scraper_commands(status, limit)
+
+
+@admin_router.get("/scraper/config")
+def get_config():
+    return _call(get_scraper_config)
+
+
+@admin_router.patch("/scraper/config")
+def patch_config(body: ScraperConfigIn):
+    return _call(set_scraper_config, bad_status=400, **body.model_dump())
+
+
+# Public, unauthenticated: config stays admin-only.
+status_router = APIRouter()
+
+
+@status_router.get("/status")
+def get_status():
+    return scraper_status()
 
 
 # --- public report intake ------------------------------------------------------
@@ -301,6 +519,11 @@ for _fn in (
     set_club_handle,
     list_reports,
     resolve_report,
+    list_scrape_runs,
+    send_scraper_command,
+    list_scraper_commands,
+    get_scraper_config,
+    set_scraper_config,
 ):
     mcp.tool()(_fn)
 
