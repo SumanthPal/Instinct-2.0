@@ -420,6 +420,10 @@ class SupabaseQueries:
             .select("id")
             .eq("parsed", False)
             .eq("club_id", club_id)
+            # A post link stored before its page is scraped has no caption.
+            # Parsing it would find no events, so wait until it is scraped.
+            .not_.is_("caption", "null")
+            .neq("caption", "")
             .execute()
         )
         return response.data
@@ -990,8 +994,11 @@ class SupabaseQueries:
                 self.supabase.table("posts")
                 .select("id, post_url, caption, image_path, posted", count="exact")
                 .eq("club_id", club_id)
+                # Only scraped posts: a stored link has no caption, image or
+                # date yet, and posted desc would sort it first (nulls first).
+                .eq("scrapped", True)
                 # id breaks ties so posts sharing a `posted` value page stably.
-                .order("posted", desc=True)
+                .order("posted", desc=True, nullsfirst=False)
                 .order("id")
                 .range(offset, offset + limit - 1)
                 .execute()
@@ -1006,6 +1013,7 @@ class SupabaseQueries:
                 self.supabase.table("posts")
                 .select("id", count="exact")
                 .eq("club_id", club_id)
+                .eq("scrapped", True)
                 .limit(1)
                 .execute()
             )
@@ -1020,15 +1028,17 @@ class SupabaseQueries:
 
         PostgREST limits an embedded resource per parent row, so selecting the
         clubs with their posts embedded gives a top-N per club without a SQL
-        function. Unknown ids simply match no club. Rows come back flat, each
-        with its club_id, newest first.
+        function. Unknown ids simply match no club. Only scraped posts count.
+        Rows come back flat, each with its club_id, newest first.
         """
         response = (
             self.supabase.table("clubs")
             .select("id, posts(id, club_id, post_url, caption, image_path, posted)")
             .in_("id", club_ids)
+            # Filters the embedded posts only; a club with none still comes back.
+            .eq("posts.scrapped", True)
             # id breaks ties, as in get_posts_by_club_id.
-            .order("posted", desc=True, foreign_table="posts")
+            .order("posted", desc=True, nullsfirst=False, foreign_table="posts")
             .order("id", foreign_table="posts")
             .limit(limit, foreign_table="posts")
             .execute()

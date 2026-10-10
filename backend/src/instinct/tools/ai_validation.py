@@ -373,7 +373,8 @@ class EventParser:
 
         Returns:
             The events (Name, Date, Details, Duration); [] when the post has
-            none; None when parsing failed, so the post can be retried.
+            none; None when parsing failed or the caption is empty, so the
+            post stays unparsed and can be retried.
 
         Raises:
             QuotaExhausted: the account is out of credit; nothing is retried.
@@ -391,6 +392,11 @@ class EventParser:
             post_date, post_text = self.db.get_post_date_and_caption(post_id)
         except Exception as e:
             logger.error(f"Error loading post data: {e}")
+            return None
+        if not (post_text or "").strip():
+            # Not scraped yet (or a caption-less post): nothing to parse, and
+            # returning None keeps posts.parsed false for a later run.
+            logger.info(f"Post {post_id} has no caption; skipping")
             return None
 
         # Structured outputs fix the reply's shape, so a retry is mostly for

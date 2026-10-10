@@ -573,3 +573,15 @@ def test_parser_client_makes_one_http_call_on_quota_error(monkeypatch):
     with pytest.raises(QuotaExhausted):
         parser.parse_post("post-1")
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("caption", [None, "", "  \n"])
+def test_post_without_caption_is_skipped_and_left_unparsed(caption):
+    db = FakeDB(posted=None, caption=caption)
+    parser, completions = make_parser([json.dumps({"events": []})], db=db)
+
+    assert parser.parse_post("post-1") is None
+    parser.parse_all_posts("acm.uci")
+
+    assert completions.requests == []
+    assert db.updated == [] and db.inserted == []

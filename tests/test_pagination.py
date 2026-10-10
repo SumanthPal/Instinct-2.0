@@ -10,7 +10,12 @@ from instinct.db.queries import SupabaseQueries
 
 CLUB = {"id": "c1", "name": "ACM", "instagram_handle": "acm"}
 POSTS = [
-    {"id": f"p{i:02d}", "club_id": "c1", "posted": f"2026-04-{i:02d}T12:00:00"}
+    {
+        "id": f"p{i:02d}",
+        "club_id": "c1",
+        "posted": f"2026-04-{i:02d}T12:00:00",
+        "scrapped": True,
+    }
     for i in range(1, 26)
 ]
 # Five clubs; the two Technology ones sort last, after the limit used below.
@@ -55,8 +60,10 @@ class StubQuery:
         self.filters.append((column, ("ilike", literal.lower())))
         return self
 
-    def order(self, column, desc=False):
-        self.orders.append((column, desc))
+    def order(self, column, desc=False, nullsfirst=None):
+        # PostgreSQL's default puts nulls first in desc order, last in asc.
+        nulls_first = desc if nullsfirst is None else nullsfirst
+        self.orders.append((column, desc, nulls_first))
         return self
 
     def range(self, start, end):
@@ -72,8 +79,11 @@ class StubQuery:
         self._raise_past_the_end()
         # Chained orders: the first is the primary key. Ties keep insertion
         # order, like an unordered scan.
-        for column, desc in reversed(self.orders):
-            rows.sort(key=lambda r: r[column], reverse=desc)
+        for column, desc, nulls_first in reversed(self.orders):
+            present = [r for r in rows if r[column] is not None]
+            nulls = [r for r in rows if r[column] is None]
+            present.sort(key=lambda r: r[column], reverse=desc)
+            rows = nulls + present if nulls_first else present + nulls
         for column, value in self.filters:
             if column == "category_filter.name":
                 # The !inner embed: keep only clubs with a matching category.
@@ -176,7 +186,12 @@ def test_posts_page_param_pages(monkeypatch):
 def test_posts_with_the_same_timestamp_page_by_id(monkeypatch):
     # Inserted out of id order, all posted at the same instant.
     same_time = [
-        {"id": f"p{i:02d}", "club_id": "c1", "posted": "2026-04-01T12:00:00"}
+        {
+            "id": f"p{i:02d}",
+            "club_id": "c1",
+            "posted": "2026-04-01T12:00:00",
+            "scrapped": True,
+        }
         for i in (7, 3, 9, 1, 5, 2, 8, 4, 6, 10)
     ]
     tables = {"clubs": [CLUB], "posts": same_time}
@@ -194,6 +209,34 @@ def test_posts_with_the_same_timestamp_page_by_id(monkeypatch):
         ["p05", "p06", "p07", "p08"],
         ["p09", "p10"],
     ]
+
+
+def test_unscraped_post_links_are_not_returned_or_counted(monkeypatch):
+    # A stored link has no date, caption or image until its page is scraped.
+    links = [
+        {"id": f"u{i}", "club_id": "c1", "posted": None, "scrapped": False}
+        for i in range(3)
+    ]
+    # A scraped post can still lack a date; it sorts after dated ones.
+    undated = {"id": "p00", "club_id": "c1", "posted": None, "scrapped": True}
+    tables = {"clubs": [CLUB], "posts": links + [undated] + POSTS}
+    api = use_stub(monkeypatch, StubClient(tables=tables))
+
+    first = api.get("/club/acm/posts", params={"page": 1, "limit": 10}).json()
+    last = api.get("/club/acm/posts", params={"page": 3, "limit": 10}).json()
+    past_end = api.get("/club/acm/posts", params={"page": 9, "limit": 10}).json()
+
+    assert [p["id"] for p in first["results"]][:2] == ["p25", "p24"]
+    assert [p["id"] for p in last["results"]] == [
+        "p05",
+        "p04",
+        "p03",
+        "p02",
+        "p01",
+        "p00",
+    ]
+    assert first["total"] == last["total"] == past_end["total"] == 26
+    assert past_end["results"] == []
 
 
 def test_paging_params_are_bounded(monkeypatch):
