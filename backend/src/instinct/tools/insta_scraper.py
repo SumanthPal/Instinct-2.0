@@ -721,17 +721,52 @@ class InstagramScraper:
             raise SelectorNotFoundError("POST_DATETIME did not match") from exc
 
         # The date is in place, so the caption (if any) has rendered too.
-        description = self._read_caption(club_username)
+        shortcode = post_url.rstrip("/").split("/")[-1]
+        description = self._read_caption(club_username, shortcode=shortcode)
         image_url = self._read_image_url()
         return description, date, image_url
 
-    def _read_caption(self, club_username: str) -> Optional[str]:
+    def _maybe_dump_caption_page(self, shortcode: str) -> None:
+        """Save page_source when caption reading missed, for selector work.
+
+        Off unless SCRAPER_DEBUG_DUMP=1. Writes at most 10 files per scraper
+        instance under ~/.cache/instinct/debug/<shortcode>.html.
+        """
+        if os.getenv("SCRAPER_DEBUG_DUMP") != "1":
+            return
+        if (
+            not shortcode
+            or "/" in shortcode
+            or "\\" in shortcode
+            or shortcode in (".", "..")
+        ):
+            return
+        dumps = getattr(self, "_caption_debug_dumps", 0)
+        if dumps >= 10:
+            return
+        debug_dir = Path("~/.cache/instinct/debug").expanduser()
+        path = debug_dir / f"{shortcode}.html"
+        try:
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            path.write_text(self._driver.page_source, encoding="utf-8")
+        except OSError as exc:
+            logger.warning(f"Caption debug dump failed for {shortcode}: {exc}")
+            return
+        self._caption_debug_dumps = dumps + 1
+        logger.info(f"Caption debug dump saved to {path}")
+
+    def _read_caption(
+        self, club_username: str, *, shortcode: str = ""
+    ) -> Optional[str]:
         """The caption, or None when the post has none.
 
         Tries the caption <h1> first and the old "first long span" locator
         only when there is no <h1>; either way clean_caption strips the
         handle/time header and rejects the location tag, a collab header, a
         bare username and the no-comments placeholder.
+
+        When SCRAPER_DEBUG_DUMP=1 and the caption came from the fallback or
+        is none, saves driver.page_source under ~/.cache/instinct/debug/.
         """
         locations = [
             element.text
@@ -754,8 +789,11 @@ class InstagramScraper:
                 f"Caption from {name}: "
                 f"{'none' if caption is None else repr(caption[:60])}"
             )
+            if name == "POST_CAPTION_FALLBACK" or caption is None:
+                self._maybe_dump_caption_page(shortcode)
             return caption
         logger.info("No caption element found; saving the post without a caption")
+        self._maybe_dump_caption_page(shortcode)
         return None
 
     def _read_image_url(self) -> str:
