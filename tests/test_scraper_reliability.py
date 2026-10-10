@@ -155,8 +155,9 @@ class Element:
 class FakeDriver:
     """Answers find_element(s) from a locator -> elements map."""
 
-    def __init__(self, elements):
+    def __init__(self, elements, page_source="<html></html>"):
         self.elements = elements
+        self.page_source = page_source
 
     def find_elements(self, by, value):
         return list(self.elements.get((by, value), []))
@@ -168,9 +169,9 @@ class FakeDriver:
         return found[0]
 
 
-def post_page_scraper(elements):
+def post_page_scraper(elements, page_source="<html></html>"):
     scraper = object.__new__(InstagramScraper)
-    driver = FakeDriver(elements)
+    driver = FakeDriver(elements, page_source=page_source)
     scraper._driver = driver
     scraper._wait = WebDriverWait(driver, 0.05, poll_frequency=0.01)
     scraper._short_wait = WebDriverWait(driver, 0.05, poll_frequency=0.01)
@@ -214,6 +215,73 @@ def test_fallback_caption_that_is_the_location_is_dropped():
         }
     )
     assert scraper.get_post_info("u", club_username="irvinerhosas")[0] is None
+
+
+def _fallback_post_elements(caption_text="Kaien Nuen, SUGAR, M.Sasuke"):
+    return {
+        selectors.POST_DATETIME: [DATE],
+        selectors.POST_CAPTION_FALLBACK: [Element(caption_text)],
+        selectors.POST_IMAGE: [Element(src=POST, width=600)],
+    }
+
+
+def test_caption_debug_dump_writes_on_fallback(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCRAPER_DEBUG_DUMP", "1")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    html = "<html><body>caption miss</body></html>"
+    scraper = post_page_scraper(_fallback_post_elements(), page_source=html)
+    url = "https://www.instagram.com/cyberuci/p/DePdzrMJRiV/"
+    caption, _, _ = scraper.get_post_info(url, club_username="cyberuci")
+    assert caption == "Kaien Nuen, SUGAR, M.Sasuke"
+    dump = tmp_path / ".cache" / "instinct" / "debug" / "DePdzrMJRiV.html"
+    assert dump.read_text(encoding="utf-8") == html
+
+
+def test_caption_debug_dump_skipped_when_env_unset(monkeypatch, tmp_path):
+    monkeypatch.delenv("SCRAPER_DEBUG_DUMP", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    scraper = post_page_scraper(_fallback_post_elements())
+    scraper.get_post_info(
+        "https://www.instagram.com/cyberuci/p/DePdzrMJRiV/",
+        club_username="cyberuci",
+    )
+    assert not (tmp_path / ".cache" / "instinct" / "debug").exists()
+
+
+def test_caption_debug_dump_skipped_when_h1_matches(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCRAPER_DEBUG_DUMP", "1")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    scraper = post_page_scraper(
+        {
+            selectors.POST_DATETIME: [DATE],
+            selectors.POST_CAPTION: [Element("swe.uci\n Edited\n•\n1w\nJoin us!")],
+            selectors.POST_IMAGE: [Element(src=POST, width=600)],
+        },
+        page_source="<html>h1 hit</html>",
+    )
+    assert (
+        scraper.get_post_info(
+            "https://www.instagram.com/swe.uci/p/Abc123XyZ01/",
+            club_username="swe.uci",
+        )[0]
+        == "Join us!"
+    )
+    assert not (tmp_path / ".cache" / "instinct" / "debug").exists()
+
+
+def test_caption_debug_dump_caps_at_ten(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCRAPER_DEBUG_DUMP", "1")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    scraper = post_page_scraper(
+        _fallback_post_elements(), page_source="<html>cap</html>"
+    )
+    for i in range(12):
+        scraper.get_post_info(
+            f"https://www.instagram.com/cyberuci/p/Code{i:07d}/",
+            club_username="cyberuci",
+        )
+    dumps = list((tmp_path / ".cache" / "instinct" / "debug").glob("*.html"))
+    assert len(dumps) == 10
 
 
 def test_video_post_uses_the_poster_not_the_avatar():
