@@ -1301,6 +1301,8 @@ def run_session(
     dry_run: bool = False,
     rescrape: bool = False,
     on_attempted: Optional[Callable[[str], None]] = None,
+    should_stop: Optional[Callable[[], Optional[str]]] = None,
+    config=None,
 ) -> Tuple[List[str], Optional[str]]:
     """Scrape clubs on one browser session and one login.
 
@@ -1310,6 +1312,12 @@ def run_session(
     config, a locked Chrome profile, Supabase) is raised to the caller.
     Nothing is retried and accounts are never switched. on_attempted is
     called after each club that was tried without hitting a stop.
+
+    should_stop is checked before every club after the first; a reason from
+    it ends the run cleanly (returned as a normal finish, so the caller
+    tracks why). config (scraper_control.RunConfig, defaults when None) sets
+    the wait between clubs, the page-load timeout and a hard per-club
+    timeout; a club that runs past it counts as failed.
 
     After the browser is closed (also after a stop), events are parsed for
     every club scraped successfully, so the API calls never hold Instagram
@@ -1323,7 +1331,9 @@ def run_session(
     from instinct.db.queries import normalize_handle
     from instinct.tools.insta_scraper import InstagramScraper
     from instinct.storage import get_storage
+    from instinct.tools.scraper_control import ClubTimeout, RunConfig, club_timeout
 
+    config = config or RunConfig()
     global _parsing_stopped
     _parsing_stopped = None
     scraper = None
@@ -1334,22 +1344,39 @@ def run_session(
         scraper = InstagramScraper(
             os.getenv("INSTAGRAM_USERNAME"), os.getenv("INSTAGRAM_PASSWORD")
         )
+        scraper.max_posts = config.max_posts_per_club
         scraper.login()
+        try:
+            scraper._driver.set_page_load_timeout(config.page_load_timeout_seconds)
+        except Exception as exc:
+            logger.error(f"Could not set the page-load timeout: {exc}")
         # De-duplicate after normalizing (foo, @Foo) and drop blanks like "@".
         handles = list(
             dict.fromkeys(filter(None, map(normalize_handle, instagram_handles)))
         )
         for index, instagram_handle in enumerate(handles):
             if index > 0:
-                delay = random.uniform(*ONCE_CLUB_DELAY_SECONDS)
+                reason = should_stop() if should_stop else None
+                if reason:
+                    logger.info(f"Ending the run before {instagram_handle}: {reason}")
+                    break
+                delay = random.uniform(
+                    config.club_delay_min_seconds, config.club_delay_max_seconds
+                )
                 logger.info(f"Waiting {delay:.0f}s before the next club...")
                 time.sleep(delay)
             tried += 1
             try:
-                scrape_one(
-                    scraper, instagram_handle, dry_run=dry_run, rescrape=rescrape
-                )
+                with club_timeout(config.club_timeout_seconds):
+                    scrape_one(
+                        scraper, instagram_handle, dry_run=dry_run, rescrape=rescrape
+                    )
                 scraped.append(instagram_handle)
+            except ClubTimeout as exc:
+                logger.error(f"Scrape timed out for {instagram_handle}: {exc}")
+                if not driver_alive(scraper):
+                    return failed + [instagram_handle], "browser died"
+                failed.append(instagram_handle)
             except InstagramLoginError, RateLimitDetected:
                 raise
             except WebDriverException as exc:

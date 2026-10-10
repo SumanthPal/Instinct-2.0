@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+Runs pending scraper_commands (pause, resume, stop, run_now, rescrape) every
+60 seconds; see backend/src/instinct/tools/scraper_commands.py. Most ticks
+find nothing and exit in a second or two. run_now and rescrape start a
+normal scrape in this process; a lock file keeps it to one Chrome at a time,
+so a command that arrives during a scheduled run waits for the next tick.
+launchd does not start a new tick while the previous one is still running.
+
+Needs the same backend/.env as com.instinct.scraper.plist (Supabase keys,
+CHROME_BIN, the Instagram login). A systemd timer replaces this on the GCP VM.
+
+Install (replace __REPO__ with the absolute path of your checkout):
+
+  sed "s#__REPO__#$PWD#g" scripts/launchd/com.instinct.scraper-commands.plist \
+    > ~/Library/LaunchAgents/com.instinct.scraper-commands.plist
+  launchctl load ~/Library/LaunchAgents/com.instinct.scraper-commands.plist
+
+Uninstall: launchctl unload ~/Library/LaunchAgents/com.instinct.scraper-commands.plist
+Logs: /tmp/instinct-scraper-commands.log
+
+caffeinate -i keeps the Mac awake only while a tick (and any run it starts)
+is in progress.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.instinct.scraper-commands</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd __REPO__/backend &amp;&amp; uv run python -m instinct.tools.scraper_commands</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>StandardOutPath</key>
+  <string>/tmp/instinct-scraper-commands.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/instinct-scraper-commands.log</string>
+</dict>
+</plist>
