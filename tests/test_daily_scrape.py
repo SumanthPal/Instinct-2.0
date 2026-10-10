@@ -21,7 +21,7 @@ def fake(monkeypatch, tmp_path):
         return [f"club{i}" for i in range(limit)]
 
     def run_session(
-        handles, *, dry_run, rescrape=False, on_attempted, should_stop, config
+        handles, *, dry_run, rescrape=False, on_attempted, should_stop, config, **kw
     ):
         calls["session"] = list(handles)
         calls["rescrape"] = rescrape

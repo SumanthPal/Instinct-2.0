@@ -1303,6 +1303,7 @@ def run_session(
     on_attempted: Optional[Callable[[str], None]] = None,
     should_stop: Optional[Callable[[], Optional[str]]] = None,
     config=None,
+    refresh_config: Optional[Callable[[], object]] = None,
 ) -> Tuple[List[str], Optional[str]]:
     """Scrape clubs on one browser session and one login.
 
@@ -1317,7 +1318,8 @@ def run_session(
     it ends the run cleanly (returned as a normal finish, so the caller
     tracks why). config (scraper_control.RunConfig, defaults when None) sets
     the wait between clubs, the page-load timeout and a hard per-club
-    timeout; a club that runs past it counts as failed.
+    timeout; a club that runs past it counts as failed. refresh_config, when
+    given, is re-read before each wait so a changed delay applies mid-run.
 
     After the browser is closed (also after a stop), events are parsed for
     every club scraped successfully, so the API calls never hold Instagram
@@ -1360,6 +1362,8 @@ def run_session(
                 if reason:
                     logger.info(f"Ending the run before {instagram_handle}: {reason}")
                     break
+                if refresh_config:
+                    config = refresh_config()
                 delay = random.uniform(
                     config.club_delay_min_seconds, config.club_delay_max_seconds
                 )

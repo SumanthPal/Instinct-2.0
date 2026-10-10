@@ -2,7 +2,7 @@
 
 - scrape_runs: one row per run (started_at, finished_at, status ok, failed,
   partial or stopped, clubs_attempted, clubs_failed, posts_added, error).
-- scraper_state: a single row (id 1) with the pause flag (paused, paused_at)
+- scraper_state: a single row (id true) with the pause flag (paused, paused_at)
   and run settings: the wait between clubs, the page-load timeout, the
   per-club timeout and the posts opened per club. Missing rows or columns
   fall back to the defaults below, and every value is clamped to BOUNDS so
@@ -29,20 +29,22 @@ from instinct.tools.logger import logger
 RUNS = "scrape_runs"
 STATE = "scraper_state"
 COMMANDS = "scraper_commands"
-STATE_ID = 1
+STATE_ID = True  # scraper_state has one row, id = true
 
 LOCK_PATH = Path(
     os.getenv("SCRAPE_LOCK_PATH", Path.home() / ".cache/instinct/scraper.lock")
 )
 
-# Column -> (default, low, high). Defaults are the values the code used
-# before these settings existed; club_timeout_seconds is new.
+# scraper_state column -> (RunConfig field, default, low, high). Defaults are
+# the values the code used before these settings existed (the per-club
+# timeout is new); the bounds match the table's check constraints. When the
+# row is present its values win (the table defaults the wait to 30-90s).
 BOUNDS = {
-    "club_delay_min_seconds": (15, 5, 300),
-    "club_delay_max_seconds": (45, 5, 600),
-    "page_load_timeout_seconds": (30, 10, 120),
-    "club_timeout_seconds": (600, 60, 1800),
-    "max_posts_per_club": (3, 1, 12),
+    "club_delay_min_s": ("club_delay_min_seconds", 15, 5, 600),
+    "club_delay_max_s": ("club_delay_max_seconds", 45, 5, 600),
+    "page_load_timeout_s": ("page_load_timeout_seconds", 30, 10, 120),
+    "club_timeout_s": ("club_timeout_seconds", 300, 60, 1800),
+    "max_posts_per_club": ("max_posts_per_club", 3, 1, 12),
 }
 
 
@@ -51,7 +53,7 @@ class RunConfig:
     club_delay_min_seconds: float = 15
     club_delay_max_seconds: float = 45
     page_load_timeout_seconds: float = 30
-    club_timeout_seconds: float = 600
+    club_timeout_seconds: float = 300
     max_posts_per_club: int = 3
 
 
@@ -69,7 +71,7 @@ def config_from_row(row: Optional[dict]) -> RunConfig:
     """Settings from a scraper_state row, defaulted and clamped."""
     row = row or {}
     values = {}
-    for column, (default, low, high) in BOUNDS.items():
+    for column, (field, default, low, high) in BOUNDS.items():
         value = row.get(column)
         try:
             value = float(value) if value is not None else default
@@ -77,7 +79,7 @@ def config_from_row(row: Optional[dict]) -> RunConfig:
             value = default
         if value != value:  # NaN
             value = default
-        values[column] = min(max(value, low), high)
+        values[field] = min(max(value, low), high)
     if values["club_delay_max_seconds"] < values["club_delay_min_seconds"]:
         values["club_delay_max_seconds"] = values["club_delay_min_seconds"]
     values["max_posts_per_club"] = int(values["max_posts_per_club"])
@@ -97,21 +99,35 @@ def get_state() -> dict:
 
 
 def set_paused(paused: bool) -> None:
+    now = _now()
     _client().table(STATE).upsert(
-        {"id": STATE_ID, "paused": paused, "paused_at": _now() if paused else None}
+        {
+            "id": STATE_ID,
+            "paused": paused,
+            "paused_at": now if paused else None,
+            "updated_at": now,
+        }
     ).execute()
 
 
-def start_run() -> Optional[int]:
+def start_run(trigger: str = "scheduled") -> Optional[str]:
+    """Insert a running scrape_runs row; trigger is scheduled, command or
+    manual."""
     try:
-        rows = _client().table(RUNS).insert({"started_at": _now()}).execute().data
+        rows = (
+            _client()
+            .table(RUNS)
+            .insert({"started_at": _now(), "status": "running", "trigger": trigger})
+            .execute()
+            .data
+        )
         return rows[0]["id"] if rows else None
     except Exception as exc:
         logger.error(f"Could not record the run start in {RUNS}: {exc}")
         return None
 
 
-def finish_run(run_id: Optional[int], **fields) -> None:
+def finish_run(run_id: Optional[str], **fields) -> None:
     if run_id is None:
         return
     try:
@@ -134,6 +150,25 @@ def pending_commands(kinds: Optional[List[str]] = None) -> List[dict]:
         return []
 
 
+def claim_command(command_id) -> bool:
+    """pending -> running in one conditional update; False when another
+    runner (or the run itself) took it first."""
+    try:
+        rows = (
+            _client()
+            .table(COMMANDS)
+            .update({"status": "running", "started_at": _now()})
+            .eq("id", command_id)
+            .eq("status", "pending")
+            .execute()
+            .data
+        )
+        return bool(rows)
+    except Exception as exc:
+        logger.error(f"Could not claim command {command_id}: {exc}")
+        return False
+
+
 def update_command(command_id, status: str, result: Optional[str] = None) -> None:
     fields = {"status": status, "result": result}
     if status == "running":
@@ -150,6 +185,8 @@ def interrupt_reason() -> Optional[str]:
     """Checked between clubs: a pending stop or pause command (marked done
     here) or the paused flag ends the run after the current club."""
     for command in pending_commands(["stop", "pause"]):
+        if not claim_command(command["id"]):
+            continue
         if command["command"] == "pause":
             try:
                 set_paused(True)

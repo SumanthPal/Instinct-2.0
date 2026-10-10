@@ -93,7 +93,9 @@ def session(monkeypatch, tmp_path):
     """daily_scrape.run on a fake run_session that calls should_stop."""
     seen = {}
 
-    def run_session(handles, *, dry_run, rescrape, on_attempted, should_stop, config):
+    def run_session(
+        handles, *, dry_run, rescrape, on_attempted, should_stop, config, **kw
+    ):
         seen["config"] = config
         seen["handles"] = list(handles)
         failed = []
@@ -180,17 +182,17 @@ def test_defaults_match_the_code_constants():
 def test_settings_are_clamped():
     config = scraper_control.config_from_row(
         {
-            "club_delay_min_seconds": 0,
-            "club_delay_max_seconds": 10_000,
-            "page_load_timeout_seconds": 1,
-            "club_timeout_seconds": "nonsense",
+            "club_delay_min_s": 0,
+            "club_delay_max_s": 10_000,
+            "page_load_timeout_s": 1,
+            "club_timeout_s": "nonsense",
             "max_posts_per_club": 50,
         }
     )
     assert config.club_delay_min_seconds == 5
     assert config.club_delay_max_seconds == 600
     assert config.page_load_timeout_seconds == 10
-    assert config.club_timeout_seconds == 600  # unparseable -> default
+    assert config.club_timeout_seconds == 300  # unparseable -> default
     assert config.max_posts_per_club == 12
     assert scraper_control.config_from_row({"max_posts_per_club": 0}) == (
         scraper_control.RunConfig(max_posts_per_club=1)
@@ -199,7 +201,7 @@ def test_settings_are_clamped():
 
 def test_max_wait_never_below_min():
     config = scraper_control.config_from_row(
-        {"club_delay_min_seconds": 60, "club_delay_max_seconds": 20}
+        {"club_delay_min_s": 60, "club_delay_max_s": 20}
     )
     assert config.club_delay_max_seconds == 60
 
@@ -215,7 +217,7 @@ def test_unreadable_state_table_falls_back(monkeypatch):
 
 def test_run_reads_settings(db, session):
     seen, state = session
-    db["scraper_state"] = [{"id": 1, "paused": False, "club_delay_max_seconds": 1}]
+    db["scraper_state"] = [{"id": True, "paused": False, "club_delay_max_s": 1}]
     run(state)
     assert seen["config"].club_delay_max_seconds == 15  # clamped up to min
 
@@ -226,9 +228,9 @@ def test_session_applies_settings(browser, monkeypatch):
     monkeypatch.setattr(scraper_rotation.time, "sleep", sleeps.append)
     config = scraper_control.config_from_row(
         {
-            "club_delay_min_seconds": 7,
-            "club_delay_max_seconds": 7,
-            "page_load_timeout_seconds": 20,
+            "club_delay_min_s": 7,
+            "club_delay_max_s": 7,
+            "page_load_timeout_s": 20,
             "max_posts_per_club": 5,
         }
     )
@@ -260,6 +262,7 @@ def test_run_row_ok(db, session):
     assert run(state) == 0
     (row,) = db["scrape_runs"]
     assert row["status"] == "ok" and row["clubs_attempted"] == 3
+    assert row["trigger"] == "scheduled"
     assert row["clubs_failed"] == 0 and row["finished_at"]
 
 
@@ -281,7 +284,7 @@ def test_challenge_marks_run_stopped(db, session):
 
 def test_paused_skips_run(db, session):
     seen, state = session
-    db["scraper_state"] = [{"id": 1, "paused": True}]
+    db["scraper_state"] = [{"id": True, "paused": True}]
     assert run(state) == 0
     assert "handles" not in seen and "scrape_runs" not in db
 
@@ -352,7 +355,8 @@ def runs(monkeypatch):
     calls = []
     result = {"code": 0}
 
-    def fake_run(clubs, cap, *, dry_run, state_path, rescrape=None):
+    def fake_run(clubs, cap, *, dry_run, state_path, rescrape=None, trigger):
+        assert trigger == "command"
         calls.append(rescrape)
         return result["code"]
 
@@ -375,7 +379,8 @@ def test_pause_and_resume(db):
     assert rows[0]["status"] == "done"
     commands(db, {"command": "resume"})
     scraper_commands.tick()
-    assert db["scraper_state"][0] == {"id": 1, "paused": False, "paused_at": None}
+    assert db["scraper_state"][0]["paused"] is False
+    assert db["scraper_state"][0]["paused_at"] is None
 
 
 def test_run_now_and_rescrape(db, runs):
@@ -424,3 +429,45 @@ def test_stop_during_a_run_is_left_for_the_run(db):
     with scraper_control.run_lock():
         scraper_commands.tick()
     assert rows[0]["status"] == "pending"
+
+
+def test_run_row_starts_running(db, session, monkeypatch):
+    seen, state = session
+    statuses = []
+    real_finish = scraper_control.finish_run
+
+    def finish(run_id, **fields):
+        statuses.append(db["scrape_runs"][0]["status"])
+        real_finish(run_id, **fields)
+
+    monkeypatch.setattr(scraper_control, "finish_run", finish)
+    run(state)
+    assert statuses == ["running"]
+
+
+def test_claimed_command_is_not_run_twice(db, runs):
+    calls, _ = runs
+    rows = commands(db, {"command": "run_now"})
+    pending = scraper_control.pending_commands()
+    assert scraper_control.claim_command(rows[0]["id"])
+    assert rows[0]["status"] == "running" and rows[0]["started_at"]
+    assert not scraper_control.claim_command(rows[0]["id"])
+    for command in pending:
+        scraper_commands.run_command(command)
+    assert calls == []
+
+
+def test_delay_is_reread_between_clubs(browser, monkeypatch):
+    sleeps = []
+    waits = iter([8, 9])
+    monkeypatch.setattr(scraper_rotation, "scrape_one", lambda *a, **k: None)
+    monkeypatch.setattr(scraper_rotation.time, "sleep", sleeps.append)
+
+    def refresh():
+        wait = next(waits)
+        return scraper_control.config_from_row(
+            {"club_delay_min_s": wait, "club_delay_max_s": wait}
+        )
+
+    scraper_rotation.run_session(["a", "b", "c"], dry_run=True, refresh_config=refresh)
+    assert sleeps == [8, 9]

@@ -11,8 +11,9 @@ Commands, oldest first:
 - rescrape <handle>: daily_scrape --rescrape for that handle.
 
 Only one run uses Chrome at a time. If a run holds the lock, run_now and
-rescrape stay pending for the next tick. Each command's status (running,
-done, failed) and result are written back to its row.
+rescrape stay pending for the next tick. A command is claimed with one
+conditional update (pending -> running), so two runners never take the same
+one; then its status (done, failed) and result are written back.
 """
 
 import sys
@@ -37,16 +38,23 @@ def _daily_cap() -> int:
     return int(os.getenv("SCRAPE_DAILY_CAP", "200"))
 
 
+def _busy() -> bool:
+    with scraper_control.run_lock() as locked:
+        return not locked
+
+
 def run_command(command: dict) -> None:
+    """Claim (pending -> running) and handle one command."""
     kind, command_id = command.get("command"), command["id"]
+    if kind in ("stop", "run_now", "rescrape") and _busy():
+        return  # a run is going: it takes stops itself; runs wait a tick
+    if not scraper_control.claim_command(command_id):
+        return  # another runner, or the run, took it
     if kind in ("pause", "resume"):
         scraper_control.set_paused(kind == "pause")
         scraper_control.update_command(command_id, "done", f"{kind}d")
         return
     if kind == "stop":
-        with scraper_control.run_lock() as locked:
-            if not locked:
-                return  # a run is going; it picks up the stop between clubs
         scraper_control.update_command(command_id, "done", "no run in progress")
         return
     if kind == "rescrape" and not (command.get("handle") or "").strip():
@@ -58,7 +66,6 @@ def run_command(command: dict) -> None:
         )
         return
 
-    scraper_control.update_command(command_id, "running")
     try:
         code = daily_scrape.run(
             RUN_CLUBS,
@@ -66,6 +73,7 @@ def run_command(command: dict) -> None:
             dry_run=False,
             state_path=daily_scrape.STATE_PATH,
             rescrape=[command["handle"].strip()] if kind == "rescrape" else None,
+            trigger="command",
         )
     except Exception as exc:
         scraper_control.update_command(command_id, "failed", str(exc))
