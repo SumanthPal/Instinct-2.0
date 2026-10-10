@@ -15,6 +15,11 @@ Install (replace __REPO__ with the absolute path of your checkout):
 
 Uninstall: launchctl unload ~/Library/LaunchAgents/com.instinct.scraper.plist
 Logs: /tmp/instinct-scraper.log
+
+caffeinate -i keeps the Mac from idle-sleeping while a run is in progress
+(a sleeping Mac froze Chrome mid-run); it exits with the scrape. It does
+not stop sleep when the lid is closed. After editing, unload and load the
+agent again for the change to apply.
 -->
 <plist version="1.0">
 <dict>
@@ -22,6 +27,8 @@ Logs: /tmp/instinct-scraper.log
   <string>com.instinct.scraper</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
     <string>/bin/zsh</string>
     <string>-lc</string>
     <string>cd __REPO__/backend &amp;&amp; uv run python -m instinct.tools.daily_scrape --clubs 50</string>

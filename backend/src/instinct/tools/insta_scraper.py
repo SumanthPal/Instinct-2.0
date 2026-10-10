@@ -20,6 +20,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from urllib3.exceptions import HTTPError as Urllib3HTTPError
+from urllib3.util.retry import Retry
 from webdriver_manager.chrome import ChromeDriverManager
 
 from instinct.tools.logger import logger
@@ -33,7 +35,22 @@ import datetime
 MAX_POSTS_PER_CLUB = 3
 # A post that fails this many times (deleted, private, broken) is skipped for good.
 MAX_SCRAPE_ATTEMPTS = 3
-PAGE_DELAY_SECONDS = (3, 8)
+PAGE_DELAY_SECONDS = (1.5, 4)
+# How long to wait for things a page may simply not have (a links button, a
+# "more" button, a caption). Required elements keep the 5s wait.
+OPTIONAL_WAIT_SECONDS = 2
+# A frozen Chrome must fail fast: a navigation gives up after 30s and any
+# driver command after 45s with no read retry (the defaults are 120s and
+# urllib3's 3 retries, so one hung call could block for 8 minutes).
+PAGE_LOAD_TIMEOUT_SECONDS = 30
+DRIVER_COMMAND_TIMEOUT_SECONDS = 45
+# What a hung, crashed or unreachable chromedriver raises.
+DRIVER_GONE_ERRORS = (
+    WebDriverException,
+    Urllib3HTTPError,
+    ConnectionError,
+    TimeoutError,
+)
 
 # Whole path segments only, so profiles like /checkpointclub/ never match.
 _HARD_STOP_PATH = re.compile(
@@ -80,6 +97,121 @@ def post_recency_key(post_url: str) -> int:
             return -1
         media_id = media_id * 64 + index
     return media_id
+
+
+def tighten_driver_timeouts(driver) -> None:
+    """Make a hung chromedriver fail in about a minute instead of 8+.
+
+    Sets the page-load timeout and, on Selenium's HTTP client, a short read
+    timeout with no read retry. Pools are rebuilt so the new retry rule
+    applies to the existing connection to chromedriver.
+    """
+    driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT_SECONDS)
+    executor = driver.command_executor
+    executor._client_config.timeout = DRIVER_COMMAND_TIMEOUT_SECONDS
+    pool = getattr(executor, "_conn", None)
+    if pool is not None:
+        pool.connection_pool_kw["retries"] = Retry(
+            total=1, connect=1, read=0, redirect=0, status=0
+        )
+        pool.connection_pool_kw["timeout"] = DRIVER_COMMAND_TIMEOUT_SECONDS
+        pool.clear()
+
+
+# A post link on the profile grid: /p/<code>/ or /reel/<code>/, optionally
+# after the handle (/acm.uci/reel/<code>/).
+_POST_HREF = re.compile(r"^(?P<prefix>/[^/?#]+)?/(?P<kind>p|reel)/(?P<code>[^/?#]+)")
+
+
+def canonical_post_url(href: str) -> Optional[str]:
+    """Absolute /p/ URL for a grid link to a post or reel, else None.
+
+    Reels are stored as /p/<code>/: Instagram serves both kinds of post at
+    /p/, the shortcode (determinant) is the same, and an existing /p/ row for
+    the same post is not duplicated.
+    """
+    match = _POST_HREF.match(urlparse(href).path)
+    if not match:
+        return None
+    prefix = match.group("prefix") or ""
+    if prefix in ("/p", "/reel"):
+        prefix = ""
+    return f"https://www.instagram.com{prefix}/p/{match.group('code')}/"
+
+
+# Leading header lines Instagram puts in the caption container: the handle,
+# "Edited", a bullet, "Verified" and a relative time such as "41m" or "2w".
+_RELATIVE_TIME = re.compile(r"^\d+\s?[smhdwy]$")
+_HEADER_LINE = re.compile(r"^([A-Za-z0-9._]{1,30}|Edited|•|Verified|\d+\s?[smhdwy])$")
+# Things the old "first long span" locator grabbed that are never a caption.
+_PLACEHOLDER_CAPTIONS = frozenset(
+    {"start the conversation.", "no comments yet.", "start the conversation"}
+)
+_COLLAB_HEADER = re.compile(
+    r"^[A-Za-z0-9._]+\s*\n\s*and\s*(\n\s*[A-Za-z0-9._]+|\d+ others?)$"
+)
+_HANDLE_ONLY = re.compile(r"^@?[a-z0-9._]+$")
+
+
+def clean_caption(
+    text: Optional[str], *, handle: str = "", non_captions=()
+) -> Optional[str]:
+    """The post's caption from the text a caption locator matched, or None.
+
+    Strips the "handle / Edited • / 2w" header Instagram renders above the
+    caption and rejects text that is not a caption at all: the location tag
+    (pass the page's location names as non_captions), a collab header such as
+    "a\nand\nb", a bare username, or the "Start the conversation." placeholder.
+    """
+    if not text:
+        return None
+    text = text.strip()
+    lines = text.split("\n")
+    # Drop the header only when it ends in a relative time or "Edited", so a
+    # caption that merely starts with a one-word line is left alone.
+    header_end = 0
+    for index, line in enumerate(lines[:8]):
+        line = line.strip()
+        if not line:
+            continue
+        if not _HEADER_LINE.match(line):
+            break
+        if _RELATIVE_TIME.match(line) or line == "Edited":
+            header_end = index + 1
+    text = "\n".join(lines[header_end:]).strip()
+    if not text:
+        return None
+    lowered = text.lower()
+    if lowered in _PLACEHOLDER_CAPTIONS:
+        return None
+    if _COLLAB_HEADER.match(text):
+        return None
+    if lowered.lstrip("@") == handle.lower().lstrip("@"):
+        return None
+    if _HANDLE_ONLY.match(text) and (len(text) > 20 or "." in text or "_" in text):
+        return None
+    if text in {name.strip() for name in non_captions if name}:
+        return None
+    return text
+
+
+# Profile pictures are served as t51.<n>-19; post media as t51.<n>-15 and others.
+_PROFILE_PICTURE_URL = re.compile(r"/t51\.\d+-19/")
+MIN_POST_IMAGE_WIDTH = 150
+
+
+def is_post_image(src: Optional[str], rendered_width: Optional[int] = None) -> bool:
+    """True for an Instagram CDN image that can be the post's media.
+
+    Rejects profile pictures (the poster's or a commenter's avatar) and
+    anything rendered smaller than MIN_POST_IMAGE_WIDTH; a width of 0 or
+    None (not laid out yet) is not held against the image.
+    """
+    if not src or "cdninstagram.com" not in src:
+        return False
+    if _PROFILE_PICTURE_URL.search(src):
+        return False
+    return not (rendered_width and rendered_width < MIN_POST_IMAGE_WIDTH)
 
 
 def is_plausible_club_name(name: Optional[str], club_username: str) -> bool:
@@ -150,6 +282,7 @@ class InstagramScraper:
         self._driver = self._create_driver(options)
         logger.info("WebDriver successfully initialized")
         self._wait = WebDriverWait(self._driver, 5)
+        self._short_wait = WebDriverWait(self._driver, OPTIONAL_WAIT_SECONDS)
         self.cookies_list = [os.getenv("COOKIE_1"), os.getenv("COOKIE_2")]
 
     def _configured_chrome_binary(self) -> Optional[str]:
@@ -247,6 +380,7 @@ class InstagramScraper:
 
         try:
             driver = webdriver.Chrome(service=service, options=chrome_options)
+            tighten_driver_timeouts(driver)
             logger.info("Chrome WebDriver created successfully")
             return driver
         except WebDriverException as exc:
@@ -568,20 +702,13 @@ class InstagramScraper:
             logger.error(f"Error fetching club info: {e}")
             self._driver_quit()
 
-    def get_post_info(self, post_url: str) -> Tuple[Optional[str], str, str]:
+    def get_post_info(
+        self, post_url: str, club_username: str = ""
+    ) -> Tuple[Optional[str], str, str]:
         """Extract a post's caption, date, and image, failing on missing required data."""
         if not self.safe_get_page(post_url, check_page_content=False):
             raise RuntimeError(f"Failed to access Instagram post: {post_url}")
         logger.info(f"Fetching Instagram post: {post_url}")
-
-        try:
-            caption_element = self._wait.until(
-                EC.presence_of_element_located(selectors.POST_CAPTION)
-            )
-            description = caption_element.text.strip() or None
-        except TimeoutException:
-            # A post may have no caption; this is not a selector failure.
-            description = None
 
         try:
             date_element = self._wait.until(
@@ -593,27 +720,76 @@ class InstagramScraper:
         except TimeoutException as exc:
             raise SelectorNotFoundError("POST_DATETIME did not match") from exc
 
-        try:
-            image_element = self._wait.until(
-                EC.presence_of_element_located(selectors.POST_IMAGE)
-            )
-            image_url = image_element.get_attribute("src")
-            if not image_url:
-                raise SelectorNotFoundError("POST_IMAGE had no src value")
-        except TimeoutException:
-            try:
-                video_element = self._wait.until(
-                    EC.presence_of_element_located(selectors.POST_VIDEO_POSTER)
-                )
-                image_url = video_element.get_attribute("poster")
-                if not image_url:
-                    raise SelectorNotFoundError("POST_VIDEO_POSTER had no poster value")
-            except TimeoutException as exc:
-                raise SelectorNotFoundError(
-                    "Neither POST_IMAGE nor POST_VIDEO_POSTER matched"
-                ) from exc
-
+        # The date is in place, so the caption (if any) has rendered too.
+        description = self._read_caption(club_username)
+        image_url = self._read_image_url()
         return description, date, image_url
+
+    def _read_caption(self, club_username: str) -> Optional[str]:
+        """The caption, or None when the post has none.
+
+        Tries the caption <h1> first and the old "first long span" locator
+        only when there is no <h1>; either way clean_caption strips the
+        handle/time header and rejects the location tag, a collab header, a
+        bare username and the no-comments placeholder.
+        """
+        locations = [
+            element.text
+            for element in self._driver.find_elements(*selectors.POST_LOCATION)
+        ]
+        for name, locator in (
+            ("POST_CAPTION", selectors.POST_CAPTION),
+            ("POST_CAPTION_FALLBACK", selectors.POST_CAPTION_FALLBACK),
+        ):
+            try:
+                element = self._short_wait.until(
+                    EC.presence_of_element_located(locator)
+                )
+            except TimeoutException:
+                continue
+            caption = clean_caption(
+                element.text, handle=club_username, non_captions=locations
+            )
+            logger.info(
+                f"Caption from {name}: "
+                f"{'none' if caption is None else repr(caption[:60])}"
+            )
+            return caption
+        logger.info("No caption element found; saving the post without a caption")
+        return None
+
+    def _read_image_url(self) -> str:
+        """The post's image: the first real post image, else the video poster.
+
+        Skips profile pictures and tiny images (the poster's avatar comes
+        before the media in the page), so a video post falls through to its
+        poster instead of saving the avatar.
+        """
+        try:
+            self._wait.until(
+                EC.any_of(
+                    EC.presence_of_element_located(selectors.POST_IMAGE),
+                    EC.presence_of_element_located(selectors.POST_VIDEO_POSTER),
+                )
+            )
+        except TimeoutException as exc:
+            raise SelectorNotFoundError(
+                "Neither POST_IMAGE nor POST_VIDEO_POSTER matched"
+            ) from exc
+
+        for element in self._driver.find_elements(*selectors.POST_IMAGE):
+            src = element.get_attribute("src")
+            try:
+                width = (element.size or {}).get("width")
+            except WebDriverException:
+                width = None
+            if is_post_image(src, width):
+                return src
+        for element in self._driver.find_elements(*selectors.POST_VIDEO_POSTER):
+            poster = element.get_attribute("poster")
+            if poster:
+                return poster
+        raise SelectorNotFoundError("No post image or video poster on the page")
 
     def save_post_info(self, club_username: str):
         """Process and save post information, never marking a failed mirror as scraped."""
@@ -648,7 +824,9 @@ class InstagramScraper:
                 continue
 
             try:
-                description, date, post_pic = self.get_post_info(post_url)
+                description, date, post_pic = self.get_post_info(
+                    post_url, club_username=club_username
+                )
                 uploaded_path = self.db.download_and_upload_img(
                     post_pic, f"posts/{club_username}/{post_id}"
                 )
@@ -685,6 +863,76 @@ class InstagramScraper:
                 f"{', '.join(failures)}"
             )
         logger.info(f"Mirrored {processed} post image(s) for {club_username}")
+
+    def rescrape_club(self, club_username: str) -> None:
+        """Re-fetch caption, date and image for a club's newest stored posts.
+
+        Opens the newest MAX_POSTS_PER_CLUB posts already in the database
+        (scraped or not; unscraped ones that failed MAX_SCRAPE_ATTEMPTS times
+        stay skipped), re-mirrors each image to the same storage key and
+        updates the row. It never loads the profile, never stores new post
+        links and never parses events; posts.parsed is left as it is.
+
+        A post that fails is left exactly as it was; only a never-scraped
+        post counts the failure in scrape_attempts. An empty new caption does
+        not replace a stored one unless the stored one is itself not a caption
+        (a collab header, a bare username, the placeholder). Raises when
+        every post failed.
+        """
+        club_username = normalize_handle(club_username)
+        club_id = self.db.get_club_by_instagram_handle(club_username)
+        if not club_id:
+            raise RuntimeError(f"Club {club_username} is not in the database")
+        posts = self.db.get_posts_for_rescrape(club_id, MAX_SCRAPE_ATTEMPTS)
+        posts = sorted(
+            posts, key=lambda post: post_recency_key(post["post_url"]), reverse=True
+        )[:MAX_POSTS_PER_CLUB]
+        if not posts:
+            logger.info(f"No stored posts to rescrape for {club_username}")
+            return
+
+        processed = 0
+        failures = []
+        for post in posts:
+            post_id = post["id"]
+            try:
+                description, date, post_pic = self.get_post_info(
+                    post["post_url"], club_username=club_username
+                )
+                uploaded_path = self.db.download_and_upload_img(
+                    post_pic, f"posts/{club_username}/{post_id}"
+                )
+                update = {
+                    "posted": date,
+                    "image_url": post_pic,
+                    "image_path": uploaded_path,
+                    "scrapped": True,
+                }
+                stored_caption = post.get("caption")
+                if description or (
+                    stored_caption
+                    and clean_caption(stored_caption, handle=club_username) is None
+                ):
+                    update["caption"] = description
+                self.db.update_post_by_id(post_id, update)
+                processed += 1
+                logger.info(f"Rescraped post {post_id}")
+            except InstagramLoginError, RateLimitDetected:
+                raise
+            except Exception as exc:
+                failures.append(str(post_id))
+                logger.error(
+                    f"Rescrape failed for post {post_id}; left unchanged: {exc}"
+                )
+                if not post.get("scrapped"):
+                    self._record_failed_scrape(post_id, post)
+
+        if failures and not processed:
+            raise RuntimeError(
+                f"Failed to rescrape {len(failures)} post(s) for {club_username}: "
+                f"{', '.join(failures)}"
+            )
+        logger.info(f"Rescraped {processed} post(s) for {club_username}")
 
     def _record_failed_scrape(self, post_id: str, post_data: dict) -> None:
         """Count a failed attempt; a DB error here must not hide the scrape error."""
@@ -777,7 +1025,7 @@ class InstagramScraper:
         try:
             # First check if links are already visible
             try:
-                link_element = self._wait.until(
+                link_element = self._short_wait.until(
                     EC.presence_of_element_located(selectors.PROFILE_EXTERNAL_LINK)
                 )
                 return [
@@ -792,7 +1040,7 @@ class InstagramScraper:
             button_found = False
             for locator in selectors.PROFILE_LINK_TRIGGERS:
                 try:
-                    button = self._wait.until(EC.element_to_be_clickable(locator))
+                    button = self._short_wait.until(EC.element_to_be_clickable(locator))
                     button.click()
                     logger.info("Links trigger clicked successfully.")
                     button_found = True
@@ -805,7 +1053,7 @@ class InstagramScraper:
                 return []
 
             # Wait for links to appear (they might be in buttons now)
-            self._wait.until(
+            self._short_wait.until(
                 EC.presence_of_element_located(selectors.PROFILE_EXTERNAL_LINK)
             )
 
@@ -866,7 +1114,7 @@ class InstagramScraper:
             self._wait.until(
                 EC.presence_of_all_elements_located(selectors.PROFILE_POST_LINKS)
             )
-            button_element = self._wait.until(
+            button_element = self._short_wait.until(
                 EC.presence_of_element_located(selectors.PROFILE_MORE_BUTTON)
             )
 
@@ -964,9 +1212,8 @@ class InstagramScraper:
 
         post_links = []
         for link in links:
-            href = link["href"]
-            if "/p/" in href:
-                post_url = f"https://www.instagram.com{href}"
+            post_url = canonical_post_url(link["href"])
+            if post_url:
                 post_links.append(post_url)
         # The grid can link the same post more than once (e.g. pinned posts).
         post_links = list(dict.fromkeys(post_links))
@@ -999,8 +1246,9 @@ class InstagramScraper:
         if driver:
             try:
                 driver.quit()
-            except WebDriverException as exc:
-                # A crashed browser cannot be quit cleanly; just drop it.
+            except DRIVER_GONE_ERRORS as exc:
+                # A crashed or hung browser cannot be quit cleanly; quit()
+                # still stops chromedriver, so just drop it.
                 logger.warning(f"Could not quit the browser: {exc}")
             finally:
                 self._driver = None

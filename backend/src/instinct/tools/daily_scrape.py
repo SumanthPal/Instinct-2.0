@@ -5,7 +5,7 @@ the Instagram session (see scripts/launchd/). Each run:
 
 - picks up to --clubs clubs ordered by last_scraped (never-scraped first),
 - scrapes them on one browser session and one login via run_session, so the
-  usual 30-90s wait between clubs and the 3-post cap still apply,
+  usual 15-45s wait between clubs and the 3-post cap still apply,
 - sets last_scraped on every club it tried, so a broken club moves to the
   back of the line instead of being picked first forever,
 - refreshes the post and event text that club search matches once at the
@@ -18,7 +18,13 @@ the Instagram session (see scripts/launchd/). Each run:
 A club with no new posts costs one profile load: only posts that are not
 already scraped get opened.
 
+--rescrape re-fetches the captions and images of posts already stored (the
+newest 3 per club) for the handles given, or for the clubs due when none
+are given. It skips the profile page, never parses events, does not move
+last_scraped, and counts toward the daily cap like a normal scrape.
+
     uv run python -m instinct.tools.daily_scrape --clubs 50 --daily-cap 200
+    uv run python -m instinct.tools.daily_scrape --rescrape swe.uci irvinerhosas
 """
 
 import argparse
@@ -29,6 +35,7 @@ import platform
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional
 
 from instinct.tools.logger import logger
 
@@ -89,7 +96,16 @@ def notify(message: str) -> None:
         subprocess.run(["osascript", "-e", script], check=False)
 
 
-def run(clubs: int, daily_cap: int, *, dry_run: bool, state_path: Path) -> int:
+def run(
+    clubs: int,
+    daily_cap: int,
+    *,
+    dry_run: bool,
+    state_path: Path,
+    rescrape: Optional[List[str]] = None,
+) -> int:
+    """One scheduled run. rescrape (a list, possibly empty) switches to
+    re-fetching stored posts for those handles, or for the clubs due."""
     from instinct.tools.scraper_rotation import run_session
 
     state = load_state(state_path, datetime.date.today().isoformat())
@@ -101,7 +117,7 @@ def run(clubs: int, daily_cap: int, *, dry_run: bool, state_path: Path) -> int:
         logger.info(f"Daily cap of {daily_cap} reached; nothing to do.")
         return 0
 
-    handles = clubs_due(budget)
+    handles = rescrape[:budget] if rescrape else clubs_due(budget)
     logger.info(
         f"Scraping {len(handles)} club(s); {state['scraped']}/{daily_cap} done today."
     )
@@ -109,16 +125,20 @@ def run(clubs: int, daily_cap: int, *, dry_run: bool, state_path: Path) -> int:
     def on_attempted(handle: str) -> None:
         if dry_run:
             return
-        try:
-            mark_scraped(handle)
-        except Exception as exc:
-            logger.error(f"Could not set last_scraped for {handle}: {exc}")
+        if rescrape is None:
+            try:
+                mark_scraped(handle)
+            except Exception as exc:
+                logger.error(f"Could not set last_scraped for {handle}: {exc}")
         state["scraped"] += 1
         save_state(state_path, state)
 
     try:
         failed, stopped = run_session(
-            handles, dry_run=dry_run, on_attempted=on_attempted
+            handles,
+            dry_run=dry_run,
+            rescrape=rescrape is not None,
+            on_attempted=on_attempted,
         )
     except Exception as exc:
         # Not an Instagram stop, so the next scheduled run tries again.
@@ -153,10 +173,27 @@ def main() -> int:
     parser.add_argument(
         "--dry-run", action="store_true", help="scrape without writing anything"
     )
+    parser.add_argument(
+        "--rescrape",
+        nargs="*",
+        metavar="INSTAGRAM_HANDLE",
+        help=(
+            "re-fetch captions and images of stored posts for these clubs (or "
+            "the clubs due); no event parsing"
+        ),
+    )
     args = parser.parse_args()
     if args.clubs < 1 or args.daily_cap < 1:
         parser.error("--clubs and --daily-cap must be at least 1")
-    return run(args.clubs, args.daily_cap, dry_run=args.dry_run, state_path=STATE_PATH)
+    if args.rescrape is not None and args.dry_run:
+        parser.error("--rescrape cannot be combined with --dry-run")
+    return run(
+        args.clubs,
+        args.daily_cap,
+        dry_run=args.dry_run,
+        state_path=STATE_PATH,
+        rescrape=args.rescrape,
+    )
 
 
 if __name__ == "__main__":

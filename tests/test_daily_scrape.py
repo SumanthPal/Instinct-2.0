@@ -20,8 +20,9 @@ def fake(monkeypatch, tmp_path):
         calls["due"] = limit
         return [f"club{i}" for i in range(limit)]
 
-    def run_session(handles, *, dry_run, on_attempted):
+    def run_session(handles, *, dry_run, rescrape=False, on_attempted):
         calls["session"] = list(handles)
+        calls["rescrape"] = rescrape
         if result["error"]:
             raise result["error"]
         for handle in handles:
@@ -167,11 +168,11 @@ class FakeScraper:
         return self.ok
 
 
-def test_successful_scrape_parses_events(monkeypatch):
+def test_scrape_one_leaves_parsing_to_the_session(monkeypatch):
     parsed = []
     monkeypatch.setattr(scraper_rotation, "parse_events", parsed.append)
     scraper_rotation.scrape_one(FakeScraper(), "acm.uci", dry_run=False)
-    assert parsed == ["acm.uci"]
+    assert parsed == []
 
 
 def test_failed_scrape_skips_events(monkeypatch):
@@ -281,13 +282,14 @@ def session(monkeypatch, tmp_path):
 def test_daily_run_refreshes_search_once_after_parsing(session):
     steps, _, state = session
     assert daily_scrape.run(2, 200, dry_run=False, state_path=state) == 0
+    # Events are parsed after Chrome is closed, never between page loads.
     assert steps == [
         "login",
         "store club0",
-        "parse club0",
         "store club1",
-        "parse club1",
         "quit",
+        "parse club0",
+        "parse club1",
         "refresh",
     ]
 

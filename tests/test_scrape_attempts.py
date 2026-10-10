@@ -36,7 +36,7 @@ def make_scraper(db, broken):
     scraper = object.__new__(InstagramScraper)
     scraper.db = db
 
-    def get_post_info(url):
+    def get_post_info(url, club_username=""):
         if url in broken:
             raise ValueError("post is gone")
         return "caption", "2026-10-05", "https://cdn/img.jpg"
