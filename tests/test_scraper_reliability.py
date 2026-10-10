@@ -430,7 +430,7 @@ def daily(monkeypatch, tmp_path):
         calls["due"] = limit
         return [f"club{i}" for i in range(limit)]
 
-    def run_session(handles, *, dry_run, rescrape=False, on_attempted):
+    def run_session(handles, *, dry_run, rescrape=False, on_attempted, **kwargs):
         calls["session"] = (list(handles), rescrape)
         for handle in handles:
             on_attempted(handle)

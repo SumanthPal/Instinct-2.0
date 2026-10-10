@@ -812,7 +812,7 @@ class InstagramScraper:
             post_links_response,
             key=lambda post: post_recency_key(post["post_url"]),
             reverse=True,
-        )[:MAX_POSTS_PER_CLUB]
+        )[: getattr(self, "max_posts", MAX_POSTS_PER_CLUB)]
 
         processed = 0
         failures = []
@@ -886,7 +886,7 @@ class InstagramScraper:
         posts = self.db.get_posts_for_rescrape(club_id, MAX_SCRAPE_ATTEMPTS)
         posts = sorted(
             posts, key=lambda post: post_recency_key(post["post_url"]), reverse=True
-        )[:MAX_POSTS_PER_CLUB]
+        )[: getattr(self, "max_posts", MAX_POSTS_PER_CLUB)]
         if not posts:
             logger.info(f"No stored posts to rescrape for {club_username}")
             return
