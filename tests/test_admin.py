@@ -345,12 +345,17 @@ def test_mcp_lists_only_admin_tools_and_calls_one(fake):
         ]["tools"]
         assert sorted(t["name"] for t in tools) == [
             "approve_pending_club",
+            "get_scraper_config",
             "list_flagged_clubs",
             "list_pending_clubs",
             "list_reports",
+            "list_scrape_runs",
+            "list_scraper_commands",
             "reject_pending_club",
             "resolve_report",
+            "send_scraper_command",
             "set_club_handle",
+            "set_scraper_config",
         ]
         r = c.post(
             "/mcp",
