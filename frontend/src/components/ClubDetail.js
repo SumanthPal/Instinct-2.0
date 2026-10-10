@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { FiArrowLeft } from "react-icons/fi";
 import { getCalendarUrl, fetchSmartSearch } from "@/lib/api";
@@ -13,10 +13,12 @@ import { likesService } from "@/lib/like-service";
 import { useToast } from "@/components/ui/toast";
 import ClubProfileHeader from "@/components/club-profile/ClubProfileHeader";
 import ClubProfileTabs, {
+  CLUB_TABS,
   panelId,
   tabId,
 } from "@/components/club-profile/ClubProfileTabs";
 import ClubPostGrid from "@/components/club-profile/ClubPostGrid";
+import { useTabSwipe } from "@/components/club-profile/useTabSwipe";
 import ClubEventsTab from "@/components/club-profile/club-events/ClubEventsTab";
 import { useClubEvents } from "@/components/club-profile/club-events/useClubEvents";
 import ClubSimilarClubs from "@/components/club-profile/ClubSimilarClubs";
@@ -53,6 +55,23 @@ export default function ClubDetail({
     else url.searchParams.delete("tab");
     window.history.replaceState(window.history.state, "", url);
   }, []);
+  // Phones: swipe the panel to switch tabs; the underline follows the finger.
+  const indicatorRef = useRef(null);
+  const tabIndex = CLUB_TABS.findIndex((t) => t.id === tab);
+  const onSwipeTab = useCallback((i) => setTab(CLUB_TABS[i].id), [setTab]);
+  const onSwipeProgress = useCallback((p, ms) => {
+    const el = indicatorRef.current;
+    if (!el) return;
+    el.style.transition = ms ? `left ${ms}ms cubic-bezier(.2,.7,.3,1)` : "none";
+    el.style.setProperty("--drag", String(p));
+  }, []);
+  const panelRef = useTabSwipe({
+    index: tabIndex,
+    count: CLUB_TABS.length,
+    onChange: onSwipeTab,
+    onProgress: onSwipeProgress,
+    enabled: Boolean(clubData),
+  });
   // The tab's own data (whole history, one request), fetched on first open.
   const clubEventData = useClubEvents(clubData?.instagram_handle, tab === "events");
   const [similarClubs, setSimilarClubs] = useState([]);
@@ -206,9 +225,17 @@ export default function ClubDetail({
         onFavoriteToggle={handleFavoriteToggle}
       />
 
-      <ClubProfileTabs tab={tab} onTabChange={setTab} />
+      <ClubProfileTabs tab={tab} onTabChange={setTab} indicatorRef={indicatorRef} />
 
-      <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)}>
+      {/* overflow-x-clip: the dragged panel can't widen the page */}
+      <div className="overflow-x-clip">
+      <div
+        ref={panelRef}
+        role="tabpanel"
+        id={panelId(tab)}
+        aria-labelledby={tabId(tab)}
+        className="touch-pan-y touch-pinch-zoom"
+      >
         {tab === "posts" ? (
           <ClubPostGrid
             posts={clubPosts}
@@ -227,6 +254,7 @@ export default function ClubDetail({
             onViewPost={openPost}
           />
         )}
+      </div>
       </div>
 
       <ClubSimilarClubs clubs={similarClubs} />
