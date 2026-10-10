@@ -3,6 +3,7 @@ import os
 import random
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -301,6 +302,8 @@ class InstagramScraper:
         """Read the full version of the binary Selenium will launch."""
         if not self._chrome_bin_path:
             return None
+        if not os.path.exists(self._chrome_bin_path):
+            raise RuntimeError(f"CHROME_BIN not found at {self._chrome_bin_path}")
         try:
             version_output = subprocess.run(
                 [self._chrome_bin_path, "--version"],
@@ -327,8 +330,14 @@ class InstagramScraper:
         if not self._chromium_version:
             return None
         major_version = self._chromium_version.split(".", maxsplit=1)[0]
+        if sys.platform == "darwin":
+            platform_token = "Macintosh; Intel Mac OS X 10_15_7"
+        elif sys.platform.startswith("win"):
+            platform_token = "Windows NT 10.0; Win64; x64"
+        else:
+            platform_token = "X11; Linux x86_64"
         return (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            f"Mozilla/5.0 ({platform_token}) AppleWebKit/537.36 "
             f"(KHTML, like Gecko) Chrome/{major_version}.0.0.0 Safari/537.36"
         )
 
