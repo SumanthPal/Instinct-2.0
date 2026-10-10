@@ -10,8 +10,8 @@ from test_admin import AUTH, TOKEN, FakeSupabase
 
 NOW = datetime(2026, 10, 10, 16, 0, tzinfo=timezone.utc)
 CONFIG = {
-    "club_delay_min_s": 30,
-    "club_delay_max_s": 90,
+    "club_delay_min_s": 15,
+    "club_delay_max_s": 45,
     "page_load_timeout_s": 30,
     "club_timeout_s": 300,
     "max_posts_per_club": 3,
@@ -191,7 +191,7 @@ def test_set_config_partial(client, fake):
         {"club_timeout_s": 1801},
         {"max_posts_per_club": 0},
         {"max_posts_per_club": 13},
-        {"club_delay_min_s": 100},  # > current max of 90
+        {"club_delay_min_s": 50},  # > current max of 45
         {"club_delay_min_s": 60, "club_delay_max_s": 40},
     ],
 )

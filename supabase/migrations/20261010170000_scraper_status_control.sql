@@ -21,8 +21,8 @@ create table public.scraper_state (
     paused boolean not null default false,
     paused_at timestamptz,
     -- Tunables the scraper reads at run start (delay also between clubs).
-    club_delay_min_s integer not null default 30 check (club_delay_min_s between 5 and 600),
-    club_delay_max_s integer not null default 90 check (club_delay_max_s between 5 and 600),
+    club_delay_min_s integer not null default 15 check (club_delay_min_s between 5 and 600),
+    club_delay_max_s integer not null default 45 check (club_delay_max_s between 5 and 600),
     page_load_timeout_s integer not null default 30 check (page_load_timeout_s between 10 and 120),
     club_timeout_s integer not null default 300 check (club_timeout_s between 60 and 1800),
     max_posts_per_club integer not null default 3 check (max_posts_per_club between 1 and 12),
