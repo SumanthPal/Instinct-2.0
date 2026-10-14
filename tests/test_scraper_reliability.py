@@ -542,3 +542,78 @@ def test_launchd_job_keeps_the_mac_awake():
     plist = Path(__file__).parents[1] / "scripts/launchd/com.instinct.scraper.plist"
     arguments = plistlib.loads(plist.read_bytes())["ProgramArguments"]
     assert arguments[:2] == ["/usr/bin/caffeinate", "-i"]
+
+
+# og:description of https://www.instagram.com/gemini.uci/p/DeNRWfakh7r/ as
+# served on 2026-10-14 (raw attribute, still HTML-escaped).
+_REAL_OG_DESCRIPTION = (
+    "58 likes, 23 comments - gemini.uci on October 7, 2026: &quot;Meet your "
+    "Google Student Ambassadors &#064; UCI: Leo &amp; Vivi!! \n\nWe&#x2019;re "
+    "your on-campus go-to&#x2019;s for all things Google Gemini this quarter. "
+    "From workshops and pop-ups to tips, events, and new ways to use Gemini for "
+    "school, be sure to stay tuned for all of our upcoming events! "
+    "&#x1f642;&#x200d;&#x2195;&#xfe0f;\n\n#GoogleStudentAmbassador "
+    "#GeminiOnCampus #Google&#xa0;#UCI &#064;googlegemini&quot;. "
+)
+
+
+def test_caption_from_real_og_description():
+    from instinct.tools.insta_scraper import caption_from_meta
+
+    caption = caption_from_meta(_REAL_OG_DESCRIPTION)
+    assert caption.startswith(
+        "Meet your Google Student Ambassadors @ UCI: Leo & Vivi!!"
+    )
+    assert "We\u2019re your on-campus" in caption
+    assert caption.endswith("#Google #UCI @googlegemini")
+
+
+def test_caption_from_meta_already_unescaped_and_edge_cases():
+    import html as _html
+
+    from instinct.tools.insta_scraper import caption_from_meta
+
+    unescaped = _html.unescape(_REAL_OG_DESCRIPTION)
+    assert caption_from_meta(unescaped) == caption_from_meta(_REAL_OG_DESCRIPTION)
+    assert caption_from_meta("12 likes, 0 comments - club on May 1, 2026.") is None
+    assert caption_from_meta('club on May 1, 2026: "GBM tonight"') == "GBM tonight"
+    assert caption_from_meta(None) is None
+    assert caption_from_meta("Instagram") is None
+
+
+@pytest.mark.parametrize(
+    "junk", ["PinkPantheress•Tonight", "@googlegemini @uci", "@a.b, @c_d"]
+)
+def test_clean_caption_rejects_audio_label_and_tagged_handles(junk):
+    assert clean_caption(junk, handle="gemini.uci") is None
+
+
+def test_clean_caption_keeps_spaced_bullets():
+    text = "GBM tonight • 7pm ISEB"
+    assert clean_caption(text, handle="x") == text
+
+
+def test_post_prefers_meta_caption_over_dom_junk():
+    scraper = post_page_scraper(
+        {
+            selectors.POST_DATETIME: [DATE],
+            selectors.POST_META_DESCRIPTIONS[0]: [
+                Element(content=_REAL_OG_DESCRIPTION)
+            ],
+            selectors.POST_CAPTION_FALLBACK: [Element("PinkPantheress•Tonight")],
+            selectors.POST_IMAGE: [Element(src=POST, width=600)],
+        }
+    )
+    caption = scraper.get_post_info("u", club_username="gemini.uci")[0]
+    assert caption.startswith("Meet your Google Student Ambassadors @ UCI")
+
+
+def test_post_with_only_audio_label_saves_no_caption():
+    scraper = post_page_scraper(
+        {
+            selectors.POST_DATETIME: [DATE],
+            selectors.POST_CAPTION_FALLBACK: [Element("PinkPantheress•Tonight")],
+            selectors.POST_IMAGE: [Element(src=POST, width=600)],
+        }
+    )
+    assert scraper.get_post_info("u", club_username="gemini.uci")[0] is None

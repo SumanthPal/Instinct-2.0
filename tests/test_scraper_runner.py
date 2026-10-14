@@ -258,12 +258,14 @@ def test_scraper_slices_posts_by_max_posts():
 
 
 def test_run_row_ok(db, session):
+    daily_scrape.last_skip_reason = "stale"
     _, state = session
     assert run(state) == 0
     (row,) = db["scrape_runs"]
     assert row["status"] == "ok" and row["clubs_attempted"] == 3
     assert row["trigger"] == "scheduled"
     assert row["clubs_failed"] == 0 and row["finished_at"]
+    assert daily_scrape.last_skip_reason is None
 
 
 def test_run_row_partial(db, session, monkeypatch):
@@ -287,6 +289,7 @@ def test_paused_skips_run(db, session):
     db["scraper_state"] = [{"id": True, "paused": True}]
     assert run(state) == 0
     assert "handles" not in seen and "scrape_runs" not in db
+    assert daily_scrape.last_skip_reason == "paused"
 
 
 def test_stop_command_ends_run_after_current_club(db, session):
@@ -358,6 +361,7 @@ def runs(monkeypatch):
     def fake_run(clubs, cap, *, dry_run, state_path, rescrape=None, trigger):
         assert trigger == "command"
         calls.append(rescrape)
+        daily_scrape.last_skip_reason = result.get("skip")
         return result["code"]
 
     monkeypatch.setattr(daily_scrape, "run", fake_run)
@@ -400,6 +404,15 @@ def test_busy_run_stays_pending(db, runs):
     rows = commands(db, {"command": "run_now"})
     scraper_commands.tick()
     assert rows[0]["status"] == "pending"
+
+
+def test_skipped_run_is_not_reported_done(db, runs):
+    _, result = runs
+    result["skip"] = "daily cap of 200 reached"
+    rows = commands(db, {"command": "rescrape", "handle": "irvinefits"})
+    scraper_commands.tick()
+    assert rows[0]["status"] == "failed"
+    assert rows[0]["result"] == "skipped: daily cap of 200 reached"
 
 
 def test_failed_run_is_reported(db, runs):

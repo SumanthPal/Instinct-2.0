@@ -34,6 +34,11 @@ POST_CAPTION_FALLBACK = (
     By.XPATH,
     "//main//span[string-length(normalize-space()) > 20]",
 )
+# Instagram puts the full caption in the page meta; read it before the DOM.
+POST_META_DESCRIPTIONS = (
+    (By.CSS_SELECTOR, "meta[property='og:description']"),
+    (By.CSS_SELECTOR, "meta[name='description']"),
+)
 POST_LOCATION = (By.XPATH, "//main//a[contains(@href, '/explore/locations/')]")
 POST_DATETIME = (By.XPATH, "//main//time[@datetime]")
 POST_IMAGE = (By.XPATH, "//main//img[contains(@src, 'cdninstagram.com')]")

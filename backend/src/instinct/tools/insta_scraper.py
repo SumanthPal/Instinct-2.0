@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 from typing_extensions import Tuple
 from urllib.parse import urlparse
 import base64
+import html
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import (
@@ -151,6 +152,25 @@ _COLLAB_HEADER = re.compile(
     r"^[A-Za-z0-9._]+\s*\n\s*and\s*(\n\s*[A-Za-z0-9._]+|\d+ others?)$"
 )
 _HANDLE_ONLY = re.compile(r"^@?[a-z0-9._]+$")
+# The fallback span also matched the reel audio label ("Artist•Song") and the
+# list of tagged accounts; neither is ever a caption.
+_AUDIO_LABEL = re.compile(r"^[^\n•]{0,80}\S•\S[^\n•]{0,80}$")
+_TAGGED_HANDLES = re.compile(r"^(@[A-Za-z0-9._]{1,30}[\s,]*)+$")
+# Page meta: '58 likes, 23 comments - gemini.uci on October 7, 2026: "caption". '
+# (the likes/comments part is missing on some posts; captionless posts end
+# after the date with no quoted part).
+_META_CAPTION = re.compile(r'^.*? on [^:"]{3,40}: "(?P<caption>.*)"\.?\s*$', re.S)
+
+
+def caption_from_meta(content: Optional[str]) -> Optional[str]:
+    """The caption from a post page's og:description / description meta, or None."""
+    if not content:
+        return None
+    match = _META_CAPTION.match(html.unescape(content).strip())
+    if not match:
+        return None
+    caption = match.group("caption").replace("\xa0", " ").strip()
+    return caption or None
 
 
 def clean_caption(
@@ -191,6 +211,8 @@ def clean_caption(
     if _HANDLE_ONLY.match(text) and (len(text) > 20 or "." in text or "_" in text):
         return None
     if text in {name.strip() for name in non_captions if name}:
+        return None
+    if _AUDIO_LABEL.match(text) or _TAGGED_HANDLES.match(text):
         return None
     return text
 
@@ -728,11 +750,19 @@ class InstagramScraper:
     def _read_caption(self, club_username: str) -> Optional[str]:
         """The caption, or None when the post has none.
 
-        Tries the caption <h1> first and the old "first long span" locator
-        only when there is no <h1>; either way clean_caption strips the
-        handle/time header and rejects the location tag, a collab header, a
-        bare username and the no-comments placeholder.
+        Reads the page's og:description / description meta first (Instagram
+        puts the full caption there, quoted), then the caption <h1>, then the
+        old "first long span" locator. clean_caption strips the handle/time
+        header and rejects the location tag, a collab header, a bare
+        username, tagged handles, the reel audio label and the no-comments
+        placeholder; if every strategy fails the post is saved with no caption.
         """
+        for locator in selectors.POST_META_DESCRIPTIONS:
+            for element in self._driver.find_elements(*locator):
+                caption = caption_from_meta(element.get_attribute("content"))
+                if caption:
+                    logger.info(f"Caption from meta: {caption[:60]!r}")
+                    return caption
         locations = [
             element.text
             for element in self._driver.find_elements(*selectors.POST_LOCATION)
