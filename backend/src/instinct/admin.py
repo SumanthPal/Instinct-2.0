@@ -143,6 +143,14 @@ def set_club_handle(club_id: str, instagram_handle: str) -> dict:
     return rows[0]
 
 
+def delete_club(club_id: str) -> dict:
+    """Delete a dead club; its posts, events, likes and reports cascade."""
+    rows = supabase.table("clubs").delete().eq("id", club_id).execute().data
+    if not rows:
+        raise LookupError(f"Club {club_id} not found")
+    return {"id": rows[0]["id"], "instagram_handle": rows[0]["instagram_handle"]}
+
+
 def list_reports(status: str = "open", limit: int = 50) -> list[dict]:
     rows = (
         supabase.table("reports")
@@ -380,6 +388,11 @@ def post_club_handle(club_id: UUID, body: HandleUpdate):
     return _call(set_club_handle, str(club_id), body.instagram_handle)
 
 
+@admin_router.delete("/clubs/{club_id}")
+def delete_club_route(club_id: UUID):
+    return _call(delete_club, str(club_id))
+
+
 @admin_router.get("/reports")
 def get_reports(status: Literal["open", "resolved"] = "open", limit: int = 50):
     return list_reports(status, limit)
@@ -517,6 +530,7 @@ for _fn in (
     reject_pending_club,
     list_flagged_clubs,
     set_club_handle,
+    delete_club,
     list_reports,
     resolve_report,
     list_scrape_runs,
