@@ -1,5 +1,7 @@
 import Link from "next/link";
 import "../../../../styles/globals.css";
+import { SystemMap, VerticalMap } from "@/components/about/Agents";
+import { MapReveal, RevealRoot } from "@/components/about/Reveal";
 import { Card, Flow, Hero, Rule, SectionLabel } from "@/components/about/Section";
 import Logo from "@/components/about/Logo";
 import Footer from "@/components/ui/Footer";
@@ -71,6 +73,8 @@ const STACK = [
 	],
 ];
 
+const COMMANDS = ["pause", "resume", "stop", "run_now", "rescrape"];
+
 function SubHead({ title, file }) {
 	return (
 		<h3 className="mt-7 mb-3 text-sm font-semibold text-foreground">
@@ -85,6 +89,7 @@ export default function TechnicalAbout() {
 		<div className="min-h-screen overflow-x-hidden bg-background text-foreground">
 			<Navbar />
 			<main className="mx-auto max-w-6xl px-6 pb-20">
+				<RevealRoot />
 				<div className="mx-auto max-w-3xl">
 					<Hero
 						eyebrow="Technical details"
@@ -183,6 +188,26 @@ export default function TechnicalAbout() {
 						</ul>
 					</div>
 				))}
+
+				<Rule />
+				<SectionLabel>Built with agents</SectionLabel>
+				<h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">An AI-first team</h3>
+				<p className="mt-1 text-sm text-muted-foreground">One engineer, six agents.</p>
+				<MapReveal className="mt-8 hidden md:block">
+					<SystemMap />
+				</MapReveal>
+				<MapReveal className="mt-8 md:hidden">
+					<VerticalMap />
+				</MapReveal>
+				<p className="mt-6 font-mono text-xs text-muted-foreground">
+					scraper_commands:{" "}
+					{COMMANDS.map((c, i) => (
+						<span key={c} className="text-foreground">
+							{i > 0 && <span className="text-muted-foreground"> · </span>}
+							{c}
+						</span>
+					))}
+				</p>
 
 				<Rule />
 				<SectionLabel>Next up</SectionLabel>
