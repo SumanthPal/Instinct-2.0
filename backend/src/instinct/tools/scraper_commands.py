@@ -13,7 +13,10 @@ Commands, oldest first:
 Only one run uses Chrome at a time. If a run holds the lock, run_now and
 rescrape stay pending for the next tick. A command is claimed with one
 conditional update (pending -> running), so two runners never take the same
-one; then its status (done, failed) and result are written back.
+one; then its status (done, failed) and result are written back. A run that
+was skipped (paused, stopped for today, daily cap) is written as failed with
+result "skipped: <reason>", since the status check allows only
+pending/running/done/failed.
 """
 
 import sys
@@ -23,10 +26,7 @@ from instinct.tools.logger import logger
 
 RUN_CLUBS = 50
 RUN_RESULTS = {
-    0: (
-        "done",
-        "run finished (or skipped: paused, stopped for today or daily cap reached)",
-    ),
+    0: ("done", "run finished"),
     1: ("failed", "run failed; see scrape_runs and the scraper log"),
     2: ("done", "Instagram stopped the run; skipping the rest of today"),
 }
@@ -80,6 +80,11 @@ def run_command(command: dict) -> None:
         return
     if code == daily_scrape.BUSY:
         scraper_control.update_command(command_id, "pending", "waiting for a run")
+        return
+    if code == 0 and daily_scrape.last_skip_reason:
+        scraper_control.update_command(
+            command_id, "failed", f"skipped: {daily_scrape.last_skip_reason}"
+        )
         return
     status, result = RUN_RESULTS.get(code, ("failed", f"exit code {code}"))
     scraper_control.update_command(command_id, status, result)

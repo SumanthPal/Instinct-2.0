@@ -46,6 +46,9 @@ from instinct.tools import scraper_control
 from instinct.tools.logger import logger
 
 BUSY = 3
+# Why the last run() did nothing (paused, stopped for today, daily cap), or
+# None when it ran. Exit code 0 covers both, so callers check this.
+last_skip_reason: Optional[str] = None
 
 STATE_PATH = Path(
     os.getenv("SCRAPE_STATE_PATH", Path.home() / ".cache/instinct/daily_scrape.json")
@@ -115,7 +118,10 @@ def run(
 ) -> int:
     """One scheduled run. rescrape (a list, possibly empty) switches to
     re-fetching stored posts for those handles, or for the clubs due.
-    Returns 0 ok or skipped, 1 failed, 2 stopped for the day, 3 busy."""
+    Returns 0 ok or skipped, 1 failed, 2 stopped for the day, 3 busy.
+    A skip sets last_skip_reason."""
+    global last_skip_reason
+    last_skip_reason = None
     with scraper_control.run_lock() as locked:
         if not locked:
             logger.info("Another scrape holds the lock; not starting.")
@@ -128,6 +134,11 @@ def run(
             rescrape=rescrape,
             trigger=trigger,
         )
+
+
+def _skip(reason: str) -> None:
+    global last_skip_reason
+    last_skip_reason = reason
 
 
 def _run_locked(
@@ -144,16 +155,19 @@ def _run_locked(
     control = scraper_control.get_state()
     if control.get("paused"):
         logger.info(f"Skipping: scraper paused since {control.get('paused_at')}.")
+        _skip("paused")
         return 0
     config = scraper_control.config_from_row(control)
 
     state = load_state(state_path, datetime.date.today().isoformat())
     if state["stopped"]:
         logger.info(f"Skipping: stopped earlier today ({state['stopped']}).")
+        _skip(f"stopped for today ({state['stopped']})")
         return 0
     budget = min(clubs, daily_cap - state["scraped"])
     if budget <= 0:
         logger.info(f"Daily cap of {daily_cap} reached; nothing to do.")
+        _skip(f"daily cap of {daily_cap} reached")
         return 0
 
     handles = rescrape[:budget] if rescrape else clubs_due(budget)
