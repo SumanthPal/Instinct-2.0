@@ -184,6 +184,20 @@ def test_set_handle_unknown_club_is_404_and_blank_is_422(client, fake):
 # --- reports ------------------------------------------------------------------
 
 
+def test_delete_club_returns_id_and_handle_or_404(client, fake):
+    fake.responses = {
+        "clubs": [[{"id": CLUB_ID, "instagram_handle": "deaduci", "name": "Dead"}], []]
+    }
+    url = f"/admin/clubs/{CLUB_ID}"
+    r = client.delete(url, headers=AUTH)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"id": CLUB_ID, "instagram_handle": "deaduci"}
+    ops = fake.calls[0][1]
+    assert ("delete", ()) in ops and ("eq", ("id", CLUB_ID)) in ops
+    assert client.delete(url, headers=AUTH).status_code == 404
+    assert client.delete(url).status_code == 401
+
+
 def test_list_reports_includes_category(client, fake):
     row = {"id": REPORT_ID, "category": "broken_image", "status": "open"}
     fake.responses = {"reports": [[row]]}
@@ -345,6 +359,7 @@ def test_mcp_lists_only_admin_tools_and_calls_one(fake):
         ]["tools"]
         assert sorted(t["name"] for t in tools) == [
             "approve_pending_club",
+            "delete_club",
             "get_scraper_config",
             "list_flagged_clubs",
             "list_pending_clubs",
