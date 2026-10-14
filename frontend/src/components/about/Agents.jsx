@@ -53,41 +53,41 @@ export function Blob({ bot, x = 0, y = 0, scale = 1, look = [0, 2], delay = 0 })
 	);
 }
 
-// map layout (viewBox 1100 x 640)
+// map layout (viewBox 1100 x 640); order chosen to keep lines from crossing
 const N = {
 	sumanth: [550, 64],
-	triage: [140, 210],
-	frontend: [314, 210],
-	backend: [488, 210],
-	scraper: [662, 210],
-	pm: [836, 210],
-	marketing: [1000, 210],
-	chats: [150, 385],
+	marketing: [140, 210],
+	pm: [300, 210],
+	triage: [460, 210],
+	frontend: [630, 210],
+	backend: [800, 210],
+	scraper: [980, 210],
+	chats: [170, 385],
 	admin: [380, 385],
-	github: [600, 385],
-	vercelc: [760, 385],
-	supac: [920, 385],
-	instagram: [110, 560],
-	runner: [270, 560],
-	redis: [430, 560],
-	tables: [610, 560],
-	heroku: [800, 560],
-	next: [990, 560],
+	vercelc: [580, 385],
+	github: [740, 385],
+	supac: [900, 385],
+	next: [110, 560],
+	heroku: [280, 560],
+	tables: [470, 560],
+	redis: [680, 560],
+	runner: [840, 560],
+	instagram: [1000, 560],
 };
 
 const EDGES = [
+	["sumanth", "marketing"],
+	["sumanth", "pm"],
 	["sumanth", "triage"],
 	["sumanth", "frontend"],
 	["sumanth", "backend"],
 	["sumanth", "scraper"],
-	["sumanth", "pm"],
-	["sumanth", "marketing"],
-	["triage", "chats"],
-	["pm", "chats"],
 	["marketing", "chats"],
+	["pm", "chats"],
+	["triage", "chats"],
 	["triage", "admin"],
-	["frontend", "github"],
 	["frontend", "vercelc"],
+	["frontend", "github"],
 	["backend", "github"],
 	["backend", "supac"],
 	["scraper", "runner"],
@@ -121,10 +121,10 @@ function curve(a, b) {
 	return `M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}`;
 }
 
-function Hub({ id, title, sub, sub2 }) {
+function Hub({ id, title, sub, sub2, i = 0 }) {
 	const [x, y] = N[id];
 	return (
-		<g>
+		<g className={s.fade} style={{ "--i": i }}>
 			<circle cx={x} cy={y} r="6" className={s.node} />
 			<text x={x} y={y + 26} textAnchor="middle" className={s.label}>
 				{title}
@@ -144,12 +144,12 @@ function Hub({ id, title, sub, sub2 }) {
 }
 
 const BOT_LIST = [
+	["marketing", "outreach", [0.5, 2]],
+	["pm", "roadmap", [-1, 2]],
 	["triage", "monitors", [-1.5, 2]],
-	["frontend", "builds UI", [0, 2]],
-	["backend", "API + data", [0, 2]],
-	["scraper", "Instagram", [0, 2]],
-	["pm", "roadmap", [-1.5, 2]],
-	["marketing", "outreach", [-2, 1.5]],
+	["frontend", "builds UI", [-0.5, 2]],
+	["backend", "API + data", [0.5, 2]],
+	["scraper", "Instagram", [-1.5, 2]],
 ];
 
 export function SystemMap() {
@@ -159,7 +159,7 @@ export function SystemMap() {
 			viewBox="0 0 1100 640"
 			role="img"
 			aria-label="Sumanth at the top directs six agents. Triage, pm and marketing talk in group chats. Triage uses the instinct-admin MCP (set_club_handle, send_scraper_command, delete_club), writes approved by Sumanth, into Supabase tables clubs, scraper_commands and scrape_runs. Frontend and backend use the GitHub, Vercel and Supabase connectors. The local scraper and command runner read Instagram, use Redis and Supabase; the Heroku API serves the Next.js site on Vercel."
-			className="h-auto w-full min-w-[880px] select-none"
+			className="h-auto w-full select-none"
 		>
 			<text x="20" y="214" className={s.group}>
 				agents
@@ -171,13 +171,15 @@ export function SystemMap() {
 				services
 			</text>
 
-			{paths.map(([a, b, d]) => (
-				<path key={`${a}-${b}`} d={d} className={s.edge} />
+			{paths.map(([a, b, d], i) => (
+				<path key={`${a}-${b}`} d={d} pathLength="1" className={`${s.edge} ${s.draw}`} style={{ "--i": i }} />
 			))}
-			<path d="M520 92 C470 200 380 300 380 371" className={`${s.edge} ${s.approve}`} />
-			<text x="398" y="322" className={s.sub} style={{ fill: "var(--accent-brand)" }}>
-				approves writes
-			</text>
+			<g className={s.fade} style={{ "--i": 12 }}>
+				<path d="M524 92 C500 200 390 290 383 371" className={`${s.edge} ${s.approve}`} />
+				<text x="396" y="336" className={s.sub} style={{ fill: "var(--accent-brand)" }}>
+					approves writes
+				</text>
+			</g>
 
 			<g className={s.dots}>
 				{paths.map(([a, b, d], i) => (
@@ -188,6 +190,7 @@ export function SystemMap() {
 			</g>
 
 			{/* Sumanth */}
+			<g className={s.pop}>
 			<g transform={`translate(${N.sumanth[0]} ${N.sumanth[1]})`}>
 				<circle r="30" className={s.node} />
 				<circle cy="-7" r="8" className={s.human} />
@@ -199,9 +202,10 @@ export function SystemMap() {
 			<text x={N.sumanth[0] + 44} y={N.sumanth[1] + 14} className={s.sub}>
 				direction · approvals · merges
 			</text>
+			</g>
 
 			{BOT_LIST.map(([role, sub, look], i) => (
-				<g key={role}>
+				<g key={role} className={s.pop} style={{ "--i": i + 1 }}>
 					<Blob bot={role} x={N[role][0]} y={N[role][1]} look={look} delay={i * 0.45} />
 					<text x={N[role][0] + 30} y={N[role][1] - 2} className={s.label}>
 						{role}
@@ -212,13 +216,14 @@ export function SystemMap() {
 				</g>
 			))}
 
-			<Hub id="chats" title="Group chats" sub="dev chat · instinct!" />
-			<Hub id="admin" title="instinct-admin MCP" sub="set_club_handle" sub2="send_scraper_command · delete_club" />
-			<Hub id="github" title="GitHub" sub="PRs + CI" />
-			<Hub id="vercelc" title="Vercel" sub="previews" />
-			<Hub id="supac" title="Supabase" sub="queries" />
+			<Hub i={7} id="chats" title="Group chats" sub="dev chat · instinct!" />
+			<Hub i={8} id="admin" title="instinct-admin MCP" sub="set_club_handle" sub2="send_scraper_command · delete_club" />
+			<Hub i={9} id="github" title="GitHub" sub="PRs + CI" />
+			<Hub i={10} id="vercelc" title="Vercel" sub="previews" />
+			<Hub i={11} id="supac" title="Supabase" sub="queries" />
 
-			<Hub id="instagram" title="Instagram" sub="club posts" />
+			<Hub i={12} id="instagram" title="Instagram" sub="club posts" />
+			<g className={s.fade} style={{ "--i": 13 }}>
 			<Blob bot="runner" x={N.runner[0]} y={N.runner[1] - 2} scale={0.8} look={[1.5, 0]} delay={1.2} />
 			<text x={N.runner[0]} y={N.runner[1] + 26} textAnchor="middle" className={s.label}>
 				Local scraper
@@ -226,10 +231,102 @@ export function SystemMap() {
 			<text x={N.runner[0]} y={N.runner[1] + 42} textAnchor="middle" className={s.sub}>
 				+ command runner
 			</text>
-			<Hub id="redis" title="Redis" sub="queue" />
-			<Hub id="tables" title="Supabase tables" sub="clubs · scraper_commands" sub2="scrape_runs" />
-			<Hub id="heroku" title="Heroku API" sub="FastAPI" />
-			<Hub id="next" title="Next.js" sub="on Vercel" />
+			</g>
+			<Hub i={13} id="redis" title="Redis" sub="queue" />
+			<Hub i={14} id="tables" title="Supabase tables" sub="clubs · scraper_commands" sub2="scrape_runs" />
+			<Hub i={15} id="heroku" title="Heroku API" sub="FastAPI" />
+			<Hub i={16} id="next" title="Next.js" sub="on Vercel" />
 		</svg>
+	);
+}
+
+const TIERS = [
+	{
+		title: "Connectors",
+		items: [
+			["Group chats", "dev chat · instinct!"],
+			["instinct-admin MCP", "set_club_handle · send_scraper_command · delete_club", true],
+			["GitHub", "PRs + CI"],
+			["Vercel", "previews"],
+			["Supabase", "queries"],
+		],
+	},
+	{
+		title: "Services",
+		items: [
+			["Instagram", "club posts"],
+			["Local scraper", "+ command runner, Redis queue"],
+			["Supabase tables", "clubs · scraper_commands · scrape_runs"],
+			["Heroku API", "FastAPI"],
+			["Next.js", "on Vercel"],
+		],
+	},
+];
+
+function Branch() {
+	return (
+		<svg viewBox="0 0 20 16" className={s.branch} aria-hidden="true">
+			<path d="M0 0 C0 9 6 12 18 12" className={s.edge} />
+		</svg>
+	);
+}
+
+// Mobile: one vertical spine from Sumanth down through agents, connectors, services.
+export function VerticalMap() {
+	let i = 0;
+	return (
+		<div className={s.vmap}>
+			<div className={s.spine} aria-hidden="true">
+				<span className={s.spineDot} />
+				<span className={s.spineDot} />
+				<span className={s.spineDot} />
+			</div>
+			<div className={`${s.vitem} relative flex items-center gap-3`} style={{ "--i": i++ }}>
+				<svg viewBox="-32 -32 64 64" width="40" height="40" className="absolute -left-[40px]" aria-hidden="true">
+					<circle r="30" className={s.node} />
+					<circle cy="-7" r="8" className={s.human} />
+					<path d="M-15 17 C-15 5 15 5 15 17 Z" className={s.human} />
+				</svg>
+				<div className="pl-3">
+					<p className="text-sm font-semibold text-foreground">Sumanth</p>
+					<p className="font-mono text-[11px] text-muted-foreground">direction · approvals · merges</p>
+				</div>
+			</div>
+
+			<div className="relative mt-9">
+				<span className={s.tierNode} />
+				<p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Agents</p>
+				<ul className="mt-3 grid grid-cols-3 gap-x-2 gap-y-4">
+					{BOT_LIST.map(([role, sub], k) => (
+						<li key={role} className={`${s.vitem} flex flex-col items-center text-center`} style={{ "--i": i++ }}>
+							<svg viewBox="-26 -26 52 52" width="44" height="44" aria-hidden="true">
+								<Blob bot={role} look={[0, 2]} delay={k * 0.45} />
+							</svg>
+							<p className="mt-1 font-mono text-xs font-semibold text-foreground">{role}</p>
+							<p className="text-[11px] text-muted-foreground">{sub}</p>
+						</li>
+					))}
+				</ul>
+			</div>
+
+			{TIERS.map((tier) => (
+				<div key={tier.title} className="relative mt-9">
+					<span className={s.tierNode} />
+					<p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{tier.title}</p>
+					<ul className="mt-3 space-y-3">
+						{tier.items.map(([name, sub, approve]) => (
+							<li key={name} className={`${s.vitem} relative`} style={{ "--i": i++ }}>
+								<Branch />
+								<p className="text-sm font-semibold leading-tight text-foreground">{name}</p>
+								<p className="break-words font-mono text-[11px] leading-snug text-muted-foreground">{sub}</p>
+								{approve && (
+									<p className="mt-0.5 font-mono text-[11px] text-[var(--accent-brand)]">writes approved by Sumanth</p>
+								)}
+							</li>
+						))}
+					</ul>
+				</div>
+			))}
+		</div>
 	);
 }

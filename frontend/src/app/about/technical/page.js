@@ -1,6 +1,7 @@
 import Link from "next/link";
 import "../../../../styles/globals.css";
-import { SystemMap } from "@/components/about/Agents";
+import { SystemMap, VerticalMap } from "@/components/about/Agents";
+import { MapReveal, RevealRoot } from "@/components/about/Reveal";
 import { Card, Flow, Hero, Rule, SectionLabel } from "@/components/about/Section";
 import Logo from "@/components/about/Logo";
 import Footer from "@/components/ui/Footer";
@@ -88,6 +89,7 @@ export default function TechnicalAbout() {
 		<div className="min-h-screen overflow-x-hidden bg-background text-foreground">
 			<Navbar />
 			<main className="mx-auto max-w-6xl px-6 pb-20">
+				<RevealRoot />
 				<div className="mx-auto max-w-3xl">
 					<Hero
 						eyebrow="Technical details"
@@ -191,10 +193,12 @@ export default function TechnicalAbout() {
 				<SectionLabel>Built with agents</SectionLabel>
 				<h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">An AI-first team</h3>
 				<p className="mt-1 text-sm text-muted-foreground">One engineer, six agents.</p>
-				<div className="-mx-6 mt-8 overflow-x-auto px-6 sm:mx-0 sm:px-0">
+				<MapReveal className="mt-8 hidden md:block">
 					<SystemMap />
-				</div>
-				<p className="mt-2 text-[11px] text-muted-foreground sm:hidden">Scroll the map →</p>
+				</MapReveal>
+				<MapReveal className="mt-8 md:hidden">
+					<VerticalMap />
+				</MapReveal>
 				<p className="mt-6 font-mono text-xs text-muted-foreground">
 					scraper_commands:{" "}
 					{COMMANDS.map((c, i) => (

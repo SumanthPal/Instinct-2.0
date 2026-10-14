@@ -2,6 +2,7 @@ import Link from "next/link";
 import "../../../styles/globals.css";
 import { Card, Hero, Rule, SectionLabel } from "@/components/about/Section";
 import Logo from "@/components/about/Logo";
+import { RevealRoot } from "@/components/about/Reveal";
 import Footer from "@/components/ui/Footer";
 import Navbar from "@/components/ui/Navbar";
 
@@ -22,6 +23,7 @@ export default function About() {
 		<div className="min-h-screen overflow-x-hidden bg-background text-foreground">
 			<Navbar />
 			<main className="mx-auto max-w-3xl px-6 pb-20">
+				<RevealRoot />
 				<Hero
 					eyebrow="About"
 					title="Every UCI club, in one"
