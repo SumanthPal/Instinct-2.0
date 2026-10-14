@@ -1,5 +1,6 @@
 import Link from "next/link";
 import "../../../../styles/globals.css";
+import { Diagram, Mascot } from "@/components/about/Agents";
 import { Card, Flow, Hero, Rule, SectionLabel } from "@/components/about/Section";
 import Logo from "@/components/about/Logo";
 import Footer from "@/components/ui/Footer";
@@ -72,27 +73,45 @@ const STACK = [
 ];
 
 const AGENTS = [
-	["instinct pm", "Roadmap, issues, feature freeze and priorities."],
-	["instinct frontend", "UI work. Mockups with screenshots before PRs, then Vercel preview checks."],
-	["instinct backend", "FastAPI on Heroku, Supabase migrations, endpoints like /events, /posts, /reports."],
-	[
-		"instinct scraper",
-		"Selenium/Chrome Instagram scraper. Runs on a schedule (launchd on a Mac, GCP VM under test) and logs to scrape_runs.",
-	],
-	[
-		"instinct triage",
-		"Watches scrape runs and Report-a-problem submissions, controls the scraper through an MCP connector, fixes club handles.",
-	],
-	["instinct marketing", "Social posts and outreach."],
+	["triage", "triage", "Runs & reports"],
+	["frontend", "frontend", "UI & previews"],
+	["backend", "backend", "API & database"],
+	["scraper", "scraper", "Instagram"],
+	["pm", "pm", "Roadmap"],
+	["marketing", "marketing", "Outreach"],
 ];
 
 const COMMANDS = ["pause", "resume", "stop", "run_now", "rescrape"];
 
-const AGENT_FLOW = [
-	["Group chats", "dev chat, instinct!"],
-	["Agent PR", "with verification evidence"],
-	["CI + preview", "checks on every PR"],
-	["Sumanth merges", "only human merge"],
+const SYSTEM = [
+	{ logos: ["instagram"], title: "Instagram", sub: "club posts" },
+	{ logos: ["selenium"], title: "Scraper", sub: "local, 4×/day" },
+	{ logos: ["redis", "supabase"], title: "Redis + Supabase", sub: "queue, Postgres" },
+	{ logos: ["heroku"], title: "API", sub: "FastAPI on Heroku", accent: true },
+	{ logos: ["nextdotjs"], title: "Frontend", sub: "Next.js on Vercel" },
+];
+
+const EVENT_FLOW = [
+	{ logos: ["supabase"], title: "Event streams", sub: "runs, reports" },
+	{ role: "triage", title: "Triage" },
+	{ title: "Group chats", sub: "dev chat, instinct!" },
+	{ role: "frontend", title: "Agent PR", sub: "+ evidence" },
+	{ logos: ["githubactions", "vercel"], title: "CI + preview" },
+	{ title: "Sumanth merges", accent: true },
+];
+
+const MCP_FLOW = [
+	{ role: "triage", title: "Triage" },
+	{ title: "instinct-admin MCP", sub: "set_club_handle, send_scraper_command", accent: true },
+	{ logos: ["supabase"], title: "Supabase", sub: "clubs, scraper_commands" },
+	{ role: "scraper", title: "Command runner", sub: "polls queue, local" },
+	{ logos: ["postgresql"], title: "scrape_runs", sub: "every run logged" },
+];
+
+const DEV_FLOW = [
+	{ role: "backend", title: "Dev bots", sub: "frontend, backend" },
+	{ logos: ["supabase", "vercel"], title: "Connectors", sub: "GitHub, Vercel, Supabase" },
+	{ title: "PRs, previews, data", sub: "open, check, query" },
 ];
 
 function SubHead({ title, file }) {
@@ -210,22 +229,56 @@ export default function TechnicalAbout() {
 
 				<Rule />
 				<SectionLabel>Built with agents</SectionLabel>
-				<p className="text-sm text-muted-foreground">
-					Instinct is built and run by a team of Grok Bot agents, each owning one part of the project.
-				</p>
-				<SubHead title="The team" />
-				<ul className="grid border-t border-l border-border sm:grid-cols-2 lg:grid-cols-3">
-					{AGENTS.map(([name, desc]) => (
-						<li key={name} className="border-r border-b border-border p-4">
-							<p className="mb-1 font-mono text-xs font-semibold text-[var(--accent-brand)]">{name}</p>
-							<p className="text-sm text-foreground">{desc}</p>
+				<h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">An AI-first team</h3>
+				<p className="mt-1 text-sm text-muted-foreground">One engineer, six agents.</p>
+				<div className="mt-6 grid gap-px border border-border bg-border sm:grid-cols-2">
+					<div className="bg-background p-5">
+						<p className="font-mono text-[11px] uppercase tracking-wider text-[var(--accent-brand)]">Sumanth</p>
+						<ul className="mt-2 flex flex-wrap gap-2 text-sm text-foreground">
+							{["sets direction", "approves writes", "merges"].map((x) => (
+								<li key={x} className="border border-[var(--accent-brand)]/40 px-2 py-0.5">
+									{x}
+								</li>
+							))}
+						</ul>
+					</div>
+					<div className="bg-background p-5">
+						<p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Agents</p>
+						<ul className="mt-2 flex flex-wrap gap-2 text-sm text-foreground">
+							{["triage", "build", "ship", "monitor"].map((x) => (
+								<li key={x} className="border border-border px-2 py-0.5">
+									{x}
+								</li>
+							))}
+						</ul>
+					</div>
+				</div>
+				<ul className="mt-6 grid grid-cols-3 gap-px border border-border bg-border lg:grid-cols-6">
+					{AGENTS.map(([role, name, tag]) => (
+						<li key={name} className="flex flex-col items-center bg-background px-2 py-6 text-center">
+							<Mascot role={role} size={52} />
+							<p className="mt-3 font-mono text-xs font-semibold text-foreground">{name}</p>
+							<p className="mt-0.5 text-[11px] text-muted-foreground">{tag}</p>
 						</li>
 					))}
 				</ul>
-				<SubHead title="Scraper control" file="scraper_commands" />
-				<p className="mb-3 text-sm text-muted-foreground">
-					Triage queues commands; the scraper picks them up and records each run in scrape_runs.
-				</p>
+				<SubHead title="System" />
+				<Diagram label="Instagram, scraper, Redis and Supabase, Heroku API, Next.js on Vercel." nodes={SYSTEM} />
+				<SubHead title="Agent flow" />
+				<Diagram
+					label="Event streams feed triage, group chats, an agent PR with evidence, CI and preview, then Sumanth merges."
+					nodes={EVENT_FLOW}
+				/>
+				<SubHead title="MCP connector" file="/mcp" />
+				<Diagram
+					label="Triage calls the instinct-admin MCP, which writes to Supabase; the local command runner polls scraper_commands and logs to scrape_runs."
+					nodes={MCP_FLOW}
+				/>
+				<p className="mt-2 font-mono text-[11px] text-muted-foreground">writes need Sumanth&apos;s OK in 1:1 chat</p>
+				<div className="mt-6">
+					<Diagram label="Dev bots use GitHub, Vercel and Supabase connectors to open PRs, check previews and query data." nodes={DEV_FLOW} />
+				</div>
+				<SubHead title="Scraper commands" file="scraper_commands" />
 				<ul className="flex flex-wrap gap-2">
 					{COMMANDS.map((c) => (
 						<li key={c} className="border border-border bg-card px-2 py-1 font-mono text-xs text-foreground">
@@ -233,20 +286,6 @@ export default function TechnicalAbout() {
 						</li>
 					))}
 				</ul>
-				<SubHead title="How they coordinate" />
-				<ol className="grid border-t border-l border-border sm:grid-cols-4">
-					{AGENT_FLOW.map(([t, sub], i) => (
-						<li key={t} className="border-r border-b border-border p-3">
-							<span className="font-mono text-[11px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-							<p className="text-sm font-semibold text-foreground">{t}</p>
-							<p className="text-xs text-muted-foreground">{sub}</p>
-						</li>
-					))}
-				</ol>
-				<p className="mt-4 text-xs text-muted-foreground">
-					Agents talk in shared group chats. Each one opens its own PRs with the commands it ran and their output;
-					only Sumanth merges.
-				</p>
 
 				<Rule />
 				<SectionLabel>Next up</SectionLabel>

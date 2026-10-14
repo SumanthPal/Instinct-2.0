@@ -1,0 +1,273 @@
+.mascot {
+	display: block;
+	color: var(--foreground);
+}
+.ink {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.face {
+	fill: var(--card);
+	stroke: currentColor;
+	stroke-width: 1.5;
+}
+.purple {
+	fill: var(--accent-brand-solid);
+}
+.pink {
+	fill: #ec4899;
+}
+.sky {
+	fill: #38bdf8;
+}
+.strokePurple {
+	fill: none;
+	stroke: var(--accent-brand-solid);
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* eyes blink, every mascot */
+.eyes {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: blink 4.5s infinite;
+}
+@keyframes blink {
+	0%,
+	92%,
+	100% {
+		transform: scaleY(1);
+	}
+	95% {
+		transform: scaleY(0.1);
+	}
+}
+
+/* triage: alert badge flashes */
+.alert {
+	animation: alert 1.4s steps(1) infinite;
+}
+@keyframes alert {
+	0%,
+	60% {
+		opacity: 1;
+	}
+	61%,
+	100% {
+		opacity: 0.15;
+	}
+}
+
+/* frontend: cursor draws a line */
+.drawLine {
+	stroke-dasharray: 22;
+	animation: draw 2.4s ease-in-out infinite;
+}
+@keyframes draw {
+	0% {
+		stroke-dashoffset: 22;
+	}
+	60%,
+	100% {
+		stroke-dashoffset: 0;
+	}
+}
+.cursor {
+	animation: cursor 2.4s ease-in-out infinite;
+}
+@keyframes cursor {
+	0% {
+		transform: translateX(0);
+	}
+	60%,
+	100% {
+		transform: translateX(22px);
+	}
+}
+
+/* backend: server lights pulse in sequence */
+.light {
+	animation: pulse 1.5s infinite;
+}
+.light:nth-of-type(2) {
+	animation-delay: 0.5s;
+}
+.light:nth-of-type(3) {
+	animation-delay: 1s;
+}
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 0.2;
+	}
+	30% {
+		opacity: 1;
+	}
+}
+
+/* scraper: scan line sweeps the posts */
+.scan {
+	animation: scan 2s ease-in-out infinite alternate;
+}
+@keyframes scan {
+	from {
+		transform: translateY(0);
+	}
+	to {
+		transform: translateY(18px);
+	}
+}
+
+/* pm: checklist ticks one by one */
+.tick {
+	stroke-dasharray: 8;
+	stroke-dashoffset: 8;
+	animation: tick 3s infinite;
+}
+.tick:nth-of-type(2) {
+	animation-delay: 0.6s;
+}
+.tick:nth-of-type(3) {
+	animation-delay: 1.2s;
+}
+@keyframes tick {
+	0% {
+		stroke-dashoffset: 8;
+	}
+	15%,
+	80% {
+		stroke-dashoffset: 0;
+	}
+	95%,
+	100% {
+		stroke-dashoffset: 8;
+	}
+}
+
+/* marketing: sound waves ripple out */
+.wave {
+	animation: wave 1.6s infinite;
+}
+.wave:nth-of-type(2) {
+	animation-delay: 0.3s;
+}
+.wave:nth-of-type(3) {
+	animation-delay: 0.6s;
+}
+@keyframes wave {
+	0%,
+	100% {
+		opacity: 0.1;
+	}
+	40% {
+		opacity: 1;
+	}
+}
+
+/* diagrams */
+.flow {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+}
+.link {
+	position: relative;
+	align-self: center;
+	width: 1px;
+	height: 28px;
+	background: var(--border);
+	flex: none;
+}
+.dot {
+	position: absolute;
+	left: -2.5px;
+	top: 0;
+	width: 6px;
+	height: 6px;
+	background: var(--accent-brand-solid);
+	animation: down 1.8s linear infinite;
+}
+.link:nth-child(4n) .dot {
+	background: #ec4899;
+}
+.link:nth-child(4n + 2) .dot {
+	animation-delay: 0.4s;
+}
+@keyframes down {
+	from {
+		top: 0;
+		opacity: 0;
+	}
+	15% {
+		opacity: 1;
+	}
+	85% {
+		opacity: 1;
+	}
+	to {
+		top: calc(100% - 6px);
+		opacity: 0;
+	}
+}
+@keyframes across {
+	from {
+		left: 0;
+		opacity: 0;
+	}
+	15% {
+		opacity: 1;
+	}
+	85% {
+		opacity: 1;
+	}
+	to {
+		left: calc(100% - 6px);
+		opacity: 0;
+	}
+}
+@media (min-width: 768px) {
+	.flow {
+		flex-direction: row;
+		align-items: center;
+	}
+	.flow > .node {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+	.link {
+		width: 28px;
+		height: 1px;
+		align-self: center;
+	}
+	.dot {
+		top: -2.5px;
+		left: 0;
+		animation-name: across;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eyes,
+	.alert,
+	.drawLine,
+	.cursor,
+	.light,
+	.scan,
+	.tick,
+	.wave,
+	.dot {
+		animation: none;
+	}
+	.tick,
+	.drawLine {
+		stroke-dashoffset: 0;
+	}
+	.dot {
+		display: none;
+	}
+}
