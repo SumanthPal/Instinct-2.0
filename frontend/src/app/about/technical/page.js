@@ -192,7 +192,8 @@ export default function TechnicalAbout() {
 				<Rule />
 				<SectionLabel>Built with agents</SectionLabel>
 				<h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">An AI-first team</h3>
-				<p className="mt-1 text-sm text-muted-foreground">One engineer, six agents.</p>
+				<p className="mt-1 text-sm text-muted-foreground">One engineer, six Grok Bot agents.</p>
+				<p className="mt-2 font-mono text-[11px] text-muted-foreground">Agents run on Grok Bot by SpaceXAI</p>
 				<MapReveal className="mt-8 hidden md:block">
 					<SystemMap />
 				</MapReveal>

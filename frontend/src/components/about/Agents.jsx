@@ -158,7 +158,7 @@ export function SystemMap() {
 		<svg
 			viewBox="0 0 1100 640"
 			role="img"
-			aria-label="Sumanth at the top directs six agents. Triage, pm and marketing talk in group chats. Triage uses the instinct-admin MCP (set_club_handle, send_scraper_command, delete_club), writes approved by Sumanth, into Supabase tables clubs, scraper_commands and scrape_runs. Frontend and backend use the GitHub, Vercel and Supabase connectors. The local scraper and command runner read Instagram, use Redis and Supabase; the Heroku API serves the Next.js site on Vercel."
+			aria-label="The admin at the top directs six agents. Triage, pm and marketing talk in group chats. Triage uses the instinct-admin MCP (set_club_handle, send_scraper_command, delete_club), writes approved by admin, into Supabase tables clubs, scraper_commands and scrape_runs. Frontend and backend use the GitHub, Vercel and Supabase connectors. The local scraper and command runner read Instagram, use Redis and Supabase; the Heroku API serves the Next.js site on Vercel."
 			className="h-auto w-full select-none"
 		>
 			<text x="20" y="214" className={s.group}>
@@ -189,7 +189,7 @@ export function SystemMap() {
 				))}
 			</g>
 
-			{/* Sumanth */}
+			{/* admin */}
 			<g className={s.pop}>
 			<g transform={`translate(${N.sumanth[0]} ${N.sumanth[1]})`}>
 				<circle r="30" className={s.node} />
@@ -197,7 +197,7 @@ export function SystemMap() {
 				<path d="M-15 17 C-15 5 15 5 15 17 Z" className={s.human} />
 			</g>
 			<text x={N.sumanth[0] + 44} y={N.sumanth[1] - 2} className={s.label}>
-				Sumanth
+				admin
 			</text>
 			<text x={N.sumanth[0] + 44} y={N.sumanth[1] + 14} className={s.sub}>
 				direction · approvals · merges
@@ -271,7 +271,7 @@ function Branch() {
 	);
 }
 
-// Mobile: one vertical spine from Sumanth down through agents, connectors, services.
+// Mobile: one vertical spine from admin down through agents, connectors, services.
 export function VerticalMap() {
 	let i = 0;
 	return (
@@ -288,7 +288,7 @@ export function VerticalMap() {
 					<path d="M-15 17 C-15 5 15 5 15 17 Z" className={s.human} />
 				</svg>
 				<div className="pl-3">
-					<p className="text-sm font-semibold text-foreground">Sumanth</p>
+					<p className="text-sm font-semibold text-foreground">admin</p>
 					<p className="font-mono text-[11px] text-muted-foreground">direction · approvals · merges</p>
 				</div>
 			</div>
@@ -320,7 +320,7 @@ export function VerticalMap() {
 								<p className="text-sm font-semibold leading-tight text-foreground">{name}</p>
 								<p className="break-words font-mono text-[11px] leading-snug text-muted-foreground">{sub}</p>
 								{approve && (
-									<p className="mt-0.5 font-mono text-[11px] text-[var(--accent-brand)]">writes approved by Sumanth</p>
+									<p className="mt-0.5 font-mono text-[11px] text-[var(--accent-brand)]">writes approved by admin</p>
 								)}
 							</li>
 						))}
